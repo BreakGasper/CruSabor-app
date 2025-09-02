@@ -1,0 +1,8 @@
+:root {
+  --color-bg-blue-dark: #011f41;
+  --color-bg-blue-ligth: #0165d8;
+  --color-hover-btn-gray: #999;
+  --color-shadow: rgba(0, 0, 0, 0.2); 
+  --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
+  --color-bg-all: #f5f6fa
+}

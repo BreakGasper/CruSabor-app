@@ -1,0 +1,254 @@
+.carousel-container {
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 1rem 0;
+}
+
+.carousel-title {
+  font-size: 1.5rem;
+  font-weight: bolder;
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.carousel-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  padding: 0 2.5rem;
+  scroll-behavior: smooth;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.carousel-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-item {
+  flex: 0 0 auto;
+  width: clamp(120px, 35vw, 170px);
+  background: white;
+  border-radius: 0.8rem;
+  padding: 0.5rem;
+  margin-bottom:8px ;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.carousel-item:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+}
+
+.img-container {
+  position: relative;
+}
+
+.carousel-item img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.nombre {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;      /* evita que se vaya a otra línea */
+  overflow: hidden;         /* oculta el texto que sobra */
+  text-overflow: ellipsis;  /* agrega "..." al final si es muy largo */
+
+}
+
+.subtitulo {
+  font-size: 0.8rem;
+  color: #888;
+  margin: 0.2rem 0 0.5rem;
+}
+
+.precio-agregar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0.2rem; 
+}
+
+.precio {
+  color: #777;
+  font-weight: 600;
+  font-size: 0.9rem;
+} 
+.heart-icon {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 1.1rem;
+  color: #bbb;
+  background: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: color 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.heart-icon.active {
+  color: red;
+}
+
+.heart-icon:hover {
+  color: #e63946;
+}
+
+.ver-mas {
+  background-color: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 36px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrow:hover {
+  transform: translateY(-50%) scale(1.1);
+}
+
+.arrow.left {
+  left: 8px;
+}
+
+.arrow.right {
+  right: 8px;
+}
+
+.btn-agregar {
+  background: black;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-agregar:hover {
+  background: #222;
+  transform: scale(1.1);
+}
+
+.btn-agregar svg {
+  color: white;
+  width: 16px;
+  height: 16px;
+}
+/* Contador de carrito + / - / basura */
+.contador-carrito {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+.btn-carrito {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+
+.btn-mas {
+  background-color: green; /* verde */
+}
+
+.btn-menos {
+  background-color: #007bff; /* azul */
+}
+
+.btn-basura {
+  background-color: #dc3545; /* rojo */
+}
+
+.btn-carrito svg {
+  font-size: 16px; /* tamaño del icono dentro del botón */
+  color: white;
+}
+
+.btn-menos {
+  background-color: var(--color-bg-blue-ligth); /* azul */
+}
+
+.btn-basura {
+  background-color: red; /* rojo */
+}
+
+.btn-mas svg,
+.btn-menos svg,
+.btn-basura svg {
+  color: white;
+  width: 14px;
+  height: 14px;
+}
+
+.btn-mas:hover,
+.btn-menos:hover,
+.btn-basura:hover {
+  transform: scale(1.1);
+}
+
+.cantidad {
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .arrow {
+    display: none;
+  }
+}

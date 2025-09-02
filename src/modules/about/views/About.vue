@@ -4,20 +4,20 @@
     <div v-if="loading" class="loading">Cargando artículos...</div>
     <ul v-else class="lista-articulos">
       <li
-        v-for="articulo in categorias"
+        v-for="articulo in articulos"
         :key="articulo.articuloId"
         class="articulo-card"
       >
         <img
           class="articulo-imagen"
-          :src="articulo.imagenUrl"
-          :alt="articulo.nombre"
+          :src="articulo.imagen || articulo.url_image || ''"
+          :alt="articulo.nombre || 'Imagen artículo'"
           loading="lazy"
         />
         <div class="articulo-info">
           <strong class="articulo-nombre">{{ articulo.nombre }}</strong>
           <span class="articulo-precio">{{ articulo.precio }} MXN</span>
-          <p class="articulo-descripcion">{{ articulo.descripcion }}</p>
+          <p class="articulo-descripcion">{{ articulo.descripcion || "" }}</p>
         </div>
       </li>
     </ul>
@@ -25,8 +25,9 @@
 </template>
 
 <script setup>
-import { useCategorias } from "@/composables/useCategorias";
-const { categorias, loading } = useCategorias();
+import { useArticulos } from "@/composables/useArticulos";
+
+const { articulos, loading } = useArticulos();
 </script>
 
 <style scoped>

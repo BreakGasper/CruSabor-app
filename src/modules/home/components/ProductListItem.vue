@@ -111,3 +111,4 @@ function irADetalle() {
   margin-right: 0.75rem;
 }
 </style>
+>

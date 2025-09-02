@@ -1,9 +1,5 @@
 <template>
   <div>
-    <nav>
-      <router-link to="/">Inicio</router-link> |
-      <router-link to="/about">Acerca</router-link>
-    </nav>
     <router-view />
   </div>
 </template>

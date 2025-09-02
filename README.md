@@ -22,6 +22,11 @@ Clona el repositorio e instala las dependencias:
 
 ```bash
 git clone https://github.com/tu-usuario/CruSabor-app.git
+
 cd CruSabor-app
+
 npm install
+
+npm run dev
+
 ```

@@ -466,8 +466,48 @@
     protobufjs "^7.2.5"
     yargs "^17.7.2"
 
+"@heroicons/vue@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.npmjs.org/@heroicons/vue/-/vue-2.2.0.tgz"
+  integrity sha512-G3dbSxoeEKqbi/DFalhRxJU4mTXJn7GwZ7ae8NuEQzd1bqdd0jAbdaBZlHPcvPD2xI1iGzNVB4k20Un2AguYPw==
+
 "@jridgewell/sourcemap-codec@^1.5.0":
   version "1.5.0"
+
+"@primeuix/styled@^0.7.2":
+  version "0.7.2"
+  resolved "https://registry.npmjs.org/@primeuix/styled/-/styled-0.7.2.tgz"
+  integrity sha512-tIJ6byZezTYZ9YUICNSidQHOIQOQL3zeUgjwiX0JnBTK3+WCvy4DyCBcrJ94RtiX0WGFZSYNvaGaFkTo4jU8FQ==
+  dependencies:
+    "@primeuix/utils" "^0.6.1"
+
+"@primeuix/styles@^1.2.3":
+  version "1.2.3"
+  resolved "https://registry.npmjs.org/@primeuix/styles/-/styles-1.2.3.tgz"
+  integrity sha512-+KwmQsLTYgVAqFADmO252btz40lstPML6r4QMNjxz4gLNCKVW3kPR0/aCouQx6/21+boXG1P68tu8Zk3FAKr2w==
+  dependencies:
+    "@primeuix/styled" "^0.7.2"
+
+"@primeuix/utils@^0.6.1":
+  version "0.6.1"
+  resolved "https://registry.npmjs.org/@primeuix/utils/-/utils-0.6.1.tgz"
+  integrity sha512-tQL/ZOPgCdD+NTimlUmhyD0ey8J1XmpZE4hDHM+/fnuBicVVmlKOd5HpS748LcOVRUKbWjmEPdHX4hi5XZoC1Q==
+
+"@primevue/core@4.3.7":
+  version "4.3.7"
+  resolved "https://registry.npmjs.org/@primevue/core/-/core-4.3.7.tgz"
+  integrity sha512-rYmEZTKs/C2Re+xFluY9R02+n4TcyJshooPPOG6zc23v/bmhrfcqCiS5gNiuXF/lYoOh4y8VTcHF6eZCZW724Q==
+  dependencies:
+    "@primeuix/styled" "^0.7.2"
+    "@primeuix/utils" "^0.6.1"
+
+"@primevue/icons@4.3.7":
+  version "4.3.7"
+  resolved "https://registry.npmjs.org/@primevue/icons/-/icons-4.3.7.tgz"
+  integrity sha512-CKiOeiJzNSbELwbQdrgWHgmfcAmjNQXqRZtBGb8sUPrB8hjWf9lYMBAbcAuqJbyLFFcC0lFiB80CfBR07FNSHw==
+  dependencies:
+    "@primeuix/utils" "^0.6.1"
+    "@primevue/core" "4.3.7"
 
 "@protobufjs/aspromise@^1.1.1", "@protobufjs/aspromise@^1.1.2":
   version "1.1.2"
@@ -524,6 +564,11 @@
 
 "@rollup/rollup-win32-x64-msvc@4.44.1":
   version "4.44.1"
+
+"@types/dexie@^1.3.32":
+  version "1.3.32"
+  resolved "https://registry.npmjs.org/@types/dexie/-/dexie-1.3.32.tgz"
+  integrity sha512-8olJD9JLM45eVRB/Dt3tLMixWgvUr3ssyZscqhrjYf+TroGeKXtnjD9Y28PKGc4tv+PePF2xxEAj7vHFi0vlKw==
 
 "@types/estree@^1.0.0", "@types/estree@1.0.8":
   version "1.0.8"
@@ -797,6 +842,11 @@ delayed-stream@~1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/delayed-stream/-/delayed-stream-1.0.0.tgz"
   integrity sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==
+
+dexie@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/dexie/-/dexie-4.2.0.tgz"
+  integrity sha512-OSeyyWOUetDy9oFWeddJgi83OnRA3hSFh3RrbltmPgqHszE9f24eUCVLI4mPg0ifsWk0lQTdnS+jyGNrPMvhDA==
 
 dunder-proto@^1.0.1:
   version "1.0.1"
@@ -1079,6 +1129,11 @@ long@^5.0.0:
   resolved "https://registry.npmjs.org/long/-/long-5.3.2.tgz"
   integrity sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==
 
+lucide-vue-next@^0.542.0:
+  version "0.542.0"
+  resolved "https://registry.npmjs.org/lucide-vue-next/-/lucide-vue-next-0.542.0.tgz"
+  integrity sha512-cJfyhFoneDgYTouHwUJEutXaCW5EQuRrBsvfELudWnMiwfqvcEtpZTFZLdZ5Nrqow+znzn+Iyhu3KeYIfa3mEg==
+
 magic-string@^0.30.17:
   version "0.30.17"
   dependencies:
@@ -1189,6 +1244,17 @@ postcss@^8.1.0, postcss@^8.4.38, postcss@^8.5.6:
     nanoid "^3.3.11"
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
+
+primevue@^4.3.7:
+  version "4.3.7"
+  resolved "https://registry.npmjs.org/primevue/-/primevue-4.3.7.tgz"
+  integrity sha512-yyknh2kFjSGwRyxqmUUWy/pY4FK1vxoonGH3eQdtd8k/sGl5JpSQ2f0tXpR79lV6dcGf3FZPL1B5JNR11zJfmg==
+  dependencies:
+    "@primeuix/styled" "^0.7.2"
+    "@primeuix/styles" "^1.2.3"
+    "@primeuix/utils" "^0.6.1"
+    "@primevue/core" "4.3.7"
+    "@primevue/icons" "4.3.7"
 
 property-expr@^2.0.5:
   version "2.0.6"
@@ -1446,7 +1512,7 @@ vue-router@^4.5.1:
   dependencies:
     "@vue/devtools-api" "^6.6.4"
 
-"vue@^2.7.0 || ^3.5.11", vue@^3.2.0, vue@^3.2.25, vue@^3.4.0, vue@^3.4.26, vue@^3.5.0, vue@^3.5.17, "vue@>= 3.0.0 < 4", vue@3.5.17:
+"vue@^2.7.0 || ^3.5.11", vue@^3.2.0, vue@^3.2.25, vue@^3.4.0, vue@^3.4.26, vue@^3.5.0, vue@^3.5.17, "vue@>= 3", "vue@>= 3.0.0 < 4", vue@>=3.0.1, vue@3.5.17:
   version "3.5.17"
   dependencies:
     "@vue/compiler-dom" "3.5.17"
