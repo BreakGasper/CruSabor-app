@@ -1,18 +1,26 @@
 <template>
   <div class="favoritos-container">
-    <!-- Header con flecha y título -->
-    <div class="header">
-      <ArrowBack @click="$router.back()" />
+    <!-- Header (solo si showHeader es true) -->
+    <div v-if="showHeader" class="header">
+      <ArrowBack class="back-button" @click="$router.back()" />
       <h2 class="carousel-title">Mis Favoritos</h2>
     </div>
 
-    <div class="grid">
+    <div :class="['grid', { horizontal }]">
+      <!-- No hay favoritos -->
+      <div v-if="favoritos.length === 0" class="empty">
+        Aún no cuentas con Favoritos
+      </div>
+
+      <!-- Lista de favoritos -->
       <div
+        v-else
         class="carousel-item"
         v-for="prod in favoritos"
         :key="prod.articuloId"
+        @click="verDetalle(prod)"
       >
-        <div class="img-container" @click="verDetalle(prod)">
+        <div class="img-container">
           <img :src="FIREBASE_STORAGE_BASE_URL + prod.url" :alt="prod.nombre" />
           <span class="btn-quitar" @click.stop="quitarFavorito(prod)">
             <svg
@@ -35,6 +43,15 @@
           <span class="precio">${{ prod.precio.toFixed(2) }}</span>
         </div>
       </div>
+
+      <!-- Botón Ver todos al final -->
+      <div
+        v-if="limit && favoritos.length >= limit && showVerTodos"
+        class="carousel-item ver-todos"
+        @click.stop="$router.push('/favoritos')"
+      >
+        <span>Ver Mas ...</span>
+      </div>
     </div>
   </div>
 </template>
@@ -45,12 +62,29 @@ import { db } from "@/db";
 import type { Producto } from "@/types/Producto";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import ArrowBack from "@/components/ArrowBack.vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
+// Props: limit, horizontal, showHeader
+const {
+  limit,
+  horizontal,
+  showHeader = true,
+  showVerTodos = true,
+} = defineProps<{
+  limit?: number;
+  horizontal?: boolean;
+  showHeader?: boolean;
+  showVerTodos?: boolean;
+}>();
 
 const favoritos = ref<Producto[]>([]);
 
+// Cargar favoritos desde Dexie
 const cargarFavoritos = async () => {
   const items = await db.Favoritos.toArray();
-  favoritos.value = items.map((f) => ({
+  favoritos.value = (limit ? items.slice(0, limit) : items).map((f) => ({
     articuloId: f.articuloId,
     nombre: f.nombre,
     url: f.url || "",
@@ -59,16 +93,20 @@ const cargarFavoritos = async () => {
   }));
 };
 
+onMounted(() => cargarFavoritos());
+
+// Ver detalle: redirige a DetalleProducto
 const verDetalle = (producto: Producto) => {
-  console.log("Ver detalle:", producto.nombre);
+  router.push({ name: "ProductoDetalle", params: { id: producto.articuloId } });
 };
 
+// Quitar favorito
 const quitarFavorito = async (producto: Producto) => {
   await db.Favoritos.where("articuloId").equals(producto.articuloId).delete();
-  cargarFavoritos();
+  favoritos.value = favoritos.value.filter(
+    (f) => f.articuloId !== producto.articuloId
+  );
 };
-
-onMounted(() => cargarFavoritos());
 </script>
 
 <style scoped>
@@ -76,34 +114,19 @@ onMounted(() => cargarFavoritos());
   padding: 1rem;
 }
 
-/* Header alineado con flecha y título */
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
   position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
 }
 
-.arrow-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.back-button {
   position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: black;
-  color: white;
-  border: none;
-  border-radius: 12px; /* esquinas redondeadas (no círculo perfecto) */
-  width: 40px; /* ancho fijo */
-  height: 40px; /* alto fijo */
-  font-size: 20px; /* tamaño de la flecha */
-  line-height: 1; /* sin espacio vertical extra */
+  top: 0;
+  left: 0;
+  padding: 0.5rem;
   cursor: pointer;
-  z-index: 5;
-  padding: 0;
+  z-index: 1;
 }
 
 .carousel-title {
@@ -117,6 +140,22 @@ onMounted(() => cargarFavoritos());
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
+/* Horizontal scroll */
+.grid.horizontal {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.grid.horizontal .carousel-item {
+  flex: 0 0 45%;
+  min-width: 120px;
+}
+.grid.horizontal::-webkit-scrollbar {
+  display: none;
+}
+
 .carousel-item {
   background: white;
   border-radius: 8px;
@@ -125,19 +164,16 @@ onMounted(() => cargarFavoritos());
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
-
 .img-container {
   position: relative;
   aspect-ratio: 1/1;
 }
-
 .img-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
 }
-
 .btn-quitar {
   position: absolute;
   top: 6px;
@@ -148,10 +184,9 @@ onMounted(() => cargarFavoritos());
   height: 28px;
   display: flex;
   align-items: center;
-  justify-content: center; /* centrado total */
+  justify-content: center;
   cursor: pointer;
 }
-
 .nombre {
   font-size: 0.85rem;
   font-weight: 600;
@@ -160,7 +195,6 @@ onMounted(() => cargarFavoritos());
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .descripcion {
   font-size: 0.75rem;
   color: #666;
@@ -171,10 +205,22 @@ onMounted(() => cargarFavoritos());
   text-overflow: ellipsis;
   margin-bottom: 0.3rem;
 }
-
 .precio {
   font-size: 0.8rem;
   color: #e74c3c;
   font-weight: bold;
+}
+
+.ver-todos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #eee;
+  font-weight: bold;
+}
+.empty {
+  text-align: center;
+  color: grey;
+  margin-top: 2rem;
 }
 </style>

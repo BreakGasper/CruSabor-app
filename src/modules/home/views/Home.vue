@@ -9,7 +9,11 @@
         </template>
       </button>
 
-      <button v-if="mostrarUsuario" class="user-button" @click="irPerfil">
+      <button
+        v-if="mostrarUsuario"
+        class="user-button"
+        @click.prevent="$router.push('/perfil')"
+      >
         <img src="@/assets/images/user.png" alt="Usuario" class="user-icon" />
       </button>
     </div>
@@ -76,7 +80,7 @@
           </a>
         </li>
         <li>
-          <a href="#">
+          <a href="#" @click.prevent="$router.push('/perfil')">
             <User class="icon" />
             Account
           </a>

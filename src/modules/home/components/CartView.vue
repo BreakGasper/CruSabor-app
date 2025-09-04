@@ -11,38 +11,46 @@
     <!-- Lista de productos scrollable -->
     <div class="cart-items">
       <div
-        v-for="item in carritoItems"
-        :key="item.id_articulo"
-        class="cart-item"
+        v-if="carritoItems.length === 0"
+        style="text-align: center; color: grey; margin-top: 2rem"
       >
-        <img :src="FIREBASE_STORAGE_BASE_URL + item.url" :alt="item.nombre" />
-        <div class="info">
-          <p class="nombre">{{ item.nombre }}</p>
-          <p class="precio">${{ item.precio.toFixed(2) }}</p>
-        </div>
+        Aún no has agregado productos al carrito
+      </div>
+      <div v-else>
+        <div
+          v-for="item in carritoItems"
+          :key="item.id_articulo"
+          class="cart-item"
+        >
+          <img :src="FIREBASE_STORAGE_BASE_URL + item.url" :alt="item.nombre" />
+          <div class="info">
+            <p class="nombre">{{ item.nombre }}</p>
+            <p class="precio">${{ item.precio.toFixed(2) }}</p>
+          </div>
 
-        <!-- Botones de cantidad estilo detalle -->
-        <div class="contador-carrito">
-          <button class="btn-carrito btn-mas" @click="aumentarCantidad(item)">
-            <FontAwesomeIcon :icon="['fas', 'plus']" />
-          </button>
+          <!-- Botones de cantidad estilo detalle -->
+          <div class="contador-carrito">
+            <button class="btn-carrito btn-mas" @click="aumentarCantidad(item)">
+              <FontAwesomeIcon :icon="['fas', 'plus']" />
+            </button>
 
-          <span class="cantidad">{{ item.cantidad }}</span>
+            <span class="cantidad">{{ item.cantidad }}</span>
 
-          <button
-            :class="{
-              'btn-carrito': true,
-              'btn-basura': item.cantidad === 1,
-              'btn-menos': item.cantidad > 1,
-            }"
-            @click="disminuirCantidad(item)"
-          >
-            <FontAwesomeIcon
-              :icon="
-                item.cantidad === 1 ? ['fas', 'trash-can'] : ['fas', 'minus']
-              "
-            />
-          </button>
+            <button
+              :class="{
+                'btn-carrito': true,
+                'btn-basura': item.cantidad === 1,
+                'btn-menos': item.cantidad > 1,
+              }"
+              @click="disminuirCantidad(item)"
+            >
+              <FontAwesomeIcon
+                :icon="
+                  item.cantidad === 1 ? ['fas', 'trash-can'] : ['fas', 'minus']
+                "
+              />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -50,22 +58,28 @@
     <!-- Footer fijo con totales y checkout -->
     <div class="cart-summary">
       <div class="line">
-        <span>Selected Items</span>
+        <span>Subtotal</span>
         <span>${{ subtotal.toFixed(2) }}</span>
       </div>
 
       <div class="line">
-        <span>Shipping Fee</span>
+        <span>Envio</span>
         <span>${{ shippingFee.toFixed(2) }}</span>
       </div>
 
       <div class="divider"></div>
 
       <div class="line total">
-        <span>Subtotal</span>
+        <span>Total</span>
         <span>${{ (subtotal + shippingFee).toFixed(2) }}</span>
       </div>
-      <button class="checkout-btn">Checkout</button>
+      <button
+        class="checkout-btn"
+        :disabled="carritoItems.length === 0"
+        @click="console.log('Checkout')"
+      >
+        Continuar Compra
+      </button>
     </div>
   </div>
 </template>
@@ -78,7 +92,7 @@ import { FontAwesomeIcon } from "@/plugins/fontawesome";
 import ArrowBack from "@/components/ArrowBack.vue";
 
 const carritoItems = reactive<any[]>([]);
-const shippingFee = ref(30);
+const shippingFee = computed(() => (carritoItems.length > 0 ? 30.0 : 0.0));
 
 const sincronizarCarrito = async () => {
   const items = await db.Carrito.toArray();
@@ -254,6 +268,10 @@ const subtotal = computed(() =>
   font-size: 1.1rem;
   font-weight: bold;
   cursor: pointer;
+}
+.checkout-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .arrow-back {

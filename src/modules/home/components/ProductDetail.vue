@@ -15,16 +15,15 @@
       <button class="btn-icon cart" @click="$router.push('/cart')">
         <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
       </button>
-
-      <!-- Botón favorito circular -->
       <button
         class="btn-fav"
         :class="{ active: esFavorito }"
         @click="toggleFavorito(producto)"
       >
-        <!-- Mostrar corazón lleno si es favorito, vacío si no -->
-        <span v-if="esFavorito">❤</span>
-        <span v-else>♡</span>
+        <FontAwesomeIcon
+          :icon="esFavorito ? ['fas', 'heart'] : ['far', 'heart']"
+          class="icono-corazon"
+        />
       </button>
     </div>
 
@@ -105,6 +104,8 @@ import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarou
 import type { Producto } from "@/types/Producto";
 import { db } from "@/db";
 import ArrowBack from "@/components/ArrowBack.vue";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { library } from "@fortawesome/fontawesome-svg-core";
 
 const props = defineProps<{ producto: Producto }>();
 defineEmits(["agregarCarrito"]);
@@ -239,38 +240,31 @@ const disminuirCantidad = async (producto: Producto) => {
 
 .btn-fav {
   position: absolute;
-  top: calc(50vh - 25px); /* posición fija del círculo */
+  top: calc(50vh - 30px); /* ajusta si lo quieres más arriba/abajo */
   right: 1rem;
-  width: 40px;
-  height: 40px;
+  width: 50px; /* tamaño fijo */
+  height: 50px;
   border-radius: 50%;
   background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   border: none;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
 
-.btn-fav span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  line-height: 1;
-}
-
 .btn-fav.active {
   color: red;
 }
+
 .btn-fav:hover {
   transform: scale(1.1);
 }
-
+.icono-corazon {
+  font-size: 60px;
+}
 .detalle-info {
   flex: 1;
   padding: 1.5rem;

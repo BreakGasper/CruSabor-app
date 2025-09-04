@@ -18,7 +18,13 @@
               :class="{ active: estaFavorito(p.articuloId) }"
               @click.stop="toggleFavoritoLocal(p)"
             >
-              ❤
+              <FontAwesomeIcon
+                :icon="
+                  estaFavorito(p.articuloId)
+                    ? ['fas', 'heart']
+                    : ['far', 'heart']
+                "
+              />
             </span>
           </div>
 
