@@ -2,7 +2,10 @@ import CategoriasList from "./components/CategoriasList.vue";
 import FavoritosList from "./components/FavoritosList.vue";
 import HomeView from "./views/Home.vue";
 import CartView from '@/modules/home/components/CartView.vue'; 
-import PerfilUsuario from "./components/PerfilUsuario.vue";
+import PerfilUsuario from "./views/PerfilUsuario.vue";
+import Login from "@/modules/home/components/Login.vue"
+import Register from "@/modules/home/components/Register.vue"; 
+
 export default [
   {
     path: "/",
@@ -33,5 +36,14 @@ export default [
     path: '/perfil',
     name: 'Perfil',
     component: PerfilUsuario, // aquí registras tu PerfilUsuario
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login, // aquí registras tu Login
+  },{
+    path: '/register',
+    name: 'register',
+    component:Register, // aquí registras tu Login
   },
 ];

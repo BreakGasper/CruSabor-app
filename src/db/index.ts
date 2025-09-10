@@ -24,16 +24,17 @@ export interface CarritoItem {
 // Interfaz del favorito
 export interface FavoritoItem {
   articuloId: string;
+  idUsuario?: string;      // <-- agregado para filtrar por usuario
   categoriaId: string;
   nombre: string;
   precio: number;
   descripcion: string;
   unidadMedida: string;
   puntuacion: number;
-   url?: string;         // URL de la imagen del producto
-  almacen?: string;     // opcional, si no tienes info poner vacío
-  anticipo?: number;    // opcional, default 0
-  subcategoria?: string; // opcional, default vacío
+  url?: string;            
+  almacen?: string;        
+  anticipo?: number;       
+  subcategoria?: string;   
   categoria?: string;  
 }
 
@@ -45,9 +46,9 @@ class MRAPPDatabase extends Dexie {
   constructor() {
     super("MRAPP");
     this.version(1).stores({
-      Carrito:
-        "++id,id_pedido,id_articulo,almacen,cantidad,categoria,anticipo,descuentoCupon,estatus,fechaEntrega,fecha_hora,id_usuario,metodo_pago",
-      Favoritos: "articuloId,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion",
+      Carrito: "++id,id_pedido,id_articulo,id_usuario,almacen,cantidad,categoria,anticipo,descuentoCupon,estatus,fechaEntrega,fecha_hora,metodo_pago,[id_articulo+id_usuario]",
+      Favoritos: "articuloId,idUsuario,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion",
+      // Solo se indexa idUsuario y articuloId, el resto se guarda sin índice
     });
   }
 }

@@ -13,19 +13,21 @@
         >
           <div class="img-container" @click="verDetalle(p)">
             <img :src="FIREBASE_STORAGE_BASE_URL + p.url" :alt="p.nombre" />
-            <span
-              class="heart-icon"
-              :class="{ active: estaFavorito(p.articuloId) }"
-              @click.stop="toggleFavoritoLocal(p)"
-            >
-              <FontAwesomeIcon
-                :icon="
-                  estaFavorito(p.articuloId)
-                    ? ['fas', 'heart']
-                    : ['far', 'heart']
-                "
-              />
-            </span>
+            <div v-if="sessionUsuarioValidation()">
+              <span
+                class="heart-icon"
+                :class="{ active: estaFavorito(p.articuloId) }"
+                @click.stop="toggleFavoritoLocal(p, sessionUser.id)"
+              >
+                <FontAwesomeIcon
+                  :icon="
+                    estaFavorito(p.articuloId)
+                      ? ['fas', 'heart']
+                      : ['far', 'heart']
+                  "
+                />
+              </span>
+            </div>
           </div>
 
           <p class="nombre">{{ p.nombre }}</p>
@@ -36,7 +38,7 @@
           <div class="precio-agregar">
             <span class="precio">${{ p.precio }}</span>
 
-            <div class="acciones">
+            <div class="acciones" v-if="sessionUsuarioValidation()">
               <!-- Si no está en el carrito, mostrar botón negro -->
               <button
                 v-if="!(cantidadEnCarrito[p.articuloId] > 0)"
@@ -97,11 +99,14 @@
 <script setup lang="ts">
 import "@/modules/home/styles/HorizontalCarousel.css";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
-import { ref, reactive, onMounted } from "vue";
+import { watch, reactive, onMounted } from "vue";
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
 import type { Producto } from "@/types/Producto";
 import { db } from "@/db";
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
+import { sessionUsuarioValidation } from "@/utils/sessionUser";
+import { sessionUser } from "@/utils/sessionUser";
+import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
 
 const props = defineProps<{ productos: Producto[] }>();
 
@@ -119,17 +124,31 @@ const {
 const cantidadEnCarrito = reactive<Record<string, number>>({});
 
 const sincronizarCarrito = async () => {
-  const items = await db.Carrito.toArray();
+  if (!sessionUser.value?.id) {
+    for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
+    return;
+  }
+
+  const items = await db.Carrito.where("id_usuario")
+    .equals(sessionUser.value.id)
+    .toArray();
+
   for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
-  for (const item of items) cantidadEnCarrito[item.id_articulo] = item.cantidad;
+  for (const item of items) {
+    cantidadEnCarrito[item.id_articulo] = item.cantidad;
+  }
 };
 
 onMounted(() => sincronizarCarrito());
 
 const aumentarCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("id_articulo")
-    .equals(producto.articuloId)
+  if (!sessionPedidoId.value) {
+    generarNuevoPedidoId(sessionUser.value.id);
+  }
+  const item = await db.Carrito.where("[id_articulo+id_usuario]")
+    .equals([producto.articuloId, sessionUser.value?.id || ""])
     .first();
+
   if (item) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
     cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
@@ -144,8 +163,8 @@ const aumentarCantidad = async (producto: Producto) => {
       fechaEntrega: "",
       fecha_hora: new Date().toLocaleString(),
       id_articulo: producto.articuloId,
-      id_pedido: "0_" + Math.random().toString(36).substr(2, 9),
-      id_usuario: "0-OIOifXcje3Sy0G4Ki4y",
+      id_pedido: sessionPedidoId.value!,
+      id_usuario: sessionUser.value?.id || "anon",
       metodo_pago: "Efectivo",
       nombre: producto.nombre,
       precio: producto.precio,
@@ -157,8 +176,8 @@ const aumentarCantidad = async (producto: Producto) => {
 };
 
 const disminuirCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("id_articulo")
-    .equals(producto.articuloId)
+  const item = await db.Carrito.where("[id_articulo+id_usuario]")
+    .equals([producto.articuloId, sessionUser.value?.id || ""])
     .first();
   if (!item) return;
 
@@ -170,4 +189,9 @@ const disminuirCantidad = async (producto: Producto) => {
     cantidadEnCarrito[producto.articuloId] = 0;
   }
 };
+
+watch(
+  () => sessionUser.value?.id,
+  () => sincronizarCarrito()
+);
 </script>

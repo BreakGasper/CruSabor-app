@@ -15,6 +15,7 @@
       <button class="btn-icon cart" @click="$router.push('/cart')">
         <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
       </button>
+
       <button
         class="btn-fav"
         :class="{ active: esFavorito }"
@@ -60,38 +61,50 @@
 
     <!-- Footer con botón agregar -->
     <div class="detalle-footer">
-      <div
-        v-if="cantidadEnCarrito[producto.articuloId] > 0"
-        class="contador-carrito"
-      >
-        <button class="btn-carrito btn-mas" @click="aumentarCantidad(producto)">
-          <FontAwesomeIcon :icon="['fas', 'plus']" />
-        </button>
-
-        <span class="cantidad">{{
-          cantidadEnCarrito[producto.articuloId]
-        }}</span>
-
-        <button
-          :class="{
-            'btn-carrito': true,
-            'btn-basura': cantidadEnCarrito[producto.articuloId] === 1,
-            'btn-menos': cantidadEnCarrito[producto.articuloId] > 1,
-          }"
-          @click="disminuirCantidad(producto)"
+      <div v-if="sessionUsuarioValidation()">
+        <div
+          v-if="cantidadEnCarrito[producto.articuloId] > 0"
+          class="contador-carrito"
         >
-          <FontAwesomeIcon
-            :icon="
-              cantidadEnCarrito[producto.articuloId] === 1
-                ? ['fas', 'trash-can']
-                : ['fas', 'minus']
-            "
-          />
+          <button
+            class="btn-carrito btn-mas"
+            @click="aumentarCantidad(producto)"
+          >
+            <FontAwesomeIcon :icon="['fas', 'plus']" />
+          </button>
+
+          <span class="cantidad">{{
+            cantidadEnCarrito[producto.articuloId]
+          }}</span>
+
+          <button
+            :class="{
+              'btn-carrito': true,
+              'btn-basura': cantidadEnCarrito[producto.articuloId] === 1,
+              'btn-menos': cantidadEnCarrito[producto.articuloId] > 1,
+            }"
+            @click="disminuirCantidad(producto)"
+          >
+            <FontAwesomeIcon
+              :icon="
+                cantidadEnCarrito[producto.articuloId] === 1
+                  ? ['fas', 'trash-can']
+                  : ['fas', 'minus']
+              "
+            />
+          </button>
+        </div>
+
+        <button v-else class="btn-agregar" @click="aumentarCantidad(producto)">
+          + Agregar al carrito
         </button>
       </div>
-
-      <button v-else class="btn-agregar" @click="aumentarCantidad(producto)">
-        + Agregar al carrito
+      <button
+        v-else
+        class="btn-agregar"
+        @click.prevent="$router.push('/login')"
+      >
+        Iniciar Sesión
       </button>
     </div>
   </div>
@@ -105,12 +118,16 @@ import type { Producto } from "@/types/Producto";
 import { db } from "@/db";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { library } from "@fortawesome/fontawesome-svg-core";
+import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
+import { sessionUsuarioValidation, sessionUser } from "@/utils/sessionUser";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{ producto: Producto }>();
 defineEmits(["agregarCarrito"]);
 
 const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
+
+const router = useRouter();
 
 // Favorito reactivo
 const esFavorito = computed(() =>
@@ -121,7 +138,11 @@ const esFavorito = computed(() =>
 
 // Función toggle favorito
 const toggleFavorito = (producto: Producto) => {
-  toggleFavoritoLocal(producto);
+  if (sessionUsuarioValidation()) {
+    toggleFavoritoLocal(producto, sessionUser.value.id);
+  } else {
+    router.push("/login");
+  }
 };
 
 // Reactivo para la cantidad en carrito
@@ -140,9 +161,14 @@ if (props.producto) sincronizarCarrito();
 
 // Función para agregar / aumentar
 const aumentarCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("id_articulo")
-    .equals(producto.articuloId)
+  if (!sessionPedidoId.value) {
+    generarNuevoPedidoId(sessionUser.value.id);
+  }
+
+  const item = await db.Carrito.where("[id_articulo+id_usuario]")
+    .equals([producto.articuloId, sessionUser.value.id])
     .first();
+
   if (item) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
     cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
@@ -157,8 +183,8 @@ const aumentarCantidad = async (producto: Producto) => {
       fechaEntrega: "",
       fecha_hora: new Date().toLocaleString(),
       id_articulo: producto.articuloId,
-      id_pedido: "0_" + Math.random().toString(36).substr(2, 9),
-      id_usuario: "0-OIOifXcje3Sy0G4Ki4Ki4y",
+      id_pedido: sessionPedidoId.value!,
+      id_usuario: sessionUser.value.id,
       metodo_pago: "Efectivo",
       nombre: producto.nombre,
       precio: producto.precio,
@@ -171,7 +197,7 @@ const aumentarCantidad = async (producto: Producto) => {
 
 // Función para disminuir / eliminar
 const disminuirCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("id_articulo")
+  const item = await db.Carrito.where("[id_articulo+id_usuario]")
     .equals(producto.articuloId)
     .first();
   if (!item) return;
@@ -278,7 +304,7 @@ const disminuirCantidad = async (producto: Producto) => {
 .precio {
   font-size: 24px;
   font-weight: bold;
-  color: #e74c3c;
+  color: var(--color-bg-blue-ligth);
   margin: 0;
   font-family: "Poppins", sans-serif;
 }
@@ -426,5 +452,12 @@ const disminuirCantidad = async (producto: Producto) => {
 .btn-carrito.btn-menos {
   background-color: var(--color-bg-blue-ligth);
   color: white;
+}
+
+.detalle-modal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* importante para ocupar todo el modal */
+  overflow-y: auto; /* scroll interno si el contenido es grande */
 }
 </style>

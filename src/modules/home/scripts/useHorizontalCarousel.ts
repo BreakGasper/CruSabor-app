@@ -4,6 +4,7 @@ import { useCarrito } from "@/db/composables/useCarrito";
 import { useFavoritos } from "@/db/composables/useFavoritos";
 import type { Producto } from "@/types/Producto";
 import { db } from "@/db";
+import { sessionUser } from "@/utils/sessionUser";
 
 export function useHorizontalCarousel() {
   const scrollArea = ref<HTMLElement | null>(null);
@@ -28,22 +29,23 @@ export function useHorizontalCarousel() {
     router.push("/productos");
   }
 
-  function toggleFavoritoLocal(producto: Producto) {
-    toggleFavorito({
-      articuloId: producto.articuloId,
-      categoriaId: producto.categoriaId || "",
-      nombre: producto.nombre,
-      precio: producto.precio,
-      descripcion: producto.descripcion || "",
-      unidadMedida: producto.unidadMedida || "",
-      puntuacion: producto.puntuacion || 0,
-      url: producto.url || "",
-      almacen: producto.almacen || "",
-      anticipo: producto.anticipo || 0,
-      subcategoria: producto.subcategoria || "",
-      categoria: producto.categoria || "",
-    });
+function toggleFavoritoLocal(producto: Producto, idUsuario: string) {
+  toggleFavorito({
+    articuloId: producto.articuloId,
+    categoriaId: producto.categoriaId || "",
+    nombre: producto.nombre,
+    precio: producto.precio,
+    descripcion: producto.descripcion || "",
+    unidadMedida: producto.unidadMedida || "",
+    puntuacion: producto.puntuacion || 0,
+    url: producto.url || "",
+    almacen: producto.almacen || "",
+    anticipo: producto.anticipo || 0,
+    subcategoria: producto.subcategoria || "",
+    categoria: producto.categoria || "",
+  }, idUsuario);
 }
+
 
 
  async function agregarAlCarritoLocal(producto: Producto) {

@@ -22,7 +22,11 @@
           :key="item.id_articulo"
           class="cart-item"
         >
-          <img :src="FIREBASE_STORAGE_BASE_URL + item.url" :alt="item.nombre" />
+          <img
+            :src="FIREBASE_STORAGE_BASE_URL + item.url"
+            :alt="item.nombre"
+            @click="verDetalle(item)"
+          />
           <div class="info">
             <p class="nombre">{{ item.nombre }}</p>
             <p class="precio">${{ item.precio.toFixed(2) }}</p>
@@ -90,28 +94,59 @@ import { db } from "@/db";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
 import ArrowBack from "@/components/ArrowBack.vue";
+import { sessionUser } from "@/utils/sessionUser"; // asegúrate de importar
+import { watch } from "vue";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const carritoItems = reactive<any[]>([]);
 const shippingFee = computed(() => (carritoItems.length > 0 ? 30.0 : 0.0));
 
-const sincronizarCarrito = async () => {
-  const items = await db.Carrito.toArray();
-  carritoItems.splice(0, carritoItems.length, ...items);
+const verDetalle = (producto: any) => {
+  router.push(`/producto/${producto.id_articulo}`);
 };
 
+const sincronizarCarrito = async () => {
+  if (!sessionUser.value?.id) {
+    carritoItems.splice(0, carritoItems.length); // vacía el carrito si no hay usuario
+    return;
+  }
+
+  const items = await db.Carrito.where("id_usuario")
+    .equals(sessionUser.value.id)
+    .toArray();
+
+  carritoItems.splice(0, carritoItems.length, ...items);
+};
+watch(
+  () => sessionUser.value?.id,
+  () => sincronizarCarrito() // se vuelve a cargar el carrito al cambiar de usuario
+);
 onMounted(() => sincronizarCarrito());
 
 const aumentarCantidad = async (item: any) => {
-  await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
-  item.cantidad += 1;
+  const dbItem = await db.Carrito.where("[id_articulo+id_usuario]")
+    .equals([item.id_articulo, sessionUser.value.id])
+    .first();
+
+  if (dbItem) {
+    await db.Carrito.update(dbItem.id!, { cantidad: dbItem.cantidad + 1 });
+    item.cantidad += 1;
+  }
 };
 
 const disminuirCantidad = async (item: any) => {
-  if (item.cantidad > 1) {
-    await db.Carrito.update(item.id!, { cantidad: item.cantidad - 1 });
+  const dbItem = await db.Carrito.where("[id_articulo+id_usuario]")
+    .equals([item.id_articulo, sessionUser.value.id])
+    .first();
+
+  if (!dbItem) return;
+
+  if (dbItem.cantidad > 1) {
+    await db.Carrito.update(dbItem.id!, { cantidad: dbItem.cantidad - 1 });
     item.cantidad -= 1;
   } else {
-    await db.Carrito.delete(item.id!);
+    await db.Carrito.delete(dbItem.id!);
     const index = carritoItems.findIndex((i) => i.id === item.id);
     if (index !== -1) carritoItems.splice(index, 1);
   }
@@ -164,10 +199,13 @@ const subtotal = computed(() =>
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin: 8px;
   background: white;
   padding: 0.8rem;
   border-radius: 25px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  overflow: hidden; /* evita que algo se salga */
+  flex-wrap: nowrap;
 }
 
 .cart-item img {
@@ -175,41 +213,59 @@ const subtotal = computed(() =>
   height: 80px;
   object-fit: cover;
   border-radius: 20px;
+  flex-shrink: 0; /* no se encoge la imagen */
 }
 
 .info {
-  flex: 1;
+  flex: 1 1 auto; /* puede crecer y encogerse */
+  min-width: 0; /* necesario para que el texto se recorte */
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .nombre {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
+  white-space: nowrap; /* evita salto de línea */
+  overflow: hidden; /* recorta exceso de texto */
+  text-overflow: ellipsis; /* agrega "..." si se corta */
 }
 
 .precio {
-  color: #e74c3c;
+  color: var(--color-bg-blue-ligth);
   font-weight: bold;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contador-carrito {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 120px;
+  width: auto; /* ocupar solo lo necesario */
+  min-width: 90px; /* ancho mínimo del contador */
+  max-width: 120px; /* ancho máximo para mantener proporción */
   height: 40px;
   border-radius: 25px;
+  flex-shrink: 0; /* evita que se reduzca demasiado */
+  background: #f0f0f0;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
 .btn-carrito {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   cursor: pointer;
+  flex-shrink: 0; /* evita que los botones se encojan */
 }
 
 .btn-carrito.btn-mas {
@@ -232,6 +288,7 @@ const subtotal = computed(() =>
   color: black;
   width: 24px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .cart-summary {

@@ -57,12 +57,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import { db } from "@/db";
 import type { Producto } from "@/types/Producto";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import ArrowBack from "@/components/ArrowBack.vue";
-import { useRouter } from "vue-router";
+import { useFavoritos } from "@/db/composables/useFavoritos";
+import { sessionUser } from "@/utils/sessionUser";
 
 const router = useRouter();
 
@@ -80,11 +82,16 @@ const {
 }>();
 
 const favoritos = ref<Producto[]>([]);
+const { obtenerFavoritosPorUsuario } = useFavoritos();
 
-// Cargar favoritos desde Dexie
 const cargarFavoritos = async () => {
-  const items = await db.Favoritos.toArray();
-  favoritos.value = (limit ? items.slice(0, limit) : items).map((f) => ({
+  if (!sessionUser.value?.id) return;
+
+  const items = await obtenerFavoritosPorUsuario(sessionUser.value.id);
+  // Limitar si se pasa prop limit
+  const lista = limit ? items.slice(0, limit) : items;
+
+  favoritos.value = lista.map((f) => ({
     articuloId: f.articuloId,
     nombre: f.nombre,
     url: f.url || "",
@@ -95,7 +102,7 @@ const cargarFavoritos = async () => {
 
 onMounted(() => cargarFavoritos());
 
-// Ver detalle: redirige a DetalleProducto
+// Ver detalle
 const verDetalle = (producto: Producto) => {
   router.push({ name: "ProductoDetalle", params: { id: producto.articuloId } });
 };
@@ -199,7 +206,6 @@ const quitarFavorito = async (producto: Producto) => {
   font-size: 0.75rem;
   color: #666;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -3,7 +3,10 @@
     <router-view />
   </div>
 </template>
-
+<script>
+import { cargarSesion } from "@/utils/sessionUser";
+cargarSesion();
+</script>
 <style scoped>
 .logo {
   height: 6em;

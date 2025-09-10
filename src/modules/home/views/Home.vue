@@ -12,7 +12,7 @@
       <button
         v-if="mostrarUsuario"
         class="user-button"
-        @click.prevent="$router.push('/perfil')"
+        @click="validarLoginSession"
       >
         <img src="@/assets/images/user.png" alt="Usuario" class="user-icon" />
       </button>
@@ -68,7 +68,14 @@
           </a>
         </li>
         <li>
-          <a href="#" @click.prevent="$router.push('/favoritos')">
+          <a
+            href="#"
+            @click.prevent="
+              sessionUsuarioValidation()
+                ? $router.push('/favoritos')
+                : $router.push('/login')
+            "
+          >
             <Heart class="icon" />
             Favorites
           </a>
@@ -79,8 +86,8 @@
             Categories
           </a>
         </li>
-        <li>
-          <a href="#" @click.prevent="$router.push('/perfil')">
+        <li v-if="sessionUsuarioValidation()">
+          <a href="#" @click="validarLoginSession">
             <User class="icon" />
             Account
           </a>
@@ -88,17 +95,25 @@
       </ul>
 
       <ul class="sidebar-footer">
-        <li>
+        <li v-if="sessionUsuarioValidation()">
           <a href="#">
             <Settings class="icon" />
             Settings
           </a>
         </li>
         <li>
-          <a href="#">
-            <LogOut class="icon" />
-            Log Out
-          </a>
+          <div v-if="sessionUsuarioValidation()">
+            <a href="#" @click="cerrarSesionLogin()">
+              <LogOut class="icon" />
+              Cerrar sesión
+            </a>
+          </div>
+          <div v-else>
+            <a href="#" @click.prevent="$router.push('/login')">
+              <User class="icon" />
+              Ingresar
+            </a>
+          </div>
         </li>
       </ul>
     </div>
@@ -141,6 +156,13 @@ import ProductDetail from "../components/ProductDetail.vue";
 import ProductListItem from "../components/ProductListItem.vue";
 import { useIsMobile } from "@/composables/useIsMobile";
 import { useArticulos } from "@/composables/useArticulos";
+import {
+  cerrarSesion,
+  cargarSesion,
+  isLoggedIn,
+  sessionUser,
+  sessionUsuarioValidation,
+} from "@/utils/sessionUser";
 
 const { articulos } = useArticulos();
 const productoSeleccionado = ref<any | null>(null);
@@ -161,6 +183,7 @@ import {
   Sparkles,
   X,
   ShoppingCart,
+  LogIn,
 } from "lucide-vue-next";
 import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
 
@@ -170,14 +193,6 @@ function verDetalle(produc: any) {
 
 function agregarAlCarrito(produc: any) {
   productoSeleccionado.value = null;
-}
-
-function irACarrito() {
-  router.push("/carrito");
-}
-
-function irPerfil() {
-  console.log("Ir a perfil de usuario");
 }
 
 const productosParaCarrusel = computed(() =>
@@ -190,6 +205,15 @@ const productosParaCarrusel = computed(() =>
   }))
 );
 
+function validarLoginSession() {
+  if (isLoggedIn()) {
+    router.push("/perfil");
+    console.log("Usuario activo:", sessionUser.value?.nombre);
+  } else {
+    router.push("/login");
+    console.log("No hay sesión");
+  }
+}
 // Filtra los productos por nombre según lo escrito
 
 const categoriasFiltradas = computed(() => {
@@ -202,6 +226,10 @@ const categoriasFiltradas = computed(() => {
 const scrollY = ref(0);
 const mostrarUsuario = ref(true);
 
+function cerrarSesionLogin() {
+  cerrarSesion();
+  menuAbierto.value = false;
+}
 function handleScroll() {
   const actualY = window.scrollY;
   if (actualY > scrollY.value) {
@@ -213,7 +241,14 @@ function handleScroll() {
   }
   scrollY.value = actualY;
 }
+onMounted(() => {
+  cargarSesion(); // carga sesión desde localStorage
 
+  /*  if (!sessionUser.value) {
+    // Si no hay sesión, redirige al login
+    router.push("/login");
+  }*/
+});
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
 });
