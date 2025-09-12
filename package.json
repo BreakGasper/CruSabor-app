@@ -23,6 +23,7 @@
     "lucide-vue-next": "^0.542.0",
     "pinia": "^3.0.3",
     "primevue": "^4.3.7",
+    "sweetalert2": "^11.23.0",
     "vee-validate": "^4.15.1",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",

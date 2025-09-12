@@ -131,6 +131,11 @@ async function handleLogin() {
         nombre: user.nombre,
         telefono: user.celular,
         email: user.email,
+        domicilio: user.calleNumero,
+        colonia: user.lugar,
+        municipio: user.municipio,
+        codigpostal: user.codigoPostal,
+        estado: user.estado,
       })
     );
     router.replace("/");

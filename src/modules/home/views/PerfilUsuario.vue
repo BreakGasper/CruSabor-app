@@ -14,7 +14,12 @@
         ]"
         :title="tab.id === 'hide' ? 'Ocultar menú' : ''"
       >
-        {{ tab.label }}
+        <template v-if="tab.id === 'hide'">
+          <component :is="tab.label" :size="20" />
+        </template>
+        <template v-else>
+          {{ tab.label }}
+        </template>
       </div>
     </div>
 
@@ -25,7 +30,7 @@
       @click="menuHidden = false"
       title="Mostrar menú"
     >
-      ➤
+      <Eye />
     </div>
 
     <!-- Encabezado del perfil -->
@@ -48,7 +53,12 @@
     <!-- Contenido de las secciones -->
     <div class="sections">
       <div ref="yoRef" class="section-card">
-        <h3>🧾 Yo</h3>
+        <div class="header-row">
+          <span>Yo</span>
+          <!-- fondo azul, pegado al círculo -->
+          <h3>🧾</h3>
+          <!-- círculo con icono -->
+        </div>
         <ul class="list">
           <li>{{ usuario?.nombre }}</li>
           <li>
@@ -70,25 +80,49 @@
       </div>
 
       <div ref="pedidosRef" class="section-card">
-        <h3>🛒 Mis Pedidos</h3>
-        <ul class="list">
-          <li>01/08/2025 - Laptop Dell - Entregado - $1200</li>
-          <li>10/08/2025 - Audífonos Sony - Enviado - $200</li>
-          <li>20/08/2025 - Mouse Logitech - Pendiente - $50</li>
-        </ul>
+        <div class="header-row">
+          <span>Compras</span>
+          <!-- fondo azul, pegado al círculo -->
+          <h3>🛒</h3>
+          <!-- círculo con icono -->
+        </div>
+        <PedidoList :limit="3" :showHeader="false" :showVerTodos="true" />
+
+        <p v-if="!pedidos.length">No tienes pedidos registrados.</p>
+
+        <!-- Después del v-for de pedidos -->
+        <button class="ver-todos-btn" @click="irAMisPedidos">
+          ➤ Ver todos mis pedidos...
+        </button>
       </div>
 
       <div ref="favoritosRef" class="section-card">
-        <h3>❤️ Favoritos</h3>
+        <div class="header-row">
+          <span>Favoritos</span>
+          <!-- fondo azul, pegado al círculo -->
+          <h3>❤️</h3>
+          <!-- círculo con icono -->
+        </div>
         <FavoritosList :limit="5" horizontal :showHeader="false" />
       </div>
 
       <div ref="direccionesRef" class="section-card">
-        <h3>📍 Direcciones</h3>
+        <div class="header-row">
+          <span>Ubicaciones</span>
+          <!-- fondo azul, pegado al círculo -->
+          <h3>📍</h3>
+          <!-- círculo con icono -->
+        </div>
+        <span>No hay direcciones registradas</span>
       </div>
 
       <div ref="configRef" class="section-card">
-        <h3>⚙️ Configuración</h3>
+        <div class="header-row">
+          <span>Configuración</span>
+          <!-- fondo azul, pegado al círculo -->
+          <h3>⚙️</h3>
+          <!-- círculo con icono -->
+        </div>
         <div class="config-buttons">
           <Button
             label="🧾 Datos personales"
@@ -110,8 +144,9 @@
 </template>
 
 <script setup lang="ts">
+import { Eye, EyeOff } from "lucide-vue-next";
+
 import { computed, onMounted, ref } from "vue";
-import Avatar from "primevue/avatar";
 import Button from "primevue/button";
 import FavoritosList from "@/modules/home/components/FavoritosList.vue";
 import ArrowBack from "@/components/ArrowBack.vue";
@@ -121,6 +156,8 @@ import { calcularEdad, obtenerGenero } from "@/utils/toolsUtils";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import { useRouter } from "vue-router";
+import { getPedidosByUser } from "@/composables/usePedidos";
+import PedidoList from "../components/PedidoList.vue";
 
 const router = useRouter();
 const yoRef = ref<HTMLElement | null>(null);
@@ -128,6 +165,7 @@ const pedidosRef = ref<HTMLElement | null>(null);
 const favoritosRef = ref<HTMLElement | null>(null);
 const direccionesRef = ref<HTMLElement | null>(null);
 const configRef = ref<HTMLElement | null>(null);
+const pedidos = ref<any[]>([]);
 // Reactive donde vamos a guardar los datos del usuario
 const usuario = ref<any | null>(null);
 
@@ -144,7 +182,7 @@ function scrollTo(section: string) {
 }
 
 const tabs = [
-  { id: "hide", label: "🡰" },
+  { id: "hide", label: EyeOff },
   { id: "yo", label: "👤" },
   { id: "pedidos", label: "🛒" },
   { id: "favoritos", label: "❤️" },
@@ -162,6 +200,9 @@ const avatarUrl = computed(() => {
   }?alt=media&token=6255f15a-d081-4add-98b1-2a46f9a89b48`;
 });
 
+function irAMisPedidos() {
+  router.push("/pedidos");
+}
 function CerrarSessionPerfil() {
   cerrarSesion();
   router.push("/");
@@ -174,16 +215,59 @@ function handleTabClick(id: string) {
   if (id === "hide") {
     menuHidden.value = true;
   } else {
-    activeTab.value = id;
+    activeTab.value = id; // marcamos inmediatamente la pestaña
+    ignoreObserver = true; // ignoramos el observer temporalmente
     scrollTo(id);
+
+    // reactivamos el observer después del scroll
+    setTimeout(() => {
+      ignoreObserver = false;
+    }, 500); // 500ms depende de la velocidad del scroll
   }
 }
-
 function CalcularEdadPerfil(fecha: string | undefined) {
   if (!fecha) return "-";
   return calcularEdad(fecha);
 }
 
+let ignoreObserver = false;
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    if (ignoreObserver) return; // bloqueamos temporalmente el observer
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const target = entry.target as HTMLElement;
+        const sectionId = target.dataset.section;
+        if (sectionId) activeTab.value = sectionId;
+      }
+    });
+  },
+  {
+    root: null,
+    rootMargin: "-20% 0px -40% 0px",
+    threshold: 0.3,
+  }
+);
+onMounted(() => {
+  Object.keys(sectionRefs).forEach((key) => {
+    const el = sectionRefs[key]?.value;
+    if (el) {
+      (el as HTMLElement).dataset.section = key;
+      observer.observe(el);
+    }
+  });
+});
+
+onMounted(async () => {
+  if (sessionUser.value?.id) {
+    const data = await getUserById(sessionUser.value.id);
+    if (data) usuario.value = data;
+
+    // 👇 cargar pedidos del usuario
+    pedidos.value = await getPedidosByUser();
+  }
+});
 onMounted(async () => {
   if (sessionUser.value?.id) {
     const data = await getUserById(sessionUser.value?.id);
@@ -196,6 +280,24 @@ console.log("Correo:", sessionUser.value?.email);
 </script>
 
 <style scoped>
+.ver-todos-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-bg-blue-ligth);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0.25rem 0;
+  transition: color 0.3s ease, transform 0.2s ease;
+  text-align: left;
+}
+
+.ver-todos-btn:hover {
+  color: var(--color-bg-blue-dark); /* color más oscuro al pasar el mouse */
+  text-decoration: underline;
+  transform: translateX(4px); /* efecto de desplazamiento leve */
+}
+
 .profile-container {
   background: #f8f9fb;
   min-height: 100vh;
@@ -321,10 +423,55 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .section-card {
-  background: white;
-  border-radius: 15px;
-  padding: 1rem;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 20px; /* cardview con bordes suaves */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); /* sombra ligera */
+  padding: 1.5rem 1rem;
+  margin-bottom: 1rem; /* espacio entre cards */
+}
+
+.section-card .header-row {
+  display: flex;
+  align-items: center; /* centra verticalmente badge y círculo */
+  justify-content: center;
+  gap: 0; /* sin espacio entre badge y círculo */
+  margin-bottom: 1rem;
+  margin-top: -30px;
+  border-bottom: 1px solid #ccc;
+}
+
+.section-card .header-row span {
+  background-color: var(--color-bg-blue-dark);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 12px; /* redondeado completo */
+  white-space: nowrap;
+  margin-right: -15px;
+  padding-right: 20px;
+}
+
+.section-card .header-row h3 {
+  width: 50px;
+  height: 50px;
+  margin-left: -5px; /* solapamiento para unir badge y círculo */
+  border-radius: 50%; /* círculo perfecto */
+  background: var(--color-bg-blue-dark);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Contenido interno del card */
+.section-card .card-content {
+  text-align: left;
+  font-size: 0.95rem;
+  color: #333;
+  line-height: 1.4;
 }
 
 .list {

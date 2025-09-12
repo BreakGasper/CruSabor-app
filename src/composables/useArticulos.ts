@@ -2,8 +2,8 @@ import { ref as vueRef, onMounted } from "vue";
 import type { Ref } from "vue";
 import { db } from "@/firebase";
 import { ref as dbRef, onValue } from "firebase/database";
-
-export interface Articulo {
+import type { Producto } from "@/types/Producto";
+/*export interface Articulo {
   articuloId: string;
   nombre: string;
   descripcion?: string;
@@ -14,12 +14,12 @@ export interface Articulo {
   categoriaId?: string;
   categoriaNombre?: string;
   [key: string]: any;         // Para campos adicionales
-}
+}*/
 
 
 
 export function useArticulos() {
-  const articulos: Ref<Articulo[]> = vueRef([]);
+  const articulos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);
 
   onMounted(() => {
@@ -35,7 +35,7 @@ export function useArticulos() {
           return;
         }
 
-        const result: Articulo[] = [];
+        const result: Producto[] = [];
 
         for (const artId in data) {
           result.push({

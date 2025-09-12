@@ -13,8 +13,9 @@ export interface Producto {
   fecha_hora?: string;
   id_usuario?: string;
   metodo_pago?: string;
-    categoriaId?: string;
+   categoriaId?: string;
   descripcion?: string;
   unidadMedida?: string;
+   icono?: string;
   puntuacion?: number;
 }

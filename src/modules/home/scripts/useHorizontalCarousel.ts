@@ -9,8 +9,7 @@ import { sessionUser } from "@/utils/sessionUser";
 export function useHorizontalCarousel() {
   const scrollArea = ref<HTMLElement | null>(null);
   const router = useRouter();
-
-  const { agregarCarrito } = useCarrito();
+ 
   const { toggleFavorito, estaFavorito, favoritosIds } = useFavoritos();
 
   function scrollLeft() {

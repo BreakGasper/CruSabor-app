@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="cart-header">
       <!-- Botón volver con SVG -->
-      <ArrowBack @click="$router.back()" />
+      <ArrowBack class="btn-icon back" @click="$router.back()" />
 
       <h2 class="cart-title">Mi Carrito</h2>
     </div>
@@ -68,7 +68,9 @@
 
       <div class="line">
         <span>Envio</span>
-        <span>${{ shippingFee.toFixed(2) }}</span>
+        <span class="gratis">{{
+          shippingFee > 0 ? "$" + shippingFee.toFixed(2) : "GRATIS"
+        }}</span>
       </div>
 
       <div class="divider"></div>
@@ -80,7 +82,7 @@
       <button
         class="checkout-btn"
         :disabled="carritoItems.length === 0"
-        @click="console.log('Checkout')"
+        @click="ContinuarCompra"
       >
         Continuar Compra
       </button>
@@ -100,7 +102,6 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 const carritoItems = reactive<any[]>([]);
-const shippingFee = computed(() => (carritoItems.length > 0 ? 30.0 : 0.0));
 
 const verDetalle = (producto: any) => {
   router.push(`/producto/${producto.id_articulo}`);
@@ -155,6 +156,23 @@ const disminuirCantidad = async (item: any) => {
 const subtotal = computed(() =>
   carritoItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
 );
+const shippingFee = computed(() => (subtotal.value < 200 ? 15.0 : 0.0));
+
+const totalArticulos = computed(() =>
+  carritoItems.reduce((sum, item) => sum + item.cantidad, 0)
+);
+const ContinuarCompra = () => {
+  router.push({
+    path: "/checkout",
+    state: {
+      subtotal: subtotal.value,
+      envio: shippingFee.value,
+      total: subtotal.value + shippingFee.value,
+      totalArticulos: totalArticulos.value,
+      carritoItems: carritoItems,
+    },
+  });
+};
 </script>
 
 <style scoped>
@@ -350,5 +368,9 @@ const subtotal = computed(() =>
   cursor: pointer;
   z-index: 5;
   padding: 0;
+}
+.gratis {
+  color: #27ae60; /* verde opcional para resaltar "Gratis" */
+  font-weight: normal;
 }
 </style>

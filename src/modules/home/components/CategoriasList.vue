@@ -39,7 +39,7 @@
 import { ref, computed, onMounted } from "vue";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { useArticulos } from "@/composables/useArticulos";
-import type { Articulo } from "@/composables/useArticulos";
+import type { Producto } from "@/types/Producto";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 
 // Nueva interfaz de categoría
@@ -59,11 +59,11 @@ const { articulos, loading } = useArticulos();
 const categorias = computed<Categoria[]>(() => {
   const map: Record<string, Categoria> = {};
 
-  articulos.value.forEach((art: Articulo) => {
+  articulos.value.forEach((art: Producto) => {
     if (art.categoriaId && !map[art.categoriaId]) {
       map[art.categoriaId] = {
         categoriaId: art.categoriaId,
-        categoriaNombre: art.categoriaNombre || art.categoria || "Sin nombre",
+        categoriaNombre: art.categoria || art.categoria || "Sin nombre",
         icono: art.icono || "",
       };
     }

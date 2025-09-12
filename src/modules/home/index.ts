@@ -5,6 +5,8 @@ import CartView from '@/modules/home/components/CartView.vue';
 import PerfilUsuario from "./views/PerfilUsuario.vue";
 import Login from "@/modules/home/components/Login.vue"
 import Register from "@/modules/home/components/Register.vue"; 
+import CartCheckout from "@/modules/home/components/CartCheckout.vue";
+import PedidoList from "@/modules/home/components/PedidoList.vue";
 
 export default [
   {
@@ -45,5 +47,13 @@ export default [
     path: '/register',
     name: 'register',
     component:Register, // aquí registras tu Login
+  },{
+    path: '/checkout',
+    name: 'checkout',
+    component: CartCheckout, // aquí registras tu Checkout
+  },{
+    path: '/pedidos',
+    name: 'pedidos',
+    component: PedidoList, // aquí registras tu Checkout
   },
 ];

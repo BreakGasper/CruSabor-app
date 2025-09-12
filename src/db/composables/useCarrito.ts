@@ -1,5 +1,6 @@
 import { db } from '../index';
 import type { CarritoItem } from '../index';
+import { sessionUser } from '@/utils/sessionUser';
 
 export function useCarrito() {
   // Agregar un ítem al carrito
@@ -22,9 +23,31 @@ export function useCarrito() {
     await db.Carrito.clear();
   }
 
+
+  async function vaciarCarritoPorUsuario() {
+      if (!sessionUser.value?.id) return;
+
+      // Borra solo los ítems cuyo id_usuario coincida con el usuario actual
+      await db.Carrito
+        .where("id_usuario")
+        .equals(sessionUser.value.id)
+        .delete();
+
+      console.log("Carrito del usuario vaciado");
+}
+  async function obtenerCarritoByUser(): Promise<CarritoItem[]> {
+  if (!sessionUser.value?.id) return []; // evita errores si no hay usuario
+  return await db.Carrito
+    .where("id_usuario")
+    .equals(sessionUser.value.id)
+    .toArray();
+}
+
   return {
     agregarCarrito,
     obtenerCarrito,
     vaciarCarrito,
+    obtenerCarritoByUser,
+    vaciarCarritoPorUsuario
   };
 }

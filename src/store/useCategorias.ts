@@ -3,26 +3,16 @@ import { ref } from "vue";
 import type { Ref } from "vue";
 import { db } from "@/firebase";
 import { ref as dbRef, onValue } from "firebase/database";
-
+import type { Producto } from "@/types/Producto";
 /**
  * Interfaz que define la estructura de un artículo.
- */
-interface Articulo {
-  nombre: string;
-  precio: number;
-  descripcion: string;
-  imagen?: string; // Propiedad opcional para la URL de la imagen
-  categoriaId: string; // ID de la categoría a la que pertenece
-  articuloId: string; // ID único del artículo
-  [key: string]: any; // Para permitir otros campos adicionales que puedan venir de Firebase
-}
-
+ */ 
 /**
  * Store de Pinia para manejar las categorías y sus artículos.
  */
 export const useCategoriasStore = defineStore("categorias", () => {
   // Estado reactivo que contiene la lista de artículos
-  const categorias: Ref<Articulo[]> = ref([]);
+  const categorias: Ref<Producto[]> = ref([]);
 
   // Estado reactivo que indica si la carga está en proceso
   const loading = ref(true);
@@ -49,7 +39,7 @@ export const useCategoriasStore = defineStore("categorias", () => {
           return;
         }
 
-        const result: Articulo[] = [];
+        const result: Producto[] = [];
 
         // Recorrer cada categoría
         for (const catId in data) {

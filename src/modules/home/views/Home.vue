@@ -148,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import ProductCard from "../components/ProductCard.vue";
@@ -197,10 +197,7 @@ function agregarAlCarrito(produc: any) {
 
 const productosParaCarrusel = computed(() =>
   categoriasFiltradas.value.slice(0, 10).map((a) => ({
-    articuloId: a.articuloId,
-    nombre: a.nombre,
-    descripcion: a.descripcion,
-    precio: a.precio,
+    ...a, // incluye todos los articulos de firebase
     url: a.url || "", // <- Aquí asignamos la propiedad url
   }))
 );
@@ -241,6 +238,12 @@ function handleScroll() {
   }
   scrollY.value = actualY;
 }
+function handleBack() {
+  // Si está en checkout y presiona atrás
+
+  // 👇 Evitar volver atrás y mandar al perfil
+  router.replace("/");
+}
 onMounted(() => {
   cargarSesion(); // carga sesión desde localStorage
 
@@ -255,6 +258,14 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
+});
+
+onMounted(() => {
+  window.addEventListener("popstate", handleBack);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("popstate", handleBack);
 });
 </script>
 
