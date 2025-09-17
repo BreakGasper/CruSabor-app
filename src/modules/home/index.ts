@@ -7,6 +7,9 @@ import Login from "@/modules/home/components/Login.vue"
 import Register from "@/modules/home/components/Register.vue"; 
 import CartCheckout from "@/modules/home/components/CartCheckout.vue";
 import PedidoList from "@/modules/home/components/PedidoList.vue";
+import PedidoDetalle from "./components/PedidoDetalle.vue";
+import { Component } from "lucide-vue-next";
+import ArticulosCategorias from "./components/ArticulosCategorias.vue";
 
 export default [
   {
@@ -56,4 +59,15 @@ export default [
     name: 'pedidos',
     component: PedidoList, // aquí registras tu Checkout
   },
+  {
+    path: "/pedido/:id",
+    name: "PedidoDetallePage", 
+    component: PedidoDetalle,
+    props: true
+  }, {
+    path: "/categoriaArticulos/:id/:categoriaNombre",
+    name: "categoriaArticulos", 
+    component: ArticulosCategorias,
+    props: true
+  }
 ];

@@ -9,10 +9,12 @@ import { FontAwesomeIcon } from './plugins/fontawesome'; // <--- aquí
 import PrimeVue from "primevue/config";
 import Dialog from "primevue/dialog";
 import Button from "primevue/button";
+import ToastService from 'primevue/toastservice';
 
 const app = createApp(App);
 app.component('FontAwesomeIcon', FontAwesomeIcon);
 app.use(PrimeVue);   // 👈 esto es obligatorio
+app.use(ToastService);
 app.component("Dialog", Dialog);
 app.component("Button", Button);
 app.use(router);

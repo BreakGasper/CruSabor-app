@@ -38,9 +38,82 @@ export interface Pedido {
 }
 
 /**
+ * Obtener un pedido por su id
+ */
+export async function getPedidoById(idPedido: string): Promise<Pedido | null> {
+  if (!sessionUser.value?.id) return null;
+
+  try {
+    const snapshot = await get(
+      child(
+        dbRef(db),
+        `usuarios/${sessionUser.value.id}/pedidos/${idPedido}`
+      )
+    );
+
+    if (snapshot.exists()) {
+      return {
+        id_pedido: idPedido,
+        ...snapshot.val(),
+      } as Pedido;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error al traer pedido:", error);
+    return null;
+  }
+}
+
+/**
  * Obtener todos los pedidos del usuario logueado
  */
 export async function getPedidosByUser(): Promise<Pedido[]> {
+  if (!sessionUser.value?.id) return [];
+
+  try {
+    const snapshot = await get(
+      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos`)
+    );
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+
+      // Función para convertir "15/5/2025" o "15/5/2025, 14:32" a Date
+      function parseDateDMY(dateStr?: string): Date | null {
+        if (!dateStr) return null;
+        const onlyDate = dateStr.split(",")[0].trim(); // quitamos hora si existe
+        const parts = onlyDate.split("/");
+        if (parts.length < 3) return null;
+
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // JS months 0-11
+        const year = parseInt(parts[2], 10);
+
+        const d = new Date(year, month, day);
+        return isNaN(d.getTime()) ? null : d;
+      }
+
+      return Object.keys(data)
+        .map((key) => ({
+          id_pedido: key,
+          ...data[key],
+        }))
+        .sort((a, b) => {
+          const ta = parseDateDMY(a.fecha_hora)?.getTime() ?? 0;
+          const tb = parseDateDMY(b.fecha_hora)?.getTime() ?? 0;
+          return tb - ta; // más reciente arriba
+        }) as Pedido[];
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error al traer pedidos:", error);
+    return [];
+  }
+}
+
+export async function getPedidosByUser2(): Promise<Pedido[]> {
   if (!sessionUser.value?.id) return [];
 
   try {

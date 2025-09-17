@@ -1,4 +1,9 @@
 <template>
+  <!-- Botón scroll to top -->
+  <button v-if="showScrollTop" class="scroll-top-btn" @click="scrollToTop">
+    ↑
+  </button>
+
   <div class="home">
     <!-- 🔝 Barra superior: menú hamburguesa y usuario -->
     <div class="top-bar-top" :class="{ 'solo-menu': !mostrarUsuario }">
@@ -14,7 +19,12 @@
         class="user-button"
         @click="validarLoginSession"
       >
-        <img src="@/assets/images/user.png" alt="Usuario" class="user-icon" />
+        <img
+          loading="lazy"
+          src="@/assets/images/user.png"
+          alt="Usuario"
+          class="user-icon"
+        />
       </button>
     </div>
 
@@ -77,30 +87,25 @@
             "
           >
             <Heart class="icon" />
-            Favorites
+            Favoritos
           </a>
         </li>
         <li>
           <a @click.prevent="$router.push('/categoria')" href="#">
             <Grid class="icon" />
-            Categories
-          </a>
-        </li>
-        <li v-if="sessionUsuarioValidation()">
-          <a href="#" @click="validarLoginSession">
-            <User class="icon" />
-            Account
+            Categorias
           </a>
         </li>
       </ul>
 
       <ul class="sidebar-footer">
         <li v-if="sessionUsuarioValidation()">
-          <a href="#">
+          <a href="#" @click="validarLoginSession">
             <Settings class="icon" />
-            Settings
+            Mi Perfil
           </a>
         </li>
+
         <li>
           <div v-if="sessionUsuarioValidation()">
             <a href="#" @click="cerrarSesionLogin()">
@@ -170,6 +175,7 @@ const busqueda = ref("");
 const router = useRouter();
 const { isMobile } = useIsMobile();
 const menuAbierto = ref(false);
+const showScrollTop = ref(false);
 
 // Importar iconos Lucide
 import {
@@ -229,15 +235,28 @@ function cerrarSesionLogin() {
 }
 function handleScroll() {
   const actualY = window.scrollY;
-  if (actualY > scrollY.value) {
-    // Scrolldown → ocultar usuario
+  const threshold = 20; // scroll para ocultar/mostrar usuario
+
+  // Mostrar/ocultar icono usuario
+  if (actualY - scrollY.value > threshold) {
     mostrarUsuario.value = false;
-  } else {
-    // Scrollup → mostrar usuario
+  } else if (scrollY.value - actualY > threshold) {
     mostrarUsuario.value = true;
   }
+
+  // Mostrar botón scroll-top si baja más de 200px
+  showScrollTop.value = actualY > 200;
+
   scrollY.value = actualY;
 }
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth", // scroll suave
+  });
+}
+
 function handleBack() {
   // Si está en checkout y presiona atrás
 
@@ -568,5 +587,28 @@ onBeforeUnmount(() => {
 }
 .bg-bnt-cart {
   background-color: transparent;
+}
+.scroll-top-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 36px; /* ancho fijo */
+  height: 36px; /* igual al ancho para círculo */
+  background: white;
+  color: var(--color-bg-blue-dark); /* flecha azul */
+  border: 2px solid var(--color-bg-blue-dark);
+  border-radius: 50%; /* círculo perfecto */
+  display: flex;
+  justify-content: center;
+  align-items: center; /* centra la flecha perfectamente */
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 16px; /* tamaño de la flecha */
+  z-index: 50;
+  transition: transform 0.2s ease, opacity 0.3s ease;
+}
+
+.scroll-top-btn:hover {
+  transform: scale(1.1);
 }
 </style>

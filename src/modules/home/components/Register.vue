@@ -77,7 +77,12 @@
               }"
               @click="genero = option.value"
             >
-              <img :src="option.icon" :alt="option.label" class="gender-icon" />
+              <img
+                loading="lazy"
+                :src="option.icon"
+                :alt="option.label"
+                class="gender-icon"
+              />
               <div class="gender-letter">{{ option.value }}</div>
             </div>
           </div>
@@ -258,6 +263,7 @@
           <label>Foto de perfil (opcional)</label>
           <div class="avatar-upload" @click="triggerFileInput">
             <img
+              loading="lazy"
               :src="fotoPreview || defaultAvatar"
               alt="Foto de perfil"
               class="avatar-img"
@@ -312,6 +318,7 @@ import GOther from "@/assets/icons/g-other.png";
 import AvatarIcon from "@/assets/icons/user_back_profile.png";
 import { uploadUserImage } from "@/composables/useStorage";
 import ArrowBack from "@/components/ArrowBack.vue";
+import { hashPassword } from "@/composables/usePassword";
 const router = useRouter();
 const step = ref(1);
 
@@ -576,6 +583,7 @@ async function handleRegister() {
   if (foto.value) {
     fotoURL = await uploadUserImage(foto.value, id); // sube y obtiene URL
   }
+  const encrypted = await hashPassword(password.value);
   const nuevoUsuario: Usuario = {
     id,
     nombre: nombre.value,
@@ -588,7 +596,7 @@ async function handleRegister() {
     estado: estado.value,
     fechaNacimiento: fechaNacimiento.value,
     genero: genero.value,
-    pass: password.value,
+    pass: encrypted,
     tipo: "client",
     token: "",
     aceptoTerminos: true,

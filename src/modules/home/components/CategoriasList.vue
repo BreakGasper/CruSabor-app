@@ -19,6 +19,7 @@
       >
         <div class="img-container">
           <img
+            loading="lazy"
             :src="
               FIREBASE_STORAGE_BASE_URL +
                 'Categoria%2F' +
@@ -37,6 +38,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { useArticulos } from "@/composables/useArticulos";
 import type { Producto } from "@/types/Producto";
@@ -51,10 +53,10 @@ interface Categoria {
 
 // Icono por defecto si no hay icono en la categoría
 const defaultIcon = "https://via.placeholder.com/100?text=Icon";
-
+const router = useRouter();
 // Traemos todos los artículos desde Firebase
 const { articulos, loading } = useArticulos();
-
+const categoriaSeleccionada = ref<string | null>(null);
 // Computed para extraer categorías únicas
 const categorias = computed<Categoria[]>(() => {
   const map: Record<string, Categoria> = {};
@@ -72,9 +74,23 @@ const categorias = computed<Categoria[]>(() => {
   return Object.values(map);
 });
 
+// Computed que filtra artículos por categoría
+const articulosFiltrados = computed<Producto[]>(() => {
+  if (!categoriaSeleccionada.value) return [];
+  return articulos.value.filter(
+    (art) => art.categoriaId === categoriaSeleccionada.value
+  );
+});
+
 // Función para navegar a la vista de productos filtrados por categoría
 const verCategoria = (cat: Categoria) => {
-  console.log("Ver categoría:", cat.categoriaNombre);
+  categoriaSeleccionada.value = cat.categoriaId;
+  //console.log("Artículos de la categoría:", cat.categoriaNombre);
+  // console.log("Artículos filtrados:", articulosFiltrados.value);
+  router.push({
+    name: "categoriaArticulos",
+    params: { id: cat.categoriaId, categoriaNombre: cat.categoriaNombre },
+  });
   // $router.push(`/categoria/${cat.categoriaId}`);
 };
 
@@ -129,10 +145,11 @@ onMounted(() => {
 }
 
 .img-container {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  margin-bottom: 0.5rem;
+  width: 80px; /* tamaño fijo deseado */
+  height: 80px;
+  margin: 0 auto 0.5rem auto;
 }
+
 .img-container img {
   width: 100%;
   height: 100%;

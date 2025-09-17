@@ -21,7 +21,11 @@
         @click="verDetalle(prod)"
       >
         <div class="img-container">
-          <img :src="FIREBASE_STORAGE_BASE_URL + prod.url" :alt="prod.nombre" />
+          <img
+            loading="lazy"
+            :src="FIREBASE_STORAGE_BASE_URL + prod.url"
+            :alt="prod.nombre"
+          />
           <span class="btn-quitar" @click.stop="quitarFavorito(prod)">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -207,6 +211,7 @@ const quitarFavorito = async (producto: Producto) => {
   color: #666;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 0.3rem;

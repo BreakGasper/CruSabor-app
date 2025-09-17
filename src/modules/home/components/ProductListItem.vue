@@ -2,9 +2,9 @@
   <div class="product-item" @click="irADetalle">
     <div class="image-content">
       <img
+        loading="lazy"
         :src="FIREBASE_STORAGE_BASE_URL + producto.url"
         :alt="producto.nombre"
-        loading="lazy"
       />
     </div>
 

@@ -37,6 +37,7 @@
     <div class="profile-header">
       <div class="avatar-container">
         <img
+          loading="lazy"
           :src="avatarUrl"
           :label="usuario?.nombre?.charAt(0) || 'U'"
           size="xlarge"
@@ -104,6 +105,10 @@
           <!-- círculo con icono -->
         </div>
         <FavoritosList :limit="5" horizontal :showHeader="false" />
+        <!-- Botón "Ver todos mis favoritos" al final -->
+        <div class="ver-todos-btn" @click="irAFavoritos">
+          ➤ Ver todos mis favoritos...
+        </div>
       </div>
 
       <div ref="direccionesRef" class="section-card">
@@ -127,10 +132,12 @@
           <Button
             label="🧾 Datos personales"
             class="modern-button mb-2 p-button-info"
+            @click="openEditModal"
           />
           <Button
             label="🔒 Cambiar contraseña"
             class="modern-button mb-2 p-button-secondary"
+            @click="showChangePasswordModal = true"
           />
           <Button
             label="🚪 Cerrar sesión"
@@ -140,25 +147,117 @@
         </div>
       </div>
     </div>
+
+    <CustomToast
+      v-if="showToast"
+      message="Contraseña Cambiada con Exito"
+      type="success"
+      :duration="2500"
+      @close="showToast = false"
+    />
+    <transition name="fade">
+      <div v-if="showChangePasswordModal" class="modal-overlay">
+        <div class="modal-content">
+          <button class="modal-close" @click="showChangePasswordModal = false">
+            ✖
+          </button>
+
+          <h3>Cambiar contraseña</h3>
+
+          <!-- Input nueva contraseña -->
+          <div class="password-wrapper">
+            <input
+              :type="showNewPassword ? 'text' : 'password'"
+              v-model="nuevaContrasena"
+              placeholder="Nueva contraseña"
+              maxlength="8"
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              @click="showNewPassword = !showNewPassword"
+            >
+              <component
+                :is="showNewPassword ? Eye : EyeOff"
+                class="eye-icon"
+              />
+            </button>
+          </div>
+
+          <!-- Input confirmar contraseña -->
+          <div class="password-wrapper">
+            <input
+              :type="showConfirmPassword ? 'text' : 'password'"
+              v-model="confirmarContrasena"
+              placeholder="Confirmar contraseña"
+              maxlength="8"
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              @click="showConfirmPassword = !showConfirmPassword"
+            >
+              <component
+                :is="showConfirmPassword ? Eye : EyeOff"
+                class="eye-icon"
+              />
+            </button>
+          </div>
+
+          <span v-if="errorContrasena" class="error-text">
+            {{ errorContrasena }}
+          </span>
+
+          <button
+            class="modal-save"
+            :disabled="!!errorContrasena"
+            @click="cambiarContrasena"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </transition>
   </div>
+
+  <ConfirmModal
+    :visible="showConfirmLogout"
+    mensaje="¿Estás seguro de cerrar tu sesión?"
+    @confirm="confirmLogout"
+    @cancel="cancelLogout"
+  />
+  <EditUserModal
+    :visible="showEditModal"
+    :userData="usuario"
+    @save="saveUserChanges"
+    @cancel="showEditModal = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { Eye, EyeOff } from "lucide-vue-next";
 
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import Button from "primevue/button";
 import FavoritosList from "@/modules/home/components/FavoritosList.vue";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { cerrarSesion, sessionUser } from "@/utils/sessionUser";
-import { getUserById } from "@/composables/useAuth";
+import { getUserById, updateUserPassword } from "@/composables/useAuth";
 import { calcularEdad, obtenerGenero } from "@/utils/toolsUtils";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import { useRouter } from "vue-router";
 import { getPedidosByUser } from "@/composables/usePedidos";
 import PedidoList from "../components/PedidoList.vue";
+import CustomToast from "@/components/CustomToast.vue";
+import { hashPassword } from "@/composables/usePassword";
+import ConfirmModal from "@/components/ConfirmModal.vue";
+import EditUserModal from "../components/EditUserModal.vue";
+import { updateUserData } from "@/composables/useAuth"; // función real para actualizar
+import type { Usuario } from "@/composables/useAuth"; // solo tipo
 
+const showNewPassword = ref(false);
+const showConfirmPassword = ref(false);
 const router = useRouter();
 const yoRef = ref<HTMLElement | null>(null);
 const pedidosRef = ref<HTMLElement | null>(null);
@@ -168,7 +267,7 @@ const configRef = ref<HTMLElement | null>(null);
 const pedidos = ref<any[]>([]);
 // Reactive donde vamos a guardar los datos del usuario
 const usuario = ref<any | null>(null);
-
+const showConfirmLogout = ref(false);
 const sectionRefs: Record<string, any> = {
   yo: yoRef,
   pedidos: pedidosRef,
@@ -176,7 +275,79 @@ const sectionRefs: Record<string, any> = {
   direcciones: direccionesRef,
   config: configRef,
 };
+const showChangePasswordModal = ref(false);
+const nuevaContrasena = ref("");
+const confirmarContrasena = ref("");
+const errorContrasena = ref("");
+const showToast = ref(false);
 
+const showEditModal = ref(false);
+
+function openEditModal() {
+  showEditModal.value = true;
+}
+function irAFavoritos() {
+  router.push("/favoritos");
+}
+
+async function saveUserChanges(updatedData: Partial<Usuario>) {
+  if (!usuario.value) return;
+
+  try {
+    // Actualiza en Firebase
+    await updateUserData(usuario.value.id, updatedData);
+
+    // Actualiza localmente
+    usuario.value = { ...usuario.value, ...updatedData };
+    sessionUser.value = usuario.value; // actualizar sesión si existe
+
+    showEditModal.value = false;
+  } catch (err) {
+    console.error("Error al actualizar usuario:", err);
+  }
+}
+
+// Watcher individual para evitar problemas de tipo
+watch(nuevaContrasena, () => validarContrasena());
+watch(confirmarContrasena, () => validarContrasena());
+
+function validarContrasena() {
+  if (!nuevaContrasena.value && !confirmarContrasena.value) {
+    errorContrasena.value = "";
+    return;
+  }
+  if (nuevaContrasena.value.length > 8) {
+    errorContrasena.value = "La contraseña no puede exceder 8 caracteres";
+  } else if (nuevaContrasena.value !== confirmarContrasena.value) {
+    errorContrasena.value = "Las contraseñas no coinciden";
+  } else {
+    errorContrasena.value = "";
+  }
+}
+
+async function cambiarContrasena() {
+  if (nuevaContrasena.value.length < 6) {
+    errorContrasena.value = "La contraseña debe ser mas de 6 caracteres";
+  }
+  if (errorContrasena.value) return;
+
+  try {
+    // Al crear o cambiar contraseña
+    const encrypted = await hashPassword(nuevaContrasena.value);
+    await updateUserPassword(sessionUser.value.id, encrypted);
+
+    // Mostrar toast de éxito
+    showToast.value = true;
+
+    // Limpiar modal
+    showChangePasswordModal.value = false;
+    nuevaContrasena.value = "";
+    confirmarContrasena.value = "";
+  } catch (err) {
+    console.error(err);
+    errorContrasena.value = "No se pudo cambiar la contraseña";
+  }
+}
 function scrollTo(section: string) {
   sectionRefs[section]?.value?.scrollIntoView({ behavior: "smooth" });
 }
@@ -203,10 +374,7 @@ const avatarUrl = computed(() => {
 function irAMisPedidos() {
   router.push("/pedidos");
 }
-function CerrarSessionPerfil() {
-  cerrarSesion();
-  router.push("/");
-}
+
 function onImageError(event: Event) {
   const target = event.target as HTMLImageElement;
   target.src = userDefaultImage;
@@ -229,7 +397,20 @@ function CalcularEdadPerfil(fecha: string | undefined) {
   if (!fecha) return "-";
   return calcularEdad(fecha);
 }
+function CerrarSessionPerfil() {
+  // abrir modal en vez de cerrar directamente
+  showConfirmLogout.value = true;
+}
 
+function confirmLogout() {
+  cerrarSesion();
+  router.push("/");
+  showConfirmLogout.value = false;
+}
+
+function cancelLogout() {
+  showConfirmLogout.value = false;
+}
 let ignoreObserver = false;
 
 const observer = new IntersectionObserver(
@@ -260,26 +441,82 @@ onMounted(() => {
 });
 
 onMounted(async () => {
-  if (sessionUser.value?.id) {
-    const data = await getUserById(sessionUser.value.id);
-    if (data) usuario.value = data;
+  if (!sessionUser.value?.id) return;
 
-    // 👇 cargar pedidos del usuario
-    pedidos.value = await getPedidosByUser();
-  }
+  const data = await getUserById(sessionUser.value.id);
+  if (data) usuario.value = data;
+
+  pedidos.value = await getPedidosByUser();
 });
-onMounted(async () => {
-  if (sessionUser.value?.id) {
-    const data = await getUserById(sessionUser.value?.id);
-    if (data) usuario.value = data;
-  }
-});
+
 console.log("ID del usuario:", sessionUser.value?.id);
 console.log("Nombre:", sessionUser.value?.nombre);
 console.log("Correo:", sessionUser.value?.email);
 </script>
 
 <style scoped>
+.error-text {
+  color: #f44336; /* rojo para error */
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.modal-content {
+  position: relative; /* necesario para colocar la X */
+  background: white;
+  padding: 2rem 1.5rem 2.5rem 1.5rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-close {
+  top: 10px;
+  left: 10px;
+  margin-bottom: -35px;
+  text-align: right;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.modal-content input {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.modal-save {
+  margin-top: 1rem;
+  align-self: center; /* centra el botón */
+  padding: 0.6rem 2rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-bg-blue-dark);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
 .ver-todos-btn {
   background: transparent;
   border: none;
@@ -289,7 +526,7 @@ console.log("Correo:", sessionUser.value?.email);
   font-size: 0.95rem;
   padding: 0.25rem 0;
   transition: color 0.3s ease, transform 0.2s ease;
-  text-align: left;
+  text-align: center;
 }
 
 .ver-todos-btn:hover {
@@ -519,5 +756,37 @@ console.log("Correo:", sessionUser.value?.email);
 
 .back-button:hover {
   background: #f0f0f0;
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 2.5rem; /* espacio para el botón del ojo */
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eye-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: #555;
 }
 </style>

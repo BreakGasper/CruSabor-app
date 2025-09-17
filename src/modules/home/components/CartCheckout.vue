@@ -142,6 +142,7 @@
             "
           >
             <img
+              loading="lazy"
               src="@/assets/icons/money.png"
               alt="Efectivo"
               class="payment-icon"
@@ -159,6 +160,7 @@
             "
           >
             <img
+              loading="lazy"
               src="@/assets/icons/trasfer.png"
               alt="Transferencia"
               class="payment-icon"

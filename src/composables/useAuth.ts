@@ -1,5 +1,5 @@
 import { db } from "@/firebase";
-import { ref as dbRef, query, orderByChild, equalTo, get, set } from "firebase/database";
+import { ref as dbRef, query, orderByChild, equalTo, get, set,update  } from "firebase/database";
 import { getDatabase, ref,  child } from "firebase/database";
 
 export interface Usuario {
@@ -26,8 +26,36 @@ export interface Usuario {
   aceptoTerminos?: boolean;
 }
 
-
-
+/**
+ * Actualiza cualquier dato del usuario excepto la contraseña
+ */
+export async function updateUserData(
+  userId: string,
+  updatedFields: Partial<Usuario>
+): Promise<boolean> {
+  try {
+    const userRef = dbRef(db, `usuarios/${userId}`);
+    await update(userRef, updatedFields); // Actualiza solo los campos que vienen en updatedFields
+    return true;
+  } catch (error) {
+    console.error("Error al actualizar usuario:", error);
+    return false;
+  }
+}
+/**
+ * Actualiza solo la contraseña de un usuario
+ */
+export async function updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
+  try {
+    
+    const userRef = dbRef(db, `usuarios/${userId}`);
+    await update(userRef, { pass: newPassword }); // Solo actualiza la propiedad "pass"
+    return true;
+  } catch (error) {
+    console.error("Error al actualizar contraseña:", error);
+    return false;
+  }
+}
 // Traer datos del usuario por su ID
 export async function getUserById(userId: string): Promise<Usuario | null> {
   try {

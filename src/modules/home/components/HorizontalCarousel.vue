@@ -12,7 +12,11 @@
           :key="p.articuloId"
         >
           <div class="img-container" @click="verDetalle(p)">
-            <img :src="FIREBASE_STORAGE_BASE_URL + p.url" :alt="p.nombre" />
+            <img
+              loading="lazy"
+              :src="FIREBASE_STORAGE_BASE_URL + p.url"
+              :alt="p.nombre"
+            />
             <div v-if="sessionUsuarioValidation()">
               <span
                 class="heart-icon"

@@ -23,6 +23,7 @@
           class="cart-item"
         >
           <img
+            loading="lazy"
             :src="FIREBASE_STORAGE_BASE_URL + item.url"
             :alt="item.nombre"
             @click="verDetalle(item)"

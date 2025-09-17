@@ -3,6 +3,7 @@
     <!-- Imagen superior -->
     <div class="detalle-header">
       <img
+        loading="lazy"
         :src="FIREBASE_STORAGE_BASE_URL + producto.url"
         :alt="producto.nombre"
         class="detalle-img"
@@ -111,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from "vue";
+import { watch, computed, reactive } from "vue";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
 import type { Producto } from "@/types/Producto";
@@ -150,8 +151,11 @@ const cantidadEnCarrito = reactive<Record<string, number>>({});
 
 // Sincronizar con Dexie
 const sincronizarCarrito = async () => {
-  if (!props.producto) return;
-  const items = await db.Carrito.toArray();
+  if (!props.producto || !sessionUser.value?.id) return;
+  const items = await db.Carrito.where("id_usuario")
+    .equals(sessionUser.value.id)
+    .toArray();
+
   for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
   for (const item of items) cantidadEnCarrito[item.id_articulo] = item.cantidad;
 };
@@ -210,6 +214,14 @@ const disminuirCantidad = async (producto: Producto) => {
     cantidadEnCarrito[producto.articuloId] = 0;
   }
 };
+
+watch(
+  () => sessionUser.value?.id,
+  async (newUserId) => {
+    for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
+    if (props.producto) await sincronizarCarrito();
+  }
+);
 </script>
 
 <style scoped>

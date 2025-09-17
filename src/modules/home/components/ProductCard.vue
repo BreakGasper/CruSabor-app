@@ -2,6 +2,7 @@
   <div class="card" @click="irADetalle">
     <div class="img-container">
       <img
+        loading="lazy"
         :src="FIREBASE_STORAGE_BASE_URL + producto.url"
         :alt="producto.nombre"
       />

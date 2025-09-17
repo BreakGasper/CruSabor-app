@@ -79,6 +79,7 @@ import Button from "primevue/button";
 import { findUserByPhone } from "@/composables/useAuth";
 import ArrowBack from "@/components/ArrowBack.vue";
 import router from "@/router";
+import { validatePasswordHash } from "@/composables/usePassword";
 const telefono = ref("");
 const password = ref("");
 const telefonoError = ref("");
@@ -122,8 +123,9 @@ async function handleLogin() {
     passwordError.value = "❌ Usuario no encontrado";
     return;
   }
+  const isValid = await validatePasswordHash(password.value, user.pass);
 
-  if (user.pass === password.value) {
+  if (isValid) {
     localStorage.setItem(
       "usuario",
       JSON.stringify({

@@ -1,16 +1,51 @@
 <template>
   <div class="pedidos-list-container">
+    <!-- Header -->
     <div class="header-bar" v-if="props.showHeader">
       <ArrowBack class="back-button" @click="$router.back()" />
       <h2 class="header-title">Mis Pedidos</h2>
+      <div class="header-icons">
+        <button class="icon-btn icon-circle" @click="toggleFiltros">
+          <img loading="lazy" src="@/assets/icons/filter.png" alt="Filtro" />
+        </button>
+      </div>
     </div>
 
+    <!-- Filtros desplegables -->
+    <transition name="slide-fade" v-if="props.showHeader">
+      <div v-show="showFiltros" class="filtros">
+        <input type="date" v-model="filtroFecha" class="filtro-input" />
+
+        <select v-model="filtroEstatus" class="filtro-input">
+          <option value="">Todos</option>
+          <option value="Preparacion">Preparación</option>
+          <option value="Entregado">Entregado</option>
+          <option value="Camino">Camino</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+
+        <button class="icon-btn" @click="limpiarFiltros">
+          <img loading="lazy" src="@/assets/icons/clean.png" alt="Limpiar" />
+        </button>
+
+        <input
+          type="text"
+          v-model="filtroArticulo"
+          placeholder="Buscar artículo..."
+          class="filtro-input"
+        />
+      </div>
+    </transition>
+
+    <!-- Lista de pedidos con paginación -->
     <div
-      v-for="pedido in pedidos.slice(0, props.limit || pedidos.length)"
+      v-for="pedido in props.showHeader
+        ? pedidosPaginados
+        : pedidosPaginados.slice(0, 3)"
       :key="pedido.id_pedido"
       class="pedido-card"
+      @click="abrirDetallePedido(pedido)"
     >
-      <!-- Solo mostrar header si showHeader es true -->
       <div class="pedido-header">
         <span class="fecha">{{ formatDate(pedido.fecha_hora) }}</span>
         <span class="id">ID: {{ pedido.id_pedido }}</span>
@@ -18,101 +53,195 @@
 
       <hr />
 
-      <!-- Items del pedido -->
-      <div
-        v-for="item in pedido.items.slice(0, 3)"
-        :key="item.id_articulo"
-        class="pedido-item"
-      >
-        <img
-          :src="FIREBASE_STORAGE_BASE_URL + item.url_image || defaultImage"
-          alt="Producto"
-          class="producto-img"
-          @error="onImageError($event)"
-        />
+      <div class="pedido-item">
+        <div class="mini-img-grid">
+          <div
+            v-for="(item, index) in pedido.items.slice(0, 4)"
+            :key="item.id_articulo"
+            class="mini-img-wrapper"
+          >
+            <img
+              loading="lazy"
+              :src="FIREBASE_STORAGE_BASE_URL + item.url_image || defaultImage"
+              class="mini-img"
+              @error="onImageError($event)"
+            />
+            <div
+              v-if="index === 3 && pedido.items.length > 4"
+              class="overlay-more"
+            >
+              +{{ pedido.items.length - 4 }}
+            </div>
+          </div>
+        </div>
+
         <div class="detalle-right">
           <p class="estatus">{{ pedido.estatus }}</p>
           <p class="fecha-entrega">
             Entrega: {{ formatDate(pedido.fechaEntrega || "") }}
           </p>
-          <p class="cantidad">Cant: {{ item.cantidad }}</p>
+          <p class="cantidad">Total: ${{ pedido.total_compra }}</p>
         </div>
       </div>
-
-      <p
-        v-if="pedido.items.length > 3"
-        class="mas-items"
-        @click="abrirDialog(pedido)"
-      >
-        +{{ pedido.items.length - 3 }} más...
-      </p>
-      <p class="mas-items" @click="abrirDialog(pedido)" v-else>ver más...</p>
     </div>
 
-    <Dialog
-      v-model:visible="dialogVisible"
-      modal
-      :closable="true"
-      :style="{ width: '100%', maxWidth: '700px', height: '90vh' }"
-      class="pedido-dialog-full"
-    >
-      <PedidoDetalle :pedido="selectedPedido" />
-    </Dialog>
+    <p v-if="pedidosFiltrados.length === 0">No se encontraron pedidos.</p>
 
-    <p v-if="pedidos.length === 0">No tienes pedidos registrados.</p>
+    <!-- Controles de paginación -->
+    <div v-if="totalPaginas > 1 && props.showHeader" class="pagination">
+      <button
+        class="page-btn"
+        :disabled="paginaActual === 1"
+        @click="paginaActual--"
+      >
+        ◀ Anterior
+      </button>
+      <span class="page-info"
+        >Página {{ paginaActual }} de {{ totalPaginas }}</span
+      >
+      <button
+        class="page-btn"
+        :disabled="paginaActual === totalPaginas"
+        @click="paginaActual++"
+      >
+        Siguiente ▶
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { getPedidosByUser } from "@/composables/usePedidos";
 import type { Pedido } from "@/composables/usePedidos";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { useRouter } from "vue-router";
 import ArrowBack from "@/components/ArrowBack.vue";
-import PedidoDetalle from "./PedidoDetalle.vue";
 
+const router = useRouter();
 const pedidos = ref<Pedido[]>([]);
-const selectedPedido = ref<Pedido | null>(null);
-const dialogVisible = ref(false);
 const defaultImage = userDefaultImage;
+
+// Props
 const props = withDefaults(
   defineProps<{
     limit?: number;
     showHeader?: boolean;
-    showVerTodos?: boolean;
-    onVerTodos?: () => void; // función para el botón "Ver todos"
   }>(),
-  {
-    showHeader: true, // valor por defecto
-    limit: undefined,
-    showVerTodos: false,
-    onVerTodos: undefined,
-  }
+  { limit: undefined, showHeader: true }
 );
-function abrirDialog(pedido: Pedido) {
-  selectedPedido.value = pedido;
-  dialogVisible.value = true;
+
+// Filtros
+const filtroFecha = ref<string>("");
+const filtroArticulo = ref<string>("");
+const filtroEstatus = ref<string>("");
+const showFiltros = ref(false);
+// Paginación
+const paginaActual = ref(1);
+const itemsPorPagina = 5;
+
+// Función para parsear fecha del formato "11/9/2025, 11:34:09 a.m."
+function parseFechaHora(fechaHora?: string): Date | null {
+  if (!fechaHora) return null;
+  const [fechaPart, horaPart] = fechaHora.split(",").map((x) => x.trim());
+  const [dia, mes, anio] = fechaPart.split("/").map(Number);
+
+  let hours = 0,
+    minutes = 0,
+    seconds = 0;
+  if (horaPart) {
+    const match = horaPart.match(/(\d+):(\d+):(\d+)\s*(a\.m\.|p\.m\.)/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      seconds = parseInt(match[3], 10);
+      const ampm = match[4].toLowerCase();
+      if (ampm === "p.m." && hours < 12) hours += 12;
+      if (ampm === "a.m." && hours === 12) hours = 0;
+    }
+  }
+  return new Date(anio, mes - 1, dia, hours, minutes, seconds);
 }
 
-function cerrarDialog() {
-  dialogVisible.value = false;
-  selectedPedido.value = null;
-}
+// Computed con filtros aplicados y ordenados de más reciente a menos reciente
+const pedidosFiltrados = computed(() => {
+  let filtrados = pedidos.value.filter((pedido) => {
+    const fechaOk = filtroFecha.value
+      ? (() => {
+          const f = filtroFecha.value.split("-");
+          const fDate = new Date(Number(f[0]), Number(f[1]) - 1, Number(f[2]));
+          const pDate = parseFechaHora(pedido.fecha_hora);
+          if (!pDate) return false;
+          return (
+            pDate.getFullYear() === fDate.getFullYear() &&
+            pDate.getMonth() === fDate.getMonth() &&
+            pDate.getDate() === fDate.getDate()
+          );
+        })()
+      : true;
 
+    const articuloOk = filtroArticulo.value
+      ? pedido.items.some((item) =>
+          item.nombreProducto
+            .toLowerCase()
+            .includes(filtroArticulo.value.toLowerCase())
+        )
+      : true;
+
+    const estatusOk = filtroEstatus.value
+      ? pedido.estatus.toLowerCase() === filtroEstatus.value.toLowerCase()
+      : true;
+
+    return fechaOk && articuloOk && estatusOk;
+  });
+
+  filtrados.sort((a, b) => {
+    const ta = parseFechaHora(a.fecha_hora)?.getTime() ?? 0;
+    const tb = parseFechaHora(b.fecha_hora)?.getTime() ?? 0;
+    return tb - ta;
+  });
+
+  return filtrados;
+});
+
+// Paginación
+const totalPaginas = computed(() =>
+  Math.ceil(pedidosFiltrados.value.length / itemsPorPagina)
+);
+
+const pedidosPaginados = computed(() => {
+  const start = (paginaActual.value - 1) * itemsPorPagina;
+  return pedidosFiltrados.value.slice(start, start + itemsPorPagina);
+});
+
+// Funciones
 function formatDate(dateStr: string) {
   if (!dateStr) return "-";
-  // Separar fecha y hora usando la coma
-  const parts = dateStr.split(",");
-  return parts[0].trim(); // solo la fecha, e.g., "11/9/2025"
+  return dateStr.split(",")[0].trim();
 }
-function mostrarMasItems(pedido: Pedido) {
-  console.log("Items completos del pedido:", pedido.items);
+
+function abrirDetallePedido(pedido: Pedido) {
+  router.push({
+    name: "PedidoDetallePage",
+    params: { id: pedido.id_pedido },
+  });
 }
 
 function onImageError(event: Event) {
   const target = event.target as HTMLImageElement;
   target.src = defaultImage;
+}
+
+function toggleFiltros() {
+  showFiltros.value = !showFiltros.value;
+}
+
+function limpiarFiltros() {
+  filtroFecha.value = "";
+  filtroArticulo.value = "";
+  filtroEstatus.value = "";
+  paginaActual.value = 1;
 }
 
 onMounted(async () => {
@@ -121,33 +250,34 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* overlay oscuro */
-.pedido-dialog-full .p-dialog-mask {
-  background-color: rgba(0, 0, 0, 0.6) !important;
+/* Contenedor principal */
+.pedidos-list-container {
+  width: 90%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+  font-family: "Arial", sans-serif;
 }
-
-/* dialogo ocupa toda la pantalla */
-.pedido-dialog-full .p-dialog {
-  width: 100vw !important;
-  height: 100vh !important;
-  margin: 0;
-  padding: 0;
-  border-radius: 0;
-  background: transparent !important; /* transparente para que se vea overlay */
-}
-
-/* contenedor blanco dentro del dialogo */
-.pedido-detalle-container {
-  width: 100%;
-  height: 100%;
-  background-color: white; /* aquí pones el fondo blanco */
+.icon-circle {
+  width: 36px;
+  height: 36px;
+  background: white;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 0;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: none;
+  padding: 6px;
 }
-
-/* Estilos para la barra superior */
+.filter-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: brightness(0);
+}
+/* Header */
 .header-bar {
   position: sticky;
   top: 0;
@@ -156,131 +286,170 @@ onMounted(async () => {
   background: var(--color-bg-blue-dark);
   display: flex;
   align-items: center;
-  padding: 0.25rem 0.75rem; /* más delgada */
+  justify-content: space-between;
+  padding: 0.25rem 0.75rem;
   z-index: 100;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  margin-bottom: 30px;
+  margin-bottom: 10px;
+  border-radius: 10px;
 }
 .back-button {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
 }
-
 .header-title {
   color: white;
   font-weight: bold;
-  font-size: 1rem; /* más pequeña */
-  margin-left: 0.75rem;
+  font-size: 0.95rem;
 }
-
-/* Opcional: agregar padding superior al container para que no quede debajo del header */
-.pedidos-list-container {
-  padding-top: 1rem;
+.header-icons {
+  display: flex;
+  gap: 8px;
 }
-
-.mas-items {
-  font-size: 0.85rem;
-  color: #555;
-  text-align: end;
+.icon-btn {
+  background: transparent;
+  border: none;
   cursor: pointer;
-  user-select: none;
+  padding: 2px;
 }
-.mas-items:hover {
-  text-decoration: underline;
+.icon-btn img {
+  width: 22px;
+  height: 22px;
 }
-.id {
+/* Filtros */
+.filtros {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: #f2f4f8;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.filtro-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 6px 10px;
   font-size: 12px;
-  color: var(--color-bg-blue-ligth);
+  border: 1px solid #ccc;
+  border-radius: 6px;
 }
-.fecha {
-  font-size: 12px;
+/* Transición filtros */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
 }
-.pedidos-list-container {
-  width: 90%;
-  max-width: 700px;
-  margin: 0 auto;
-  padding-bottom: 3rem;
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
-
-.title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin: 1rem 0;
-}
-
-.empty {
-  text-align: center;
-  font-size: 1rem;
-  color: #555;
-  margin-top: 2rem;
-}
-
+/* Pedido card */
 .pedido-card {
   background: white;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: box-shadow 0.3s ease;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.8rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  font-size: 12px;
 }
-
 .pedido-card:hover {
-  border: 1px solid #0f1f7c46;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); /* más sombra al pasar el mouse */
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
+/* Pedido header */
 .pedido-header {
   display: flex;
   justify-content: space-between;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #333;
 }
-
+/* Pedido items */
 .pedido-item {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.25rem; /* menos espacio superior */
-  align-items: flex-start; /* alineamos al top */
-  border-bottom: 1px solid #eee;
-  padding-bottom: 0.25rem; /* menos padding inferior */
-  margin-bottom: 0.25rem; /* menos margen inferior */
+  gap: 8px;
+  margin-top: 5px;
+  align-items: center;
 }
-
-.producto-img {
-  width: 70px;
-  height: 70px;
+/* Mini imágenes */
+.mini-img-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 45px);
+  grid-template-rows: repeat(2, 45px);
+  gap: 3px;
+}
+.mini-img-wrapper {
+  position: relative;
+}
+.mini-img {
+  width: 45px;
+  height: 45px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid #eee;
 }
+.overlay-more {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.55);
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+/* Info derecha */
 .detalle-right {
   display: flex;
   flex-direction: column;
-  gap: 2px; /* espacio mínimo entre líneas */
+  gap: 5px;
+  min-width: 90px;
 }
-.nombre {
-  font-weight: bold;
-  color: #222;
-  font-size: 0.95rem; /* un poquito más pequeño */
-  margin: 0; /* eliminamos margen */
-}
-
 .estatus {
   font-weight: 600;
   color: #0f1f7c;
-  font-size: 13px; /* tamaño mínimo fijo */
-  margin: 0;
-}
-
-.fecha-entrega {
   font-size: 12px;
+  margin: 0;
+}
+.fecha-entrega,
+.cantidad {
+  font-size: 11px;
   color: #555;
   margin: 0;
 }
-.cantidad {
-  font-size: 0.7rem;
-  color: #555;
-  margin: 0;
+/* Paginación */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 12px;
+}
+.page-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-bg-blue-dark);
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.page-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+.page-info {
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 </style>

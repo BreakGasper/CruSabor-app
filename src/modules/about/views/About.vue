@@ -9,10 +9,10 @@
         class="articulo-card"
       >
         <img
+          loading="lazy"
           class="articulo-imagen"
           :src="articulo.imagen || articulo.url_image || ''"
           :alt="articulo.nombre || 'Imagen artículo'"
-          loading="lazy"
         />
         <div class="articulo-info">
           <strong class="articulo-nombre">{{ articulo.nombre }}</strong>
