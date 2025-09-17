@@ -16,7 +16,10 @@
       <div class="form-group">
         <label for="telefono">Número de teléfono</label>
         <div class="telefono-input">
+          <!-- Prefijo visual +52 -->
           <span class="lada">+52</span>
+
+          <!-- Input del teléfono -->
           <input
             v-model="telefono"
             id="telefono"
@@ -27,7 +30,15 @@
             @input="formatTelefono"
             maxlength="10"
           />
+
+          <!-- Icono PNG a la derecha -->
+          <img
+            src="@/assets/icons/smartphone.png"
+            alt="Teléfono"
+            class="icono-telefono"
+          />
         </div>
+
         <small v-if="telefonoError" class="error-text">{{
           telefonoError
         }}</small>
@@ -70,6 +81,34 @@
         </p>
       </div>
     </div>
+
+    <!-- Modal ForgotPassword -->
+    <div
+      v-if="mostrarForgotPassword"
+      class="modal-overlay"
+      @click.self="mostrarForgotPassword = false"
+    >
+      <div class="modal-content">
+        <!-- Botón cerrar X -->
+        <button class="modal-close" @click="mostrarForgotPassword = false">
+          ×
+        </button>
+
+        <ForgotPassword
+          @cerrar="mostrarForgotPassword = false"
+          @close="mostrarForgotPassword = false"
+          @success="handleCambioContrasena"
+        />
+      </div>
+    </div>
+
+    <CustomToast
+      v-if="showToast"
+      message="Contraseña Cambiada con Exito"
+      type="success"
+      :duration="2500"
+      @close="showToast = false"
+    />
   </div>
 </template>
 
@@ -80,16 +119,30 @@ import { findUserByPhone } from "@/composables/useAuth";
 import ArrowBack from "@/components/ArrowBack.vue";
 import router from "@/router";
 import { validatePasswordHash } from "@/composables/usePassword";
+import ForgotPassword from "./ForgotPassword.vue";
+import { faL } from "@fortawesome/free-solid-svg-icons";
+import CustomToast from "@/components/CustomToast.vue";
 const telefono = ref("");
 const password = ref("");
 const telefonoError = ref("");
 const passwordError = ref("");
+const mostrarForgotPassword = ref(false);
+const showToast = ref(false);
 
 function formatTelefono() {
   // quitar caracteres que no son dígitos y limitar a 10
   telefono.value = telefono.value.replace(/\D/g, "").slice(0, 10);
   validateTelefono();
 }
+const handleCambioContrasena = () => {
+  // Cierra ForgotPassword
+  mostrarForgotPassword.value = false;
+
+  // Mostrar toast con retraso
+  setTimeout(() => {
+    showToast.value = true;
+  }, 500); // medio segundo de retraso
+};
 
 // 🔹 Validar teléfono (solo números y 10 dígitos)
 function validateTelefono() {
@@ -148,7 +201,8 @@ async function handleLogin() {
 }
 
 function forgotPassword() {
-  alert("Redirigir a recuperación de contraseña");
+  // abrir modal
+  mostrarForgotPassword.value = true;
 }
 </script>
 
@@ -239,12 +293,6 @@ function forgotPassword() {
   gap: 0.3rem;
 }
 
-.telefono-input {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .lada {
   background: green;
   padding: 0.6rem 0.8rem;
@@ -322,5 +370,89 @@ function forgotPassword() {
   color: red;
   font-size: 0.8rem;
   margin-top: 0.2rem;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Botón X cerrar modal */
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  color: var(--color-bg-blue-dark);
+  line-height: 1;
+  padding: 0;
+  z-index: 10;
+}
+
+.modal-content {
+  position: relative; /* necesario para que la X se posicione correctamente */
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.telefono-input {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 0.5rem;
+}
+
+/* +52 separado del input */
+.telefono-input .lada {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: green;
+  color: white;
+  font-weight: bold;
+  padding: 0 0.8rem;
+  height: 2.6rem; /* igual altura que el input */
+  border-radius: 3px 16px 16px 3px; /* solo redondea las esquinas derechas */
+  border: 1px solid #ddd;
+  font-size: 1rem;
+}
+
+/* Input del teléfono */
+.telefono-input input {
+  flex: 1;
+  border-radius: 12px 0 0 12px; /* solo esquinas izquierdas redondeadas */
+  border: 1px solid #ddd;
+  padding-left: 0.8rem;
+  height: 2.6rem;
+  font-size: 1rem;
+}
+
+/* Icono a la derecha dentro del input */
+.telefono-input .icono-telefono {
+  position: absolute;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+}
+
+.telefono-input input:focus {
+  border-color: var(--color-bg-blue-dark);
 }
 </style>

@@ -150,6 +150,13 @@
       @agregarCarrito="agregarAlCarrito"
     />
   </div>
+
+  <ConfirmModal
+    :visible="showConfirmLogout"
+    mensaje="¿Estás seguro de cerrar tu sesión?"
+    @confirm="confirmLogout"
+    @cancel="cancelLogout"
+  />
 </template>
 
 <script setup lang="ts">
@@ -176,7 +183,7 @@ const router = useRouter();
 const { isMobile } = useIsMobile();
 const menuAbierto = ref(false);
 const showScrollTop = ref(false);
-
+const showConfirmLogout = ref(false);
 // Importar iconos Lucide
 import {
   Grid,
@@ -192,11 +199,24 @@ import {
   LogIn,
 } from "lucide-vue-next";
 import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
+import ConfirmModal from "@/components/ConfirmModal.vue";
 
 function verDetalle(produc: any) {
   productoSeleccionado.value = produc;
 }
+function CerrarSessionHome() {
+  // abrir modal en vez de cerrar directamente
+  showConfirmLogout.value = true;
+}
+function confirmLogout() {
+  cerrarSesion();
+  router.push("/");
+  showConfirmLogout.value = false;
+}
 
+function cancelLogout() {
+  showConfirmLogout.value = false;
+}
 function agregarAlCarrito(produc: any) {
   productoSeleccionado.value = null;
 }
@@ -230,7 +250,7 @@ const scrollY = ref(0);
 const mostrarUsuario = ref(true);
 
 function cerrarSesionLogin() {
-  cerrarSesion();
+  CerrarSessionHome();
   menuAbierto.value = false;
 }
 function handleScroll() {

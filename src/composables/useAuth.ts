@@ -26,6 +26,39 @@ export interface Usuario {
   aceptoTerminos?: boolean;
 }
 
+
+/**
+ * Busca un usuario por número de teléfono y devuelve su email, ID y validación
+ */
+export async function getEmailByPhone(
+  phone: string
+): Promise<{ email: string | null; valid: boolean; userId?: string }> {
+  try {
+    const usersRef = dbRef(db, "usuarios");
+    const q = query(usersRef, orderByChild("celular"), equalTo(phone));
+
+    const snapshot = await get(q);
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      const uid = Object.keys(data)[0]; // primer resultado
+      const user = data[uid] as Usuario;
+
+      return {
+        email: user.email ?? null,
+        valid: !!user.email, // true si tiene email registrado
+        userId: uid, // <-- agregamos el ID
+      };
+    }
+
+    return { email: null, valid: false };
+  } catch (error) {
+    console.error("Error al obtener correo por teléfono:", error);
+    return { email: null, valid: false };
+  }
+}
+
+
 /**
  * Actualiza cualquier dato del usuario excepto la contraseña
  */

@@ -47,7 +47,7 @@
           alt="Avatar"
         />
       </div>
-      <p class="name">MAVI - CAMENDIOLA</p>
+      <p class="name">{{ usuario?.nombre }}</p>
       <p class="email">{{ usuario?.email }}</p>
     </div>
 
@@ -155,69 +155,12 @@
       :duration="2500"
       @close="showToast = false"
     />
-    <transition name="fade">
-      <div v-if="showChangePasswordModal" class="modal-overlay">
-        <div class="modal-content">
-          <button class="modal-close" @click="showChangePasswordModal = false">
-            ✖
-          </button>
-
-          <h3>Cambiar contraseña</h3>
-
-          <!-- Input nueva contraseña -->
-          <div class="password-wrapper">
-            <input
-              :type="showNewPassword ? 'text' : 'password'"
-              v-model="nuevaContrasena"
-              placeholder="Nueva contraseña"
-              maxlength="8"
-            />
-            <button
-              type="button"
-              class="eye-btn"
-              @click="showNewPassword = !showNewPassword"
-            >
-              <component
-                :is="showNewPassword ? Eye : EyeOff"
-                class="eye-icon"
-              />
-            </button>
-          </div>
-
-          <!-- Input confirmar contraseña -->
-          <div class="password-wrapper">
-            <input
-              :type="showConfirmPassword ? 'text' : 'password'"
-              v-model="confirmarContrasena"
-              placeholder="Confirmar contraseña"
-              maxlength="8"
-            />
-            <button
-              type="button"
-              class="eye-btn"
-              @click="showConfirmPassword = !showConfirmPassword"
-            >
-              <component
-                :is="showConfirmPassword ? Eye : EyeOff"
-                class="eye-icon"
-              />
-            </button>
-          </div>
-
-          <span v-if="errorContrasena" class="error-text">
-            {{ errorContrasena }}
-          </span>
-
-          <button
-            class="modal-save"
-            :disabled="!!errorContrasena"
-            @click="cambiarContrasena"
-          >
-            Guardar
-          </button>
-        </div>
-      </div>
-    </transition>
+    <ChangePasswordModal
+      :visible="showChangePasswordModal"
+      :user-id="'Perfil'"
+      @close="showChangePasswordModal = false"
+      @success="showToast = true"
+    />
   </div>
 
   <ConfirmModal
@@ -255,6 +198,7 @@ import ConfirmModal from "@/components/ConfirmModal.vue";
 import EditUserModal from "../components/EditUserModal.vue";
 import { updateUserData } from "@/composables/useAuth"; // función real para actualizar
 import type { Usuario } from "@/composables/useAuth"; // solo tipo
+import ChangePasswordModal from "../components/ChangePasswordModal.vue";
 
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
