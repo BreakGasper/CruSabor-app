@@ -237,11 +237,14 @@ watch(
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
 }
 
 .articulo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background: white;
   border-radius: 8px;
   padding: 0.5rem;
@@ -249,6 +252,7 @@ watch(
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease;
+  height: 300px; /* altura fija del card */
 }
 .articulo-item:hover {
   transform: translateY(-2px);
@@ -256,17 +260,18 @@ watch(
 
 .img-container {
   width: 100%;
+  flex: 0 0 150px; /* altura fija de la imagen */
   aspect-ratio: 1 / 1;
   margin-bottom: 0.5rem;
   position: relative;
 }
+
 .img-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
 }
-
 .heart-icon {
   position: absolute;
   top: 5px;
@@ -279,23 +284,34 @@ watch(
   color: #d32f2f;
 }
 
+.nombre,
+.precio {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nombre {
   font-weight: 600;
   font-size: 0.9rem;
   color: #333;
+  margin-bottom: 0.2rem;
 }
 
 .precio {
   font-size: 0.85rem;
   color: #555;
+  margin-bottom: 0.5rem;
 }
 
+/* Mantener botones al final */
 .acciones {
+  margin-top: auto;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.3rem;
 }
 /* Header con flecha y título */
 .header {

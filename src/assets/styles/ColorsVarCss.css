@@ -6,3 +6,20 @@
   --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
   --color-bg-all: #f5f6fa
 }
+/* Evitar zoom en botones e inputs por doble tap o pinch */
+html, body {
+  touch-action: manipulation; /* previene pinch zoom */
+  -ms-touch-action: manipulation;
+}
+
+button,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+/* Opcional: evitar que el doble tap haga zoom en Safari */
+body {
+  overscroll-behavior: contain;
+}

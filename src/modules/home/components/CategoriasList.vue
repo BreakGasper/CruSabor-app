@@ -14,94 +14,65 @@
       <div
         class="categoria-item"
         v-for="cat in categorias"
-        :key="cat.categoriaId"
+        :key="cat.id"
         @click="verCategoria(cat)"
       >
         <div class="img-container">
           <img
             loading="lazy"
-            :src="
-              FIREBASE_STORAGE_BASE_URL +
-                'Categoria%2F' +
-                cat.icono +
-                '.png?alt=media&token=6255f15a-d081-4add-98b1-2a46f9a89b48' ||
-              defaultIcon
-            "
-            :alt="cat.categoriaNombre"
+            :src="cat.icono || defaultIcon"
+            :alt="cat.nombre"
           />
         </div>
-        <p class="nombre">{{ cat.categoriaNombre }}</p>
+        <p class="nombre">{{ cat.nombre }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import ArrowBack from "@/components/ArrowBack.vue";
-import { useArticulos } from "@/composables/useArticulos";
-import type { Producto } from "@/types/Producto";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { obtenerCategorias } from "@/composables/useCategorias";
 
 // Nueva interfaz de categoría
 interface Categoria {
-  categoriaId: string;
-  categoriaNombre: string;
+  id: string;
+  nombre: string;
   icono?: string;
 }
 
 // Icono por defecto si no hay icono en la categoría
 const defaultIcon = "https://via.placeholder.com/100?text=Icon";
+
 const router = useRouter();
-// Traemos todos los artículos desde Firebase
-const { articulos, loading } = useArticulos();
+const categorias = ref<Categoria[]>([]);
 const categoriaSeleccionada = ref<string | null>(null);
-// Computed para extraer categorías únicas
-const categorias = computed<Categoria[]>(() => {
-  const map: Record<string, Categoria> = {};
 
-  articulos.value.forEach((art: Producto) => {
-    if (art.categoriaId && !map[art.categoriaId]) {
-      map[art.categoriaId] = {
-        categoriaId: art.categoriaId,
-        categoriaNombre: art.categoria || art.categoria || "Sin nombre",
-        icono: art.icono || "",
-      };
-    }
-  });
-
-  return Object.values(map);
-});
-
-// Computed que filtra artículos por categoría
-const articulosFiltrados = computed<Producto[]>(() => {
-  if (!categoriaSeleccionada.value) return [];
-  return articulos.value.filter(
-    (art) => art.categoriaId === categoriaSeleccionada.value
-  );
+// Cargar categorías desde Firebase al montar
+onMounted(async () => {
+  categorias.value = await obtenerCategorias();
 });
 
 // Función para navegar a la vista de productos filtrados por categoría
 const verCategoria = (cat: Categoria) => {
-  categoriaSeleccionada.value = cat.categoriaId;
-  //console.log("Artículos de la categoría:", cat.categoriaNombre);
-  // console.log("Artículos filtrados:", articulosFiltrados.value);
+  categoriaSeleccionada.value = cat.id;
   router.push({
     name: "categoriaArticulos",
-    params: { id: cat.categoriaId, categoriaNombre: cat.categoriaNombre },
+    params: { id: cat.id, categoriaNombre: cat.nombre },
   });
-  // $router.push(`/categoria/${cat.categoriaId}`);
 };
-
-onMounted(() => {
-  if (loading.value) console.log("Cargando categorías...");
-});
 </script>
 
 <style scoped>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 .categorias-container {
-  padding: 1rem;
+  padding: 0.5rem;
 }
 
 /* Header con flecha y título */
@@ -127,10 +98,12 @@ onMounted(() => {
 /* Grid 2 columnas */
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0 1rem;
 }
 
+/* Card uniforme */
 .categoria-item {
   background: white;
   border-radius: 8px;
@@ -139,27 +112,44 @@ onMounted(() => {
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease;
+
+  /* Esto fuerza que todos los cards tengan el mismo tamaño */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 180px; /* altura fija para uniformidad */
+  width: 100%; /* ancho igual en cada columna */
 }
+
 .categoria-item:hover {
   transform: translateY(-2px);
 }
 
 .img-container {
-  width: 80px; /* tamaño fijo deseado */
+  width: 80px;
   height: 80px;
-  margin: 0 auto 0.5rem auto;
+  display: flex; /* Convertimos en flex */
+  align-items: center; /* Centrar vertical */
+  justify-content: center; /* Centrar horizontal */
 }
 
 .img-container img {
-  width: 100%;
-  height: 100%;
+  max-width: 100%; /* Ajusta al contenedor sin deformar */
+  max-height: 100%; /* Mantiene proporción */
   object-fit: cover;
   border-radius: 6px;
 }
 
+/* Texto */
 .nombre {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   font-size: 0.9rem;
   color: #333;
+  margin-top: 2rem; /* para mantener consistencia */
 }
 </style>
