@@ -7,18 +7,18 @@ export interface Producto {
   almacen?: string;
   anticipo?: number;
   categoria?: string;
-  descuentoCupon?: number; 
+  descuentoCupon?: number;
   fechaEntrega?: string;
   fecha_hora?: string;
   id_usuario?: string;
   metodo_pago?: string;
-   categoriaId?: string;
-  descripcion?: string;
+  categoriaId?: string;
+  descripcion: string;
   unidadMedida?: string;
-   icono?: string;
+  icono?: string;
   puntuacion?: number;
-    tiendaId: string;
-  tiendaNombre?: string; 
+  tiendaId: string;
+  tiendaNombre?: string;
   variantes: Array<{
     color: string;
     colorCodigo: string; // Nuevo campo para el código del color
@@ -27,13 +27,14 @@ export interface Producto {
     marca: string;
     stock: number;
     estatus: boolean;
-     tieneStock: boolean, 
-     almacen: string,
-     precio: number,
-     sku: string,
+    tieneStock: boolean;
+    tamanoOtro?: string;
+    materialOtro?: string;
+    almacen: string;
+    precio: number;
+    sku: string;
   }>;
 
   //características adicionales pueden ser añadidas aquí
   //sku
-  
 }

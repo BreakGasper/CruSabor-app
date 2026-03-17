@@ -6,6 +6,11 @@ import type { Producto } from "@/types/Producto";
  
 import { push, set } from "firebase/database";
 
+
+
+
+
+
 export function useArticulos() {
   const articulos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);
@@ -61,6 +66,43 @@ export function useArticulos() {
     }
   }
 
-  return { articulos, loading, crearArticulo };
+
+
+  function cargarArticulosPorTienda(tiendaId: string) {
+    loading.value = true;
+    const articulosRef = dbRef(db, "articulos");
+
+    onValue(
+      articulosRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        if (!data) {
+          articulos.value = [];
+          loading.value = false;
+          return;
+        }
+
+        const result: Producto[] = [];
+        for (const artId in data) {
+          const art = data[artId];
+          if (art.tiendaId === tiendaId) {
+            result.push({
+              ...art,
+              articuloId: artId,
+            });
+          }
+        }
+
+        articulos.value = result;
+        loading.value = false;
+      },
+      (error) => {
+        console.error("❌ Error leyendo artículos por tienda:", error);
+        loading.value = false;
+      }
+    );
+  }
+
+  return { articulos, loading, crearArticulo, cargarArticulosPorTienda };
 }
 

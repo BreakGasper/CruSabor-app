@@ -53,6 +53,7 @@
                 &times;
               </button>
             </div>
+
             <div v-else class="image-placeholder">
               <span>+</span>
             </div>
@@ -247,11 +248,10 @@
                 <input
                   type="text"
                   class="form-input"
-                  :value="variante.precio"
+                  :value="variante.precio ? `$${variante.precio}` : ''"
                   @keydown="onPrecioKeydown"
-                  @input="onPrecioInput"
-                  @focus="unformatPrecioDisplay"
-                  @blur="formatPrecioDisplay"
+                  @input="(e) => onVariantePrecioInput(e, variante)"
+                  @blur="(e) => formatVariantePrecio(e, variante)"
                   placeholder="$0.00"
                 />
               </div>
@@ -260,21 +260,47 @@
             <!-- Tamaño -->
             <div class="variante-row">
               <label>Tamaño</label>
+              <select v-model="variante.tamano" class="form-input small-input">
+                <option value="">Selecciona</option>
+                <option v-for="t in tamanios" :key="t" :value="t">
+                  {{ t }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Si selecciona "Otro", mostrar input -->
+            <div class="variante-row" v-if="variante.tamano === 'Otro'">
+              <label>Especificar tamaño</label>
               <input
-                v-model="variante.tamano"
+                v-model="variante.tamanoOtro"
                 type="text"
-                placeholder="Ej: Mediano, 40x30cm, 500ml"
+                placeholder="Escribe el tamaño"
                 class="form-input small-input"
               />
             </div>
 
             <!-- Material y Marca -->
+            <!-- Material -->
             <div class="variante-row">
               <label>Material</label>
-              <input
+              <select
                 v-model="variante.material"
+                class="form-input small-input"
+              >
+                <option value="">Selecciona</option>
+                <option v-for="m in materiales" :key="m" :value="m">
+                  {{ m }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Si selecciona "Otro", aparece input -->
+            <div class="variante-row" v-if="variante.material === 'Otro'">
+              <label>Especificar material</label>
+              <input
+                v-model="variante.materialOtro"
                 type="text"
-                placeholder="Ej: Algodón, Metal, Vidrio…"
+                placeholder="Escribe el material"
                 class="form-input small-input"
               />
             </div>
@@ -317,6 +343,43 @@
         </div>
       </div>
     </div>
+    <Dialog
+      v-model:visible="dialogError"
+      modal
+      :closable="false"
+      :dismissableMask="false"
+      :style="{ width: '350px' }"
+    >
+      <div
+        style="
+          background: white;
+          border-radius: 16px;
+          border: 1px solid black;
+          padding: 20px;
+        "
+      >
+        <h3
+          style="
+            font-weight: bold;
+            color: #0d47a1;
+            text-align: center;
+            margin-bottom: 20px;
+          "
+        >
+          {{ dialogMensaje }}
+        </h3>
+
+        <!-- 🔥 Botón centrado y estilizado -->
+        <div style="display: flex; justify-content: center">
+          <Button
+            label="Aceptar"
+            severity="primary"
+            @click="dialogError = false"
+            class="btn-elegante"
+          />
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -329,7 +392,23 @@ import {
   obtenerCategorias,
   type CategoriaData,
 } from "@/composables/useCategorias";
+import { uploadArticuloImagen } from "@/composables/useStorage"; // ajusta ruta
+import Dialog from "primevue/dialog";
+import Button from "primevue/button";
+
 import { Html5Qrcode } from "html5-qrcode";
+const props = defineProps({
+  tiendaId: {
+    type: String,
+    required: true,
+  },
+  tiendaNombre: {
+    type: String,
+    required: true,
+  },
+});
+const dialogMensaje = ref("");
+const dialogError = ref(false);
 
 const step = ref(1);
 const precioDisplay = ref(""); // lo que ve el usuario
@@ -348,8 +427,8 @@ const form = ref<Omit<Producto, "articuloId">>({
   metodo_pago: "",
   unidadMedida: "",
   almacen: "",
-  tiendaId: "ID_TIENDA",
-  tiendaNombre: "Nombre Tienda",
+  tiendaId: props.tiendaId,
+  tiendaNombre: props.tiendaNombre,
   icono: "",
   fecha_hora: "",
   variantes: [],
@@ -387,12 +466,17 @@ const colores = ref([
   { nombre: "Oro", codigo: "#FFD700" },
   { nombre: "Plata", codigo: "#C0C0C0" },
 ]);
+const imagenFile = ref<File | null>(null);
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const onImageSelected = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) form.value.url = URL.createObjectURL(file);
+  if (file) {
+    imagenFile.value = file; // guardar archivo real
+    form.value.url = URL.createObjectURL(file); // preview
+  }
 };
+
 const showDropdown = ref(false);
 // Nuevo ref para controlar el checkbox
 const tieneStock = ref(false);
@@ -431,13 +515,41 @@ function validarVariantes(): boolean {
     alert("Debes agregar al menos una variante antes de continuar.");
     return false;
   }
-  // opcional: podrías validar que cada variante tenga al menos color y precio
+
   for (const v of form.value.variantes) {
-    if (!v.color || !v.precio) {
-      alert("Cada variante debe tener color y precio.");
+    if (!v.precio) {
+      alert("Cada variante debe tener precio.");
+      return false;
+    }
+
+    if (!v.color) {
+      alert("Cada variante debe tener color.");
+      return false;
+    }
+
+    // Validar material
+    if (!v.material) {
+      alert("Selecciona un material para cada variante.");
+      return false;
+    }
+
+    if (v.material === "Otro" && !v.materialOtro) {
+      alert("Debes especificar el material personalizado.");
+      return false;
+    }
+
+    // Validar tamaño
+    if (!v.tamano) {
+      alert("Selecciona un tamaño para cada variante.");
+      return false;
+    }
+
+    if (v.tamano === "Otro" && !v.tamanoOtro) {
+      alert("Debes especificar el tamaño personalizado.");
       return false;
     }
   }
+
   return true;
 }
 
@@ -459,13 +571,15 @@ function agregarVariante() {
     color: "",
     colorCodigo: "",
     tamano: "",
+    tamanoOtro: "", // ➕ Nuevo campo
     material: "",
+    materialOtro: "", // ➕ Nuevo campo
     marca: "",
     stock: 0,
     estatus: true,
     tieneStock: false,
     almacen: "",
-    precio: 0,
+    precio: precioValue.value || 0,
     sku: "",
   });
 }
@@ -505,6 +619,27 @@ function onPrecioInput(e: Event) {
   precioValue.value = val ? parseFloat(val) : 0;
   form.value.precio = precioValue.value; // sincronizar solo aquí
 }
+function onVariantePrecioInput(e: Event, variante: any) {
+  let val = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, "");
+
+  if (val.startsWith("0") && val.length > 1 && val[1] !== ".")
+    val = val.replace(/^0+/, "");
+
+  if (val.includes(".")) {
+    const [entero, decimales] = val.split(".");
+    val = entero + "." + decimales.slice(0, 2);
+  }
+
+  variante.precio = val ? parseFloat(val) : 0;
+  (e.target as HTMLInputElement).value = val; // mantener la escritura limpia
+}
+function formatVariantePrecio(e: Event, variante: any) {
+  if (!variante.precio) return;
+  (e.target as HTMLInputElement).value = `$${parseFloat(
+    variante.precio
+  ).toFixed(2)}`;
+}
+
 // Watch opcional para sincronizar stock -1 si no tiene stock
 watch(
   () => form.value.variantes,
@@ -516,6 +651,36 @@ watch(
   },
   { deep: true }
 );
+
+watch(precioValue, (nuevoPrecio) => {
+  if (!nuevoPrecio || nuevoPrecio <= 0) return;
+
+  // Si no existen variantes, crear una automáticamente
+  if (form.value.variantes.length === 0) {
+    form.value.variantes.push({
+      color: "",
+      colorCodigo: "",
+      tamano: "",
+      tamanoOtro: "",
+      material: "",
+      materialOtro: "",
+      marca: "",
+      stock: 0,
+      estatus: true,
+      tieneStock: false,
+      almacen: "",
+      precio: nuevoPrecio, // precio inicial
+      sku: "",
+    });
+    return;
+  }
+
+  // Si ya existe la primera variante, asignar precio SOLO si no lo había modificado
+  if (!form.value.variantes[0].precio || form.value.variantes[0].precio === 0) {
+    form.value.variantes[0].precio = nuevoPrecio;
+  }
+});
+
 function formatPrecioDisplay() {
   if (precioDisplay.value)
     precioDisplay.value = `$${parseFloat(precioDisplay.value).toFixed(2)}`;
@@ -528,37 +693,135 @@ function triggerFileInput() {
   fileInput.value?.click();
 }
 function nextStep() {
+  if (step.value === 1 && !validarPaso1()) return;
+  if (step.value === 2 && !validarPaso2()) return;
+
   step.value = Math.min(step.value + 1, 3);
 }
+
 function prevStep() {
   step.value = Math.max(step.value - 1, 1);
 }
-
 async function submitForm() {
-  form.value.fecha_hora = new Date().toISOString();
-  await push(dbRef(db, "articulos"), form.value);
-  alert("Artículo registrado ✅");
-  step.value = 1;
-  Object.assign(form.value, {
-    nombre: "",
-    descripcion: "",
-    categoria: "",
-    subcategoria: "",
-    url: "",
-    precio: 0,
-    anticipo: 0,
-    descuentoCupon: 0,
-    metodo_pago: "",
-    unidadMedida: "",
-    estatus: false,
-    almacen: "",
-    icono: "",
-    fecha_hora: "",
-  });
+  try {
+    form.value.fecha_hora = new Date().toISOString();
+
+    let urlFinal = "";
+
+    if (imagenFile.value) {
+      urlFinal = await uploadArticuloImagen(imagenFile.value);
+    }
+
+    await push(dbRef(db, "articulos"), {
+      ...form.value,
+      url: urlFinal,
+    });
+
+    // 🟦 Mostrar el diálogo personalizado
+    dialogMensaje.value = "Artículo registrado correctamente";
+    dialogError.value = true;
+
+    // Reset
+    step.value = 1;
+    imagenFile.value = null;
+
+    Object.assign(form.value, {
+      nombre: "",
+      descripcion: "",
+      categoria: "",
+      subcategoria: "",
+      url: "",
+      precio: 0,
+      anticipo: 0,
+      descuentoCupon: 0,
+      metodo_pago: "",
+      unidadMedida: "",
+      estatus: false,
+      almacen: "",
+      icono: "",
+      fecha_hora: "",
+      variantes: [],
+      tiendaId: props.tiendaId,
+    });
+  } catch (error) {
+    console.error("Error registrando artículo:", error);
+
+    // Diálogo de error
+    dialogMensaje.value = "Error al registrar el artículo ❌";
+    dialogError.value = true;
+  }
+}
+
+const materiales = ref([
+  "Otro",
+  "Algodón",
+  "Poliéster",
+  "Metal",
+  "Plástico",
+  "Vidrio",
+  "Cuero",
+  "Madera",
+  "Cerámica",
+  "Cartón",
+  "Papel",
+]);
+
+const tamanios = ref([
+  "Otro",
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "Chico",
+  "Mediano",
+  "Grande",
+]);
+
+function mostrarDialogo(mensaje: string) {
+  dialogMensaje.value = mensaje;
+  dialogError.value = true;
+}
+
+function validarPaso1() {
+  if (!form.value.nombre.trim()) {
+    mostrarDialogo("El nombre del artículo es obligatorio.");
+    return false;
+  }
+  if (!form.value.descripcion.trim()) {
+    mostrarDialogo("La descripción es obligatoria.");
+    return false;
+  }
+  if (!form.value.url && !imagenFile.value) {
+    mostrarDialogo("Debes subir una imagen antes de continuar.");
+    return false;
+  }
+  return true;
+}
+
+function validarPaso2() {
+  if (!precioValue.value || precioValue.value <= 0) {
+    mostrarDialogo("El precio debe ser mayor a 0.");
+    return false;
+  }
+  if (!form.value.unidadMedida) {
+    mostrarDialogo("Debes seleccionar una unidad de medida.");
+    return false;
+  }
+  if (!form.value.categoria) {
+    mostrarDialogo("Debes seleccionar una categoría.");
+    return false;
+  }
+  return true;
 }
 </script>
 
 <style scoped>
+.custom-dialog .p-dialog-content {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
 .register-container {
   background: #f0f4f8;
   min-height: 100vh;
@@ -727,7 +990,7 @@ async function submitForm() {
   width: 100px;
   height: 100px;
   border-radius: 16px;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 .image-preview {
   width: 100%;
@@ -736,16 +999,27 @@ async function submitForm() {
 }
 .remove-btn {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -10px;
+  right: -10px;
+
+  width: 26px; /* Igual ancho */
+  height: 26px; /* Igual alto -> círculo real */
+  border-radius: 50%;
+
   background: #ff6b6b;
   color: white;
-  border-radius: 50%;
   border: none;
-  width: 24px;
-  height: 24px;
-  font-size: 1rem;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 16px; /* Tamaño de la X */
+  line-height: 0; /* IMPORTANTE → evita que se estire */
+  padding: 0; /* Nada de padding */
+
   cursor: pointer;
+  box-sizing: border-box; /* Evita que borde/padding lo deformen */
 }
 
 .custom-select-wrapper {
@@ -937,5 +1211,28 @@ async function submitForm() {
 .circle-button:hover {
   background: #f0f4f8;
   transform: scale(1.05);
+}
+
+.btn-elegante {
+  background: linear-gradient(135deg, #1565c0, #1e88e5);
+  border: none !important;
+  color: white !important;
+  padding: 10px 24px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease !important;
+}
+
+.btn-elegante:hover {
+  background: linear-gradient(135deg, #0d47a1, #1565c0);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.btn-elegante:active {
+  transform: translateY(0px);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.25);
 }
 </style>

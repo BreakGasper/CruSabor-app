@@ -603,7 +603,7 @@ async function handleRegister() {
   };
 
   await saveUser(nuevoUsuario);
-  router.replace("/login");
+  router.replace("/login"); //login usuario normal
 }
 </script>
 

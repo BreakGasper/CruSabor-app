@@ -1,9 +1,9 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "path";
-
+import vueDevTools from "vite-plugin-vue-devtools";
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), vueDevTools()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -14,8 +14,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            return 'vendor'; // todos los módulos externos van a vendor.js
+          if (id.includes("node_modules")) {
+            return "vendor"; // todos los módulos externos van a vendor.js
           }
         },
       },

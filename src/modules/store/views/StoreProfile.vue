@@ -170,7 +170,7 @@
                 store.horario[dia].inicio &&
                 store.horario[dia].fin
                   ? `${formato12h(store.horario[dia].inicio)} - ${formato12h(
-                      store.horario[dia].fin
+                      store.horario[dia].fin,
                     )}`
                   : "Cerrado"
               }}
@@ -206,6 +206,9 @@
         <button @click="goBack" class="btn-primary">Volver</button>
         <button @click="abrirMaps" class="btn-outline-blue">Cómo llegar</button>
         <button @click="llamar" class="btn-outline-blue">Llamar</button>
+        <button @click="irAArticulos" class="btn-outline-blue">
+          Ver Lista de Artículos
+        </button>
       </div>
     </div>
 
@@ -224,7 +227,6 @@
             <li
               v-if="store.facebook || store.instagram || store.incluyeWhatsapp"
             >
-              <strong>Redes Sociales:</strong>
               <div class="menu-icons">
                 <a v-if="store.facebook" :href="store.facebook" target="_blank">
                   <img src="@/assets/icons/facebook.png" alt="Facebook" />
@@ -245,22 +247,19 @@
                 </a>
               </div>
             </li>
+            <li v-if="esDuenoTienda">
+              <button class="btn-menu" @click="artsTienda">Agregar Productos</button>
+            </li>
             <li>
               <button class="btn-menu" @click="abrirMaps">Cómo llegar</button>
             </li>
             <li>
               <button class="btn-menu" @click="llamar">Llamar</button>
             </li>
-            <li v-if="store.metodosPago && store.metodosPago.length">
-              <strong>Métodos de pago:</strong>
-              <div class="menu-icons">
-                <span
-                  v-for="(mp, i) in store.metodosPago"
-                  :key="i"
-                  class="payment-item"
-                  >{{ mp }}</span
-                >
-              </div>
+            <li>
+              <button class="btn-menu" @click="irAArticulos">
+                ver Productos
+              </button>
             </li>
           </ul>
         </div>
@@ -270,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted,computed  } from "vue";
 import { useRouter } from "vue-router";
 import { useTiendas, type Tienda } from "@/composables/useTiendas";
 import cashIcon from "@/assets/icons/money.png";
@@ -281,6 +280,7 @@ const router = useRouter();
 const { tiendaLogueada } = useTiendas();
 const store = ref<Tienda | null>(null);
 const menuCollapsed = ref(true);
+const tiendaLocal = JSON.parse(localStorage.getItem("tiendas") || "{}");
 
 const placeholderImg = "https://via.placeholder.com/600x250";
 const placeholderLogo = "https://via.placeholder.com/100";
@@ -301,6 +301,10 @@ const diasSemana = [
   "Sábado",
   "Domingo",
 ];
+
+const esDuenoTienda = computed(() => {
+  return store.value?.tiendaId === tiendaLocal.id;
+});
 
 async function loadStore() {
   const stored = localStorage.getItem("tiendas");
@@ -326,19 +330,37 @@ function toggleMenu() {
 function goBack() {
   router.back();
 }
+
+function artsTienda() {
+  const tienda = JSON.parse(localStorage.getItem("tiendas") || "{}");
+
+  router.push({
+    name: "storeProducts",
+    params: { id: tienda.id, nombre: tienda.nombreTienda },
+  });
+}
+
 function abrirMaps() {
   if (!store.value) return;
   const direccion = encodeURIComponent(
-    `${store.value.calle} ${store.value.numero}, ${store.value.colonia}, ${store.value.municipio}, ${store.value.estado}`
+    `${store.value.calle} ${store.value.numero}, ${store.value.colonia}, ${store.value.municipio}, ${store.value.estado}`,
   );
   window.open(
     `https://www.google.com/maps/search/?api=1&query=${direccion}`,
-    "_blank"
+    "_blank",
   );
 }
 function llamar() {
   if (!store.value) return;
   window.location.href = `tel:${store.value.telefono}`;
+}
+
+function irAArticulos() {
+  if (!store.value) return;
+  router.push({
+    name: "storeArticles", // nombre de la ruta que definiste
+    params: { id: store.value.tiendaId }, // id de la tienda
+  });
 }
 
 function linkifyShort(text: string) {
@@ -547,7 +569,8 @@ onMounted(() => loadStore());
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background: #1f70b2;
+  background: white; /*#1f70b2;*/
+  border: 1px solid #1f70b2;
   border-radius: 0 10px 10px 0;
   padding: 10px;
   cursor: pointer;
@@ -720,7 +743,9 @@ onMounted(() => loadStore());
   font-weight: 500;
   color: #1f70b2;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .horario-item:hover {

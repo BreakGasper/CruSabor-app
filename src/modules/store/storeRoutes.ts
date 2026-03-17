@@ -1,12 +1,23 @@
 // modules/store/storeRoutes.ts
-import StoreLogin from './views/StoreLogin.vue'
-import StoreRegister from './views/StoreRegister.vue'
-import StoreProfile from './views/StoreProfile.vue'
-import ProductManagement from './views/ProductManagement.vue'
+import StoreLogin from "./views/StoreLogin.vue";
+import StoreRegister from "./views/StoreRegister.vue";
+import StoreProfile from "./views/StoreProfile.vue";
+import ProductManagement from "./views/ProductManagement.vue";
+import StoreArticles from "./components/StoreArticles.vue";
 
 export default [
-  { path: '/store/login', component: StoreLogin },
-  { path: '/store/register', component: StoreRegister },
-  { path: '/store/profile', component: StoreProfile },
-  { path: '/store/products', component: ProductManagement },
-]
+  { path: "/store/login", component: StoreLogin, name: "storeLogin" }, //login para tiendas
+  { path: "/store/register", component: StoreRegister, name: "storeRegister" },
+  { path: "/store/profile", component: StoreProfile, name: "storeProfile" },
+
+  {
+    path: "/store/products/:id",//Registrar productos
+    component: ProductManagement,
+    name: "storeProducts",
+  },
+   {
+    path: "/store/articles/:id", // Nueva ruta para lista de artículos
+    component: StoreArticles,
+    name: "storeArticles",
+  },
+];

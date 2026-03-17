@@ -1,6 +1,14 @@
 import { db } from "@/firebase";
-import { ref as dbRef, query, orderByChild, equalTo, get, set,update  } from "firebase/database";
-import { getDatabase, ref,  child } from "firebase/database";
+import {
+  ref as dbRef,
+  query,
+  orderByChild,
+  equalTo,
+  get,
+  set,
+  update,
+} from "firebase/database";
+import { getDatabase, ref, child } from "firebase/database";
 
 export interface Usuario {
   id: string;
@@ -10,14 +18,14 @@ export interface Usuario {
   email?: string;
   tipo?: string;
   token?: string;
-  
+
   // Datos de domicilio
   calleNumero?: string;
   lugar?: string;
   municipio?: string;
   codigoPostal?: string;
   estado?: string;
- 
+
   genero?: string;
   fechaNacimiento?: string;
   fotoPerfil?: string;
@@ -26,12 +34,20 @@ export interface Usuario {
   aceptoTerminos?: boolean;
 }
 
+export interface Tienda {
+  id: string;
+  nombreTienda: string;
+  telefono: string;
+  bannerUrl?: string;
+  logoUrl?: string;
+  [key: string]: any; // otros campos
+}
 
 /**
  * Busca un usuario por número de teléfono y devuelve su email, ID y validación
  */
 export async function getEmailByPhone(
-  phone: string
+  phone: string,
 ): Promise<{ email: string | null; valid: boolean; userId?: string }> {
   try {
     const usersRef = dbRef(db, "usuarios");
@@ -58,13 +74,12 @@ export async function getEmailByPhone(
   }
 }
 
-
 /**
  * Actualiza cualquier dato del usuario excepto la contraseña
  */
 export async function updateUserData(
   userId: string,
-  updatedFields: Partial<Usuario>
+  updatedFields: Partial<Usuario>,
 ): Promise<boolean> {
   try {
     const userRef = dbRef(db, `usuarios/${userId}`);
@@ -78,9 +93,11 @@ export async function updateUserData(
 /**
  * Actualiza solo la contraseña de un usuario
  */
-export async function updateUserPassword(userId: string, newPassword: string): Promise<boolean> {
+export async function updateUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<boolean> {
   try {
-    
     const userRef = dbRef(db, `usuarios/${userId}`);
     await update(userRef, { pass: newPassword }); // Solo actualiza la propiedad "pass"
     return true;
@@ -115,9 +132,28 @@ export async function findUserByPhone(phone: string): Promise<Usuario | null> {
   return null;
 }
 
+export async function findUserByPhoneStore(
+  phone: string,
+): Promise<Tienda | null> {
+  try {
+    const tiendasRef = dbRef(db, "tiendas");
+    const q = query(tiendasRef, orderByChild("telefono"), equalTo(phone));
+    const snapshot = await get(q);
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      const uid = Object.keys(data)[0]; // primer resultado
+      return { id: uid, ...data[uid] } as Tienda;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error buscando tienda por teléfono:", error);
+    return null;
+  }
+}
+
 export async function saveUser(user: Usuario) {
   const userRef = dbRef(db, "usuarios/" + user.id);
   await set(userRef, user);
   return true;
 }
- 

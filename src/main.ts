@@ -11,6 +11,8 @@ import Dialog from "primevue/dialog";
 import Button from "primevue/button";
 import ToastService from "primevue/toastservice";
 const app = createApp(App);
+
+app.config.devtools = true;
 app.component('FontAwesomeIcon', FontAwesomeIcon);
 app.use(PrimeVue);   // 👈 esto es obligatorio
 app.component("Dialog", Dialog);

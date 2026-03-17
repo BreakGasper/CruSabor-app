@@ -74,10 +74,8 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import eyeIcon from "@/assets/icons/eye.png";
-import eyeOffIcon from "@/assets/icons/eye-off.png";
 
-import { findUserByPhone } from "@/composables/useAuth";
+import { findUserByPhone, findUserByPhoneStore } from "@/composables/useAuth";
 import { validatePasswordHash } from "@/composables/usePassword";
 import router from "@/router";
 const form = ref({
@@ -85,6 +83,8 @@ const form = ref({
   password: "",
 });
 const showPassword = ref(false);
+const eyeIcon = new URL("@/assets/icons/eye.png", import.meta.url).href;
+const eyeOffIcon = new URL("@/assets/icons/eye-off.png", import.meta.url).href;
 
 const errors = ref<{ username?: string; password?: string }>({});
 
@@ -141,7 +141,7 @@ async function login() {
   }
 
   // Buscar usuario por teléfono
-  const user = await findUserByPhone(rawPhoneNumber);
+  const user = await findUserByPhoneStore(rawPhoneNumber);
 
   if (!user) {
     errors.value.password = "❌ Usuario no encontrado";
@@ -149,20 +149,21 @@ async function login() {
   }
 
   // Validar contraseña
-  const isValid = await validatePasswordHash(form.value.password, user.pass);
+  const isValid = await validatePasswordHash(form.value.password, user.password
+);
 
   if (isValid) {
     localStorage.setItem(
       "tiendas",
       JSON.stringify({
         id: user.id,
-        nombre: user.nombre,
-        telefono: user.celular,
+        nombre: user.nombreTienda,
+        telefono: user.telefono,
         email: user.email,
-        domicilio: user.calleNumero,
-        colonia: user.lugar,
+        domicilio: user.calle,
+        colonia: user.colonia,
         municipio: user.municipio,
-        codigpostal: user.codigoPostal,
+        codigpostal: user.cp,
         estado: user.estado,
       })
     );

@@ -2,12 +2,14 @@
   <div class="detalle-container" v-if="producto">
     <!-- Imagen superior -->
     <div class="detalle-header">
-      <img
-        loading="lazy"
-        :src="FIREBASE_STORAGE_BASE_URL + producto.url"
-        :alt="producto.nombre"
-        class="detalle-img"
-      />
+      <div class="detalle-img-container">
+        <img
+          loading="lazy"
+          :src="producto.url"
+          :alt="producto.nombre"
+          class="detalle-img"
+        />
+      </div>
 
       <!-- Botón volver  con SVG -->
       <ArrowBack class="btn-icon back" @click="$router.back()" />
@@ -32,7 +34,8 @@
     <!-- Información del producto -->
     <div class="detalle-info">
       <div class="precio-ranking">
-        <p class="precio">${{ Number(producto.precio).toFixed(2) }}</p>
+        <!-- <p class="precio">${{ Number(producto.precio).toFixed(2) }}</p> -->
+        <p class="precio">${{ Number(precioActual).toFixed(2) }}</p>
         <div class="rating">
           <span class="star filled">★</span>
           <span class="star filled">★</span>
@@ -43,18 +46,52 @@
         </div>
       </div>
 
+      <div class="tienda-header">
+        <h1 class="titulo_header">{{ producto.tiendaNombre }}</h1>
+        <img
+          v-if="tiendaUrl"
+          :src="tiendaUrl"
+          alt="Logo tienda"
+          class="logo-tienda"
+        />
+      </div>
+
       <h1 class="titulo">{{ producto.nombre }}</h1>
 
       <!-- Opciones de color -->
       <div class="color-section">
         <p class="color-label">Color option</p>
         <div class="color-options">
-          <span class="color-dot black"></span>
-          <span class="color-dot red"></span>
-          <span class="color-dot blue"></span>
+          <span
+            v-for="(variante, index) in coloresVariantes"
+            :key="index"
+            class="color-dot"
+            :style="{
+              backgroundColor: variante.colorCodigo,
+              border:
+                varianteSeleccionada?.sku === variante.sku
+                  ? '3px solid #1f70b2'
+                  : '2px solid #ddd',
+            }"
+            @click="seleccionarColor(variante)"
+          >
+          </span>
         </div>
       </div>
 
+      <!-- Categoria -->
+      <p class="descripcion-title">Categoría</p>
+      <p class="descripcion">{{ producto.categoria }}</p>
+
+      <!-- Tamaño -->
+      <p class="descripcion-title">Tamaño</p>
+      <p class="descripcion">
+        {{
+          varianteSeleccionada?.tamano === "Otro"
+            ? varianteSeleccionada?.tamanoOtro || "Tamaño personalizado"
+            : varianteSeleccionada?.tamano
+        }}
+      </p>
       <!-- Descripción -->
       <p class="descripcion-title">Descripción</p>
       <p class="descripcion">{{ producto.descripcion }}</p>
@@ -112,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed, reactive } from "vue";
+import { ref, watch, computed, reactive, onMounted } from "vue";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
 import type { Producto } from "@/types/Producto";
@@ -123,18 +160,21 @@ import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
 import { sessionUsuarioValidation, sessionUser } from "@/utils/sessionUser";
 import { useRouter } from "vue-router";
 
+import { useTiendas } from "@/composables/useTiendas";
+
 const props = defineProps<{ producto: Producto }>();
 defineEmits(["agregarCarrito"]);
 
 const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 
 const router = useRouter();
+const tiendaUrl = ref("");
 
 // Favorito reactivo
 const esFavorito = computed(() =>
   props.producto
     ? favoritosIds.value.includes(String(props.producto.articuloId))
-    : false
+    : false,
 );
 
 // Función toggle favorito
@@ -159,6 +199,25 @@ const sincronizarCarrito = async () => {
   for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
   for (const item of items) cantidadEnCarrito[item.id_articulo] = item.cantidad;
 };
+
+// variante seleccionada
+const varianteSeleccionada = ref(props.producto?.variantes?.[0] || null);
+
+// precio dinámico
+const precioActual = computed(() => {
+  return varianteSeleccionada.value?.precio || props.producto.precio;
+});
+
+// colores desde variantes
+const coloresVariantes = computed(() => {
+  return props.producto?.variantes || [];
+});
+
+const { obtenerTienda } = useTiendas();
+// seleccionar variante
+function seleccionarColor(variante: any) {
+  varianteSeleccionada.value = variante;
+}
 
 // Ejecutar sincronización al montar
 if (props.producto) sincronizarCarrito();
@@ -220,8 +279,17 @@ watch(
   async (newUserId) => {
     for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
     if (props.producto) await sincronizarCarrito();
-  }
+  },
 );
+//console.log("Producto recibido en detalle:", props.producto);
+
+onMounted(async () => {
+  if (props.producto?.tiendaId) {
+    const ot = await obtenerTienda(props.producto.tiendaId);
+    tiendaUrl.value = ot?.logoUrl || "";
+    console.log("Tienda obtenida en detalle:", tiendaUrl.value);
+  }
+});
 </script>
 
 <style scoped>
@@ -236,12 +304,21 @@ watch(
   position: relative;
 }
 
+.detalle-img-container {
+  width: 100%;
+  height: 50vh; /* mantiene la altura que quieres */
+  overflow: hidden; /* corta solo fuera del contenedor */
+  border-bottom-left-radius: 60px; /* mantiene tu esquina redondeada */
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 .detalle-img {
   width: 100%;
-  height: 50vh;
-  object-fit: cover;
-  border-bottom-left-radius: 60px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  object-fit: contain; /* muestra toda la imagen completa */
+  object-position: top; /* centra la parte superior */
+  display: block;
 }
 
 .btn-icon {
@@ -319,6 +396,29 @@ watch(
   color: var(--color-bg-blue-ligth);
   margin: 0;
   font-family: "Poppins", sans-serif;
+}
+.tienda-header {
+  display: flex;
+  align-items: center; /* centra verticalmente nombre y logo */
+  justify-content: flex-end; /* todo alineado a la derecha */
+  gap: 10px; /* espacio entre nombre y logo */
+}
+
+.logo-tienda {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 50%; /* hace el logo circular */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); /* opcional: sombra */
+}
+
+.titulo_header {
+  font-size: 14px;
+  font-weight: 500;
+  color: teal;
+  text-align: right;
+  color: #ff4da6;
+  font-weight: bold;
 }
 .titulo {
   font-size: 18px;
