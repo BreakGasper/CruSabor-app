@@ -261,7 +261,8 @@ const aumentarCantidad = async (producto: Producto) => {
 // Función para disminuir / eliminar
 const disminuirCantidad = async (producto: Producto) => {
   const item = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals(producto.articuloId)
+    // .equals(producto.articuloId)
+    .equals([producto.articuloId, sessionUser.value.id])
     .first();
   if (!item) return;
 
