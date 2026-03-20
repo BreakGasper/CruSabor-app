@@ -5,7 +5,7 @@
       <div class="detalle-img-container">
         <img
           loading="lazy"
-          :src="producto.url"
+          :src="FIREBASE_STORAGE_BASE_URL + producto.url"
           :alt="producto.nombre"
           class="detalle-img"
         />
