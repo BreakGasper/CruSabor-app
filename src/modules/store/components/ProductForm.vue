@@ -148,6 +148,7 @@
             class="variante-card"
           >
             <button
+              v-if="!variante.isDefault"
               type="button"
               class="remove-variante"
               @click="form.variantes.splice(index, 1)"
@@ -162,6 +163,7 @@
                     v-model="variante.sku"
                     type="text"
                     class="form-input"
+                    :disabled="variante.isDefault"
                     placeholder="Código SKU"
                   />
                   <button
@@ -179,6 +181,38 @@
                   :id="'scanner-' + index"
                   style="width: 100%; margin-top: 0.5rem"
                 ></div>
+              </div>
+            </div>
+
+            <!-- IMAGEN VARIANTE -->
+            <div class="form-group">
+              <label>Imagen de variante</label>
+
+              <div class="image-upload" @click="triggerVariantFileInput(index)">
+                <input
+                  type="file"
+                  :ref="(el) => (variantFileInputs[index] = el)"
+                  @change="(e) => onVariantImageSelected(e, variante)"
+                  hidden
+                  :disabled="variante.isDefault"
+                />
+
+                <!-- Preview -->
+                <div v-if="variante.url" class="image-preview-wrapper">
+                  <img :src="variante.url" class="image-preview" />
+                  <button
+                    v-if="!variante.isDefault"
+                    class="remove-btn"
+                    @click.stop="variante.url = ''"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <!-- Placeholder -->
+                <div v-else class="image-placeholder">
+                  <span>+</span>
+                </div>
               </div>
             </div>
             <!-- FILA 1: SKU + COLOR -->
@@ -216,7 +250,11 @@
                       v-for="c in colores"
                       :key="c.nombre"
                       class="dropdown-item color-item"
-                      @click="seleccionarColor(variante, c.nombre)"
+                      :class="{ disabled: colorYaUsado(c.nombre, index) }"
+                      @click="
+                        !colorYaUsado(c.nombre, index) &&
+                        seleccionarColor(variante, c.nombre)
+                      "
                     >
                       <span
                         class="color-circle"
@@ -253,8 +291,20 @@
                   @input="(e) => onVariantePrecioInput(e, variante)"
                   @blur="(e) => formatVariantePrecio(e, variante)"
                   placeholder="$0.00"
+                  :disabled="variante.isDefault"
                 />
               </div>
+            </div>
+
+            <!-- DETALLE VARIANTE -->
+            <div class="form-group">
+              <label>Detalle de variante</label>
+              <textarea
+                v-model="variante.detalle"
+                class="form-input"
+                placeholder="Ej: Edición especial, tela premium, etc."
+                rows="2"
+              ></textarea>
             </div>
 
             <!-- Tamaño -->
@@ -308,7 +358,11 @@
             <!-- Stock -->
             <div class="variante-row">
               <label>¿Tienes stock?</label>
-              <input type="checkbox" v-model="variante.tieneStock" />
+              <input
+                type="checkbox"
+                v-model="variante.tieneStock"
+                :disabled="variante.isDefault"
+              />
             </div>
 
             <div class="variante-row" v-if="variante.tieneStock">
@@ -319,6 +373,7 @@
                 v-model.number="variante.stock"
                 class="form-input small-input"
                 placeholder="Cantidad disponible"
+                :disabled="variante.isDefault"
               />
             </div>
             <div class="variante-row" v-else>
@@ -331,7 +386,7 @@
             class="modern-button small-button"
             @click="agregarVariante"
           >
-            + Agregar Caracteristica
+            + Agregar variante del mismo producto
           </button>
         </div>
 
@@ -481,6 +536,28 @@ const showDropdown = ref(false);
 // Nuevo ref para controlar el checkbox
 const tieneStock = ref(false);
 const colorDropdownIndex = ref<number | null>(null);
+
+const variantFileInputs = ref<any[]>([]);
+const variantFiles = ref<(File | null)[]>([]);
+
+function colorYaUsado(colorNombre: string, indexActual: number) {
+  return form.value.variantes.some((v, i) => {
+    return i !== indexActual && v.color === colorNombre;
+  });
+}
+
+function triggerVariantFileInput(index: number) {
+  variantFileInputs.value[index]?.click();
+}
+function onVariantImageSelected(e: Event, variante: any) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+
+  if (file) {
+    variante._file = file; // guardamos archivo real
+    variante.url = URL.createObjectURL(file); // preview inmediato
+  }
+}
+
 function abrirScanner(index: number) {
   scannerIndex.value = index;
 
@@ -502,7 +579,7 @@ function abrirScanner(index: number) {
       (errorMessage) => {
         // error opcional, ignorar
         console.log("No se detectó código: ", errorMessage);
-      }
+      },
     )
     .catch((err) => console.error("Error al iniciar scanner: ", err));
 }
@@ -548,6 +625,16 @@ function validarVariantes(): boolean {
       alert("Debes especificar el tamaño personalizado.");
       return false;
     }
+
+    if (!v.detalle) {
+      alert("Debes agregar un detalle para cada variante.");
+      return false;
+    }
+
+    if (!v.url && !v._file) {
+      alert("Cada variante debe tener una imagen.");
+      return false;
+    }
   }
 
   return true;
@@ -581,7 +668,15 @@ function agregarVariante() {
     almacen: "",
     precio: precioValue.value || 0,
     sku: "",
+    url: "",
+    detalle: "",
   });
+}
+
+function generarSKU(): string {
+  const random = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const time = Date.now().toString().slice(-4);
+  return `CRU-${random}-${time}`;
 }
 
 function toggleDropdown() {
@@ -636,7 +731,7 @@ function onVariantePrecioInput(e: Event, variante: any) {
 function formatVariantePrecio(e: Event, variante: any) {
   if (!variante.precio) return;
   (e.target as HTMLInputElement).value = `$${parseFloat(
-    variante.precio
+    variante.precio,
   ).toFixed(2)}`;
 }
 
@@ -649,14 +744,14 @@ watch(
       else if (v.stock < 1) v.stock = 1;
     });
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(precioValue, (nuevoPrecio) => {
   if (!nuevoPrecio || nuevoPrecio <= 0) return;
 
   // Si no existen variantes, crear una automáticamente
-  if (form.value.variantes.length === 0) {
+  if (step.value === 3 && form.value.variantes.length === 0) {
     form.value.variantes.push({
       color: "",
       colorCodigo: "",
@@ -671,13 +766,19 @@ watch(precioValue, (nuevoPrecio) => {
       almacen: "",
       precio: nuevoPrecio, // precio inicial
       sku: "",
+      url: "",
+      detalle: "",
     });
     return;
   }
 
-  // Si ya existe la primera variante, asignar precio SOLO si no lo había modificado
-  if (!form.value.variantes[0].precio || form.value.variantes[0].precio === 0) {
-    form.value.variantes[0].precio = nuevoPrecio;
+  // ✅ VALIDACIÓN CLAVE
+  if (!form.value.variantes.length) return;
+
+  const primera = form.value.variantes[0];
+
+  if (!primera.precio || primera.precio === 0) {
+    primera.precio = nuevoPrecio;
   }
 });
 
@@ -697,10 +798,42 @@ function nextStep() {
   if (step.value === 2 && !validarPaso2()) return;
 
   step.value = Math.min(step.value + 1, 3);
+
+  // 👇 Cuando entra a paso 3, crear variante base si no existe
+  if (step.value === 3 && form.value.variantes.length === 0) {
+    form.value.variantes.push(crearVarianteBase());
+  }
+}
+
+function crearVarianteBase() {
+  return {
+    color: "Gris",
+    colorCodigo: "#cccccc",
+    tamano: "Otro",
+    tamanoOtro: "",
+    material: "Otro",
+    materialOtro: "",
+    marca: "",
+    stock: -1,
+    estatus: true,
+    tieneStock: false,
+    almacen: form.value.almacen || "",
+    precio: precioValue.value,
+    sku: generarSKU(),
+    url: form.value.url || "",
+    detalle: "Producto Base",
+    // 🔒 bandera para bloquear
+    isDefault: true,
+  };
 }
 
 function prevStep() {
   step.value = Math.max(step.value - 1, 1);
+
+  // 👇 Si regresa del paso 3 al 2, borrar variantes
+  if (step.value === 2) {
+    form.value.variantes = [];
+  }
 }
 async function submitForm() {
   try {
@@ -712,9 +845,34 @@ async function submitForm() {
       urlFinal = await uploadArticuloImagen(imagenFile.value);
     }
 
+    const variantesFinal = await Promise.all(
+      form.value.variantes.map(async (v) => {
+        let skuFinal = v.sku;
+
+        // 🧠 si no hay SKU, generar uno
+        if (!skuFinal || skuFinal.trim() === "") {
+          skuFinal = generarSKU();
+        }
+
+        let urlFinalVariante = v.url;
+
+        if (v._file) {
+          urlFinalVariante = await uploadArticuloImagen(v._file);
+        }
+
+        return {
+          ...v,
+          sku: skuFinal, // ✅ aquí lo aseguras
+          url: urlFinalVariante,
+          _file: "",
+        };
+      }),
+    );
+
     await push(dbRef(db, "articulos"), {
       ...form.value,
       url: urlFinal,
+      variantes: variantesFinal,
     });
 
     // 🟦 Mostrar el diálogo personalizado
@@ -1234,5 +1392,11 @@ function validarPaso2() {
 .btn-elegante:active {
   transform: translateY(0px);
   box-shadow: 0 3px 7px rgba(0, 0, 0, 0.25);
+}
+
+.color-item.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 </style>

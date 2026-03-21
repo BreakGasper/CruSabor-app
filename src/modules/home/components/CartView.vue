@@ -30,7 +30,9 @@
           />
           <div class="info">
             <p class="nombre">{{ item.nombre }}</p>
+
             <p class="precio">${{ item.precio.toFixed(2) }}</p>
+            <p class="detalle">{{ item.detalle }}</p>
           </div>
 
           <!-- Botones de cantidad estilo detalle -->
@@ -122,7 +124,7 @@ const sincronizarCarrito = async () => {
 };
 watch(
   () => sessionUser.value?.id,
-  () => sincronizarCarrito() // se vuelve a cargar el carrito al cambiar de usuario
+  () => sincronizarCarrito(), // se vuelve a cargar el carrito al cambiar de usuario
 );
 onMounted(() => sincronizarCarrito());
 
@@ -155,12 +157,12 @@ const disminuirCantidad = async (item: any) => {
 };
 
 const subtotal = computed(() =>
-  carritoItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+  carritoItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0),
 );
 const shippingFee = computed(() => (subtotal.value < 200 ? 15.0 : 0.0));
 
 const totalArticulos = computed(() =>
-  carritoItems.reduce((sum, item) => sum + item.cantidad, 0)
+  carritoItems.reduce((sum, item) => sum + item.cantidad, 0),
 );
 const ContinuarCompra = () => {
   router.push({
@@ -249,6 +251,13 @@ const ContinuarCompra = () => {
   white-space: nowrap; /* evita salto de línea */
   overflow: hidden; /* recorta exceso de texto */
   text-overflow: ellipsis; /* agrega "..." si se corta */
+}
+.detalle {
+  font-size: 12px;
+  color: grey;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .precio {

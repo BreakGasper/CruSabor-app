@@ -173,6 +173,8 @@ const aumentarCantidad = async (producto: Producto) => {
       nombre: producto.nombre,
       precio: producto.precio,
       url: producto.url,
+      sku: producto.variantes[0]?.sku || "",
+      detalle: producto.variantes[0]?.detalle || "",
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;
@@ -196,6 +198,6 @@ const disminuirCantidad = async (producto: Producto) => {
 
 watch(
   () => sessionUser.value?.id,
-  () => sincronizarCarrito()
+  () => sincronizarCarrito(),
 );
 </script>

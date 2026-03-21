@@ -33,6 +33,10 @@ export interface Producto {
     almacen: string;
     precio: number;
     sku: string;
+    url: string;
+    _file?: File;
+    detalle: string;
+    isDefault?: boolean;
   }>;
 
   //características adicionales pueden ser añadidas aquí

@@ -5,7 +5,7 @@
       <div class="detalle-img-container">
         <img
           loading="lazy"
-          :src="FIREBASE_STORAGE_BASE_URL + producto.url"
+          :src="FIREBASE_STORAGE_BASE_URL + imagenActual"
           :alt="producto.nombre"
           class="detalle-img"
         />
@@ -153,7 +153,7 @@ import { ref, watch, computed, reactive, onMounted } from "vue";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
 import type { Producto } from "@/types/Producto";
-import { db } from "@/db";
+import { db, type CarritoItem } from "@/db";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
@@ -217,6 +217,7 @@ const { obtenerTienda } = useTiendas();
 // seleccionar variante
 function seleccionarColor(variante: any) {
   varianteSeleccionada.value = variante;
+  console.log("Variante seleccionada:", variante);
 }
 
 // Ejecutar sincronización al montar
@@ -228,30 +229,44 @@ const aumentarCantidad = async (producto: Producto) => {
     generarNuevoPedidoId(sessionUser.value.id);
   }
 
-  const item = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals([producto.articuloId, sessionUser.value.id])
-    .first();
+  const variante = varianteSeleccionada.value;
+  const key = [producto.articuloId, sessionUser.value.id, variante?.sku];
 
+  const item = await db.Carrito.where("[id_articulo+id_usuario+sku]")
+    .equals([producto.articuloId, sessionUser.value.id, variante?.sku])
+    .first();
   if (item) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
     cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
   } else {
-    const newItem = {
-      almacen: producto.almacen || "",
+    const variante = varianteSeleccionada.value;
+
+    const newItem: CarritoItem = {
+      id: undefined,
+
+      // 🔑 IDENTIDAD
+      sku: variante?.sku || "default",
+      id_articulo: producto.articuloId,
+      id_usuario: sessionUser.value.id,
+      id_pedido: sessionPedidoId.value!,
+
+      // 📦 PRODUCTO BASE (obligatorio en tu modelo)
+      almacen: variante?.almacen || producto.almacen || "",
       anticipo: producto.anticipo || 0,
-      cantidad: 1,
       categoria: producto.categoria || "",
       descuentoCupon: 0,
       estatus: "Preparacion",
       fechaEntrega: "",
       fecha_hora: new Date().toLocaleString(),
-      id_articulo: producto.articuloId,
-      id_pedido: sessionPedidoId.value!,
-      id_usuario: sessionUser.value.id,
       metodo_pago: "Efectivo",
+
+      // 🎨 VARIANTE (lo que quieres diferenciar)
       nombre: producto.nombre,
-      precio: producto.precio,
-      url: producto.url,
+      precio: variante?.precio ?? producto.precio,
+      url: variante?.url ?? producto.url,
+
+      cantidad: 1,
+      detalle: variante?.detalle || "",
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;
@@ -275,12 +290,26 @@ const disminuirCantidad = async (producto: Producto) => {
   }
 };
 
+const imagenActual = computed(() => {
+  return varianteSeleccionada.value?.url || props.producto.url;
+});
+
 watch(
   () => sessionUser.value?.id,
   async (newUserId) => {
     for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
     if (props.producto) await sincronizarCarrito();
   },
+);
+
+watch(
+  () => props.producto,
+  (newProducto) => {
+    if (newProducto?.variantes?.length) {
+      varianteSeleccionada.value = newProducto.variantes[0];
+    }
+  },
+  { immediate: true },
 );
 //console.log("Producto recibido en detalle:", props.producto);
 
