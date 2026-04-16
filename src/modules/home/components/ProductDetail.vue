@@ -47,7 +47,7 @@
       </div>
 
       <div class="tienda-header">
-        <h1 class="titulo_header">{{ producto.tiendaNombre }}</h1>
+        <h1 class="titulo_header"  @click="irPerfilTienda">{{ producto.tiendaNombre }}</h1>
         <img
           v-if="tiendaUrl"
           :src="tiendaUrl"
@@ -169,6 +169,10 @@ const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 
 const router = useRouter();
 const tiendaUrl = ref("");
+
+const irPerfilTienda = () => {
+  router.push("/store/profile");
+};
 
 // Favorito reactivo
 const esFavorito = computed(() =>

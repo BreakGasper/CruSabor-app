@@ -1,10 +1,10 @@
 <template>
-  <div>
+  <div id="app-layout">
     <router-view />
   </div>
+
   <Toast position="bottom-center" />
 </template>
-
 <script setup lang="ts">
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
@@ -14,6 +14,17 @@ const toast = useToast();
 </script>
 
 <style>
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 /* Estilos globales de toast */
 /* Quita la línea blanca y centra el contenido */
 .p-toast-success {

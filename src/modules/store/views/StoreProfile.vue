@@ -381,6 +381,12 @@ onMounted(() => loadStore());
 </script>
 
 <style scoped>
+html, body {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .divider {
   border: none;
   border-bottom: 1px solid #ccc;

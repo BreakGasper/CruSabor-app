@@ -8,7 +8,12 @@ import StoreArticles from "./components/StoreArticles.vue";
 export default [
   { path: "/store/login", component: StoreLogin, name: "storeLogin" }, //login para tiendas
   { path: "/store/register", component: StoreRegister, name: "storeRegister" },
-  { path: "/store/profile", component: StoreProfile, name: "storeProfile" },
+  {
+  path: "/store/profile/:id",
+  component: StoreProfile,
+  name: "storeProfile",
+  props: true,
+},
 
   {
     path: "/store/products/:id",//Registrar productos

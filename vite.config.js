@@ -3,7 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import path from "path";
 import vueDevTools from "vite-plugin-vue-devtools";
 export default defineConfig({
-  plugins: [vue(), vueDevTools()],
+  plugins: [vue(), vueDevTools({ launchEditor: "code" })],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
