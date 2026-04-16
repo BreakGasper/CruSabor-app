@@ -46,13 +46,14 @@
         </div>
       </div>
 
-      <div class="tienda-header">
-        <h1 class="titulo_header"  @click="irPerfilTienda">{{ producto.tiendaNombre }}</h1>
+      <div class="tienda-header" >
+        <h1 class="titulo_header" @click="irPerfilTienda" >{{ producto.tiendaNombre }}</h1>
         <img
           v-if="tiendaUrl"
           :src="tiendaUrl"
           alt="Logo tienda"
           class="logo-tienda"
+          @click="irPerfilTienda"
         />
       </div>
 
@@ -171,7 +172,7 @@ const router = useRouter();
 const tiendaUrl = ref("");
 
 const irPerfilTienda = () => {
-  router.push("/store/profile");
+  router.push(`/store/profile/${props.producto.tiendaId}`);
 };
 
 // Favorito reactivo

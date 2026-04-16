@@ -270,14 +270,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted,computed  } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useTiendas, type Tienda } from "@/composables/useTiendas";
 import cashIcon from "@/assets/icons/money.png";
 import cardIcon from "@/assets/icons/card.png";
 import transferIcon from "@/assets/icons/trasfer.png";
 
 const router = useRouter();
-const { tiendaLogueada } = useTiendas();
+const route = useRoute();
+const { tiendaLogueada, obtenerTienda } = useTiendas();
 const store = ref<Tienda | null>(null);
 const menuCollapsed = ref(true);
 const tiendaLocal = JSON.parse(localStorage.getItem("tiendas") || "{}");
@@ -307,12 +308,18 @@ const esDuenoTienda = computed(() => {
 });
 
 async function loadStore() {
-  const stored = localStorage.getItem("tiendas");
-  const telefono = stored ? JSON.parse(stored)?.telefono : null;
-  if (!telefono) return;
+  const tiendaId = route.params.id as string;
+  if (tiendaId) {
+    const tienda = await obtenerTienda(tiendaId);
+    if (tienda) store.value = tienda;
+  } else {
+    const stored = localStorage.getItem("tiendas");
+    const telefono = stored ? JSON.parse(stored)?.telefono : null;
+    if (!telefono) return;
 
-  const tienda = await tiendaLogueada(telefono);
-  if (tienda) store.value = tienda;
+    const tienda = await tiendaLogueada(telefono);
+    if (tienda) store.value = tienda;
+  }
 }
 
 const menuOpen = ref(false);

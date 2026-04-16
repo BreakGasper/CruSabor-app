@@ -9,7 +9,7 @@ export default [
   { path: "/store/login", component: StoreLogin, name: "storeLogin" }, //login para tiendas
   { path: "/store/register", component: StoreRegister, name: "storeRegister" },
   {
-  path: "/store/profile/:id",
+  path: "/store/profile/:id?",
   component: StoreProfile,
   name: "storeProfile",
   props: true,
