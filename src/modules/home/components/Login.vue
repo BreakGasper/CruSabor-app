@@ -122,6 +122,7 @@ import { validatePasswordHash } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
 import { faL } from "@fortawesome/free-solid-svg-icons";
 import CustomToast from "@/components/CustomToast.vue";
+import { guardarSesion, cerrarSesion } from "@/utils/sessionUser";
 const telefono = ref("");
 const password = ref("");
 const telefonoError = ref("");
@@ -179,20 +180,21 @@ async function handleLogin() {
   const isValid = await validatePasswordHash(password.value, user.pass);
 
   if (isValid) {
-    localStorage.setItem(
-      "usuario",
-      JSON.stringify({
-        id: user.id,
-        nombre: user.nombre,
-        telefono: user.celular,
-        email: user.email,
-        domicilio: user.calleNumero,
-        colonia: user.lugar,
-        municipio: user.municipio,
-        codigpostal: user.codigoPostal,
-        estado: user.estado,
-      })
-    );
+    // Limpiar sesión de tienda anterior si existe
+    localStorage.removeItem("tiendas");
+    cerrarSesion();
+
+    guardarSesion({
+      id: user.id,
+      nombre: user.nombre,
+      telefono: user.celular,
+      email: user.email,
+      domicilio: user.calleNumero,
+      colonia: user.lugar,
+      municipio: user.municipio,
+      codigpostal: user.codigoPostal,
+      estado: user.estado,
+    });
     router.replace("/");
     // Redirigir
   } else {

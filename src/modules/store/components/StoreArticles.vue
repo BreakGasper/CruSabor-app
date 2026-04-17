@@ -176,7 +176,10 @@ function onImageError(event: Event) {
 }
 
 function irADetalle(producto: any) {
-  router.push(`/producto/${producto.articuloId}`);
+  router.push({
+    path: `/producto/${producto.articuloId}`,
+    query: { fromStore: "true", storeId: tiendaId },
+  });
 }
 
 function toggleFavorito(articuloId: string) {

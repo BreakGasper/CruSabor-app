@@ -78,6 +78,7 @@ import { ref } from "vue";
 import { findUserByPhone, findUserByPhoneStore } from "@/composables/useAuth";
 import { validatePasswordHash } from "@/composables/usePassword";
 import router from "@/router";
+import { cerrarSesion } from "@/utils/sessionUser";
 const form = ref({
   username: "",
   password: "",
@@ -153,6 +154,10 @@ async function login() {
 );
 
   if (isValid) {
+    // Limpiar sesión de usuario normal si existe
+    cerrarSesion();
+    localStorage.removeItem("usuario");
+
     localStorage.setItem(
       "tiendas",
       JSON.stringify({

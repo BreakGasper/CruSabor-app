@@ -15,11 +15,12 @@
       <ArrowBack class="btn-icon back" @click="$router.back()" />
 
       <!-- Carrito -->
-      <button class="btn-icon cart" @click="$router.push('/cart')">
+      <button v-if="!esTienda" class="btn-icon cart" @click="$router.push('/cart')">
         <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
       </button>
 
       <button
+        v-if="sessionUsuarioValidation() && !esTienda"
         class="btn-fav"
         :class="{ active: esFavorito }"
         @click="toggleFavorito(producto)"
@@ -47,13 +48,18 @@
       </div>
 
       <div class="tienda-header" >
-        <h1 class="titulo_header" @click="irPerfilTienda" >{{ producto.tiendaNombre }}</h1>
+        <h1 
+          class="titulo_header" 
+          @click="irPerfilTienda"
+          :class="{ 'disabled': viewendesdeStore }"
+        >{{ producto.tiendaNombre }}</h1>
         <img
           v-if="tiendaUrl"
           :src="tiendaUrl"
           alt="Logo tienda"
           class="logo-tienda"
           @click="irPerfilTienda"
+          :class="{ 'disabled': viewendesdeStore }"
         />
       </div>
 
@@ -100,9 +106,9 @@
 
     <!-- Footer con botón agregar -->
     <div class="detalle-footer">
-      <div v-if="sessionUsuarioValidation()">
+      <div v-if="sessionUsuarioValidation() && !esTienda">
         <div
-          v-if="cantidadEnCarrito[producto.articuloId] > 0"
+          v-if="cantidadEnCarrito[claveCarritoActual] > 0"
           class="contador-carrito"
         >
           <button
@@ -113,20 +119,20 @@
           </button>
 
           <span class="cantidad">{{
-            cantidadEnCarrito[producto.articuloId]
+            cantidadEnCarrito[claveCarritoActual]
           }}</span>
 
           <button
             :class="{
               'btn-carrito': true,
-              'btn-basura': cantidadEnCarrito[producto.articuloId] === 1,
-              'btn-menos': cantidadEnCarrito[producto.articuloId] > 1,
+              'btn-basura': cantidadEnCarrito[claveCarritoActual] === 1,
+              'btn-menos': cantidadEnCarrito[claveCarritoActual] > 1,
             }"
             @click="disminuirCantidad(producto)"
           >
             <FontAwesomeIcon
               :icon="
-                cantidadEnCarrito[producto.articuloId] === 1
+                cantidadEnCarrito[claveCarritoActual] === 1
                   ? ['fas', 'trash-can']
                   : ['fas', 'minus']
               "
@@ -139,7 +145,7 @@
         </button>
       </div>
       <button
-        v-else
+        v-else-if="!esTienda"
         class="btn-agregar"
         @click.prevent="$router.push('/login')"
       >
@@ -159,7 +165,7 @@ import ArrowBack from "@/components/ArrowBack.vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
 import { sessionUsuarioValidation, sessionUser } from "@/utils/sessionUser";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 import { useTiendas } from "@/composables/useTiendas";
 
@@ -169,10 +175,29 @@ defineEmits(["agregarCarrito"]);
 const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 
 const router = useRouter();
+const route = useRoute();
 const tiendaUrl = ref("");
 
+// Detectar si viene desde la vista de artículos de una tienda
+const viewendesdeStore = computed(() => {
+  return route.query.fromStore === "true";
+});
+
+const tiendaLocal = computed(() => {
+  const stored = localStorage.getItem("tiendas");
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch (error) {
+    console.warn("ProductDetail: invalid tiendas data", error);
+    return null;
+  }
+});
+
 const irPerfilTienda = () => {
-  router.push(`/store/profile/${props.producto.tiendaId}`);
+  if (!esTienda.value) {
+    router.push(`/store/profile/${props.producto.tiendaId}`);
+  }
 };
 
 // Favorito reactivo
@@ -202,7 +227,10 @@ const sincronizarCarrito = async () => {
     .toArray();
 
   for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
-  for (const item of items) cantidadEnCarrito[item.id_articulo] = item.cantidad;
+  for (const item of items) {
+    const clave = `${item.id_articulo}-${item.sku}`;
+    cantidadEnCarrito[clave] = item.cantidad;
+  }
 };
 
 // variante seleccionada
@@ -216,6 +244,32 @@ const precioActual = computed(() => {
 // colores desde variantes
 const coloresVariantes = computed(() => {
   return props.producto?.variantes || [];
+});
+
+// clave para cantidad en carrito por variante
+const claveCarritoActual = computed(() => {
+  const variante = varianteSeleccionada.value;
+  return `${props.producto.articuloId}-${variante?.sku || "default"}`;
+});
+
+// Detectar si el usuario es una tienda
+// Solo consideramos modo tienda cuando viene desde StoreArticles y hay una sesión activa de tienda,
+// no solo una tienda almacenada en localStorage con un usuario normal logueado.
+const esTienda = computed(() => {
+  console.log("=== esTienda Calculation ===");
+  console.log("viewendesdeStore:", viewendesdeStore.value);
+  console.log("sessionUsuarioValidation:", !!sessionUsuarioValidation());
+  console.log("tiendaLocal:", tiendaLocal.value);
+
+  const resultado =
+    viewendesdeStore.value &&
+    !!tiendaLocal.value &&
+    !sessionUsuarioValidation();
+
+  console.log("esTienda result:", resultado);
+  console.log("============================");
+
+  return resultado;
 });
 
 const { obtenerTienda } = useTiendas();
@@ -236,13 +290,14 @@ const aumentarCantidad = async (producto: Producto) => {
 
   const variante = varianteSeleccionada.value;
   const key = [producto.articuloId, sessionUser.value.id, variante?.sku];
+  const clave = `${producto.articuloId}-${variante?.sku || "default"}`;
 
   const item = await db.Carrito.where("[id_articulo+id_usuario+sku]")
     .equals([producto.articuloId, sessionUser.value.id, variante?.sku])
     .first();
   if (item) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
-    cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
+    cantidadEnCarrito[clave] = item.cantidad + 1;
   } else {
     const variante = varianteSeleccionada.value;
 
@@ -274,24 +329,25 @@ const aumentarCantidad = async (producto: Producto) => {
       detalle: variante?.detalle || "",
     };
     await db.Carrito.add(newItem);
-    cantidadEnCarrito[producto.articuloId] = 1;
+    cantidadEnCarrito[clave] = 1;
   }
 };
 
 // Función para disminuir / eliminar
 const disminuirCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("[id_articulo+id_usuario]")
-    // .equals(producto.articuloId)
-    .equals([producto.articuloId, sessionUser.value.id])
+  const variante = varianteSeleccionada.value;
+  const clave = `${producto.articuloId}-${variante?.sku || "default"}`;
+  const item = await db.Carrito.where("[id_articulo+id_usuario+sku]")
+    .equals([producto.articuloId, sessionUser.value.id, variante?.sku || "default"])
     .first();
   if (!item) return;
 
   if (item.cantidad > 1) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad - 1 });
-    cantidadEnCarrito[producto.articuloId] = item.cantidad - 1;
+    cantidadEnCarrito[clave] = item.cantidad - 1;
   } else {
     await db.Carrito.delete(item.id!);
-    cantidadEnCarrito[producto.articuloId] = 0;
+    cantidadEnCarrito[clave] = 0;
   }
 };
 
@@ -319,6 +375,14 @@ watch(
 //console.log("Producto recibido en detalle:", props.producto);
 
 onMounted(async () => {
+  // Debug: mostrar estado de sesiones
+  console.log("=== ProductDetail Mounted ===");
+  console.log("sessionUser:", sessionUser.value);
+  console.log("sessionUsuarioValidation():", !!sessionUsuarioValidation());
+  console.log("tiendaLocal:", tiendaLocal.value);
+  console.log("esTienda:", esTienda.value);
+  console.log("=============================");
+
   if (props.producto?.tiendaId) {
     const ot = await obtenerTienda(props.producto.tiendaId);
     tiendaUrl.value = ot?.logoUrl || "";
@@ -445,6 +509,14 @@ onMounted(async () => {
   object-fit: cover;
   border-radius: 50%; /* hace el logo circular */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); /* opcional: sombra */
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.logo-tienda.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .titulo_header {
@@ -454,6 +526,14 @@ onMounted(async () => {
   text-align: right;
   color: #ff4da6;
   font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.titulo_header.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
 }
 .titulo {
   font-size: 18px;
