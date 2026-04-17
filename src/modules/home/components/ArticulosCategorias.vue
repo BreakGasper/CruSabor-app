@@ -161,7 +161,7 @@ const aumentarCantidad = async (producto: Producto) => {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
     cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
   } else {
-    const newItem = {
+   const newItem = {
       almacen: producto.almacen || "",
       anticipo: producto.anticipo || 0,
       cantidad: 1,
@@ -176,7 +176,9 @@ const aumentarCantidad = async (producto: Producto) => {
       metodo_pago: "Efectivo",
       nombre: producto.nombre,
       precio: producto.precio,
-      url: producto.url || "",
+      url: producto.url,
+      sku: producto.variantes[0]?.sku || "",
+      detalle: producto.variantes[0]?.detalle || "",
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;

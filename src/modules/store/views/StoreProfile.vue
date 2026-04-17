@@ -3,6 +3,9 @@
     <div class="store-card">
       <!-- Banner / Galería principal -->
       <div class="store-banner">
+        <div class="back-btn" v-if="!esDuenoTienda">
+          <arrow-back @click="$router.back()" />
+        </div>
         <div v-if="store.bannerUrl" class="banner-carousel">
           <img :src="store.bannerUrl" class="banner-img" alt="Gallery" />
         </div>
@@ -172,7 +175,7 @@
                   ? `${formato12h(store.horario[dia].inicio)} - ${formato12h(
                       store.horario[dia].fin,
                     )}`
-                  : "Cerrado"
+                  : 'Cerrado'
               }}
             </div>
           </div>
@@ -223,7 +226,11 @@
       <transition name="slide">
         <div v-if="menuOpen" class="menu-content">
           <h3>Opciones</h3>
+
           <ul>
+            <li v-if="!esDuenoTienda">
+              <button class="btn-menu" @click="$router.back()">Volver</button>
+            </li>
             <li
               v-if="store.facebook || store.instagram || store.incluyeWhatsapp"
             >
@@ -248,8 +255,11 @@
               </div>
             </li>
             <li v-if="esDuenoTienda">
-              <button class="btn-menu" @click="artsTienda">Agregar Productos</button>
+              <button class="btn-menu" @click="artsTienda">
+                Agregar Productos
+              </button>
             </li>
+
             <li>
               <button class="btn-menu" @click="abrirMaps">Cómo llegar</button>
             </li>
@@ -261,6 +271,12 @@
                 ver Productos
               </button>
             </li>
+
+            <li v-if="esDuenoTienda">
+              <button class="btn-menu" @click="closeSesionTienda">
+                Cerrar sesión
+              </button>
+            </li>
           </ul>
         </div>
       </transition>
@@ -269,38 +285,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted,computed  } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { useTiendas, type Tienda } from "@/composables/useTiendas";
-import cashIcon from "@/assets/icons/money.png";
-import cardIcon from "@/assets/icons/card.png";
-import transferIcon from "@/assets/icons/trasfer.png";
+import { ref, onMounted, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useTiendas, type Tienda } from '@/composables/useTiendas';
+import cashIcon from '@/assets/icons/money.png';
+import cardIcon from '@/assets/icons/card.png';
+import transferIcon from '@/assets/icons/trasfer.png';
+import ArrowBack from '@/components/ArrowBack.vue';
 
 const router = useRouter();
 const route = useRoute();
 const { tiendaLogueada, obtenerTienda } = useTiendas();
 const store = ref<Tienda | null>(null);
 const menuCollapsed = ref(true);
-const tiendaLocal = JSON.parse(localStorage.getItem("tiendas") || "{}");
+const tiendaLocal = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
-const placeholderImg = "https://via.placeholder.com/600x250";
-const placeholderLogo = "https://via.placeholder.com/100";
+const placeholderImg = 'https://via.placeholder.com/600x250';
+const placeholderLogo = 'https://via.placeholder.com/100';
 function formato12h(hora24: string) {
-  if (!hora24) return "";
-  const [h, m] = hora24.split(":").map(Number);
-  const periodo = h >= 12 ? "PM" : "AM";
+  if (!hora24) return '';
+  const [h, m] = hora24.split(':').map(Number);
+  const periodo = h >= 12 ? 'PM' : 'AM';
   const hora12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hora12}:${m.toString().padStart(2, "0")} ${periodo}`;
+  return `${hora12}:${m.toString().padStart(2, '0')} ${periodo}`;
 }
 
 const diasSemana = [
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-  "Domingo",
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+  'Domingo',
 ];
 
 const esDuenoTienda = computed(() => {
@@ -313,7 +330,7 @@ async function loadStore() {
     const tienda = await obtenerTienda(tiendaId);
     if (tienda) store.value = tienda;
   } else {
-    const stored = localStorage.getItem("tiendas");
+    const stored = localStorage.getItem('tiendas');
     const telefono = stored ? JSON.parse(stored)?.telefono : null;
     if (!telefono) return;
 
@@ -338,11 +355,19 @@ function goBack() {
   router.back();
 }
 
+function closeSesionTienda() {
+  // 🔥 Eliminar sesión
+  localStorage.removeItem('tiendas');
+
+  // 🔁 Redirigir al login
+  router.push('/store/login');
+}
+
 function artsTienda() {
-  const tienda = JSON.parse(localStorage.getItem("tiendas") || "{}");
+  const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
   router.push({
-    name: "storeProducts",
+    name: 'storeProducts',
     params: { id: tienda.id, nombre: tienda.nombreTienda },
   });
 }
@@ -354,7 +379,7 @@ function abrirMaps() {
   );
   window.open(
     `https://www.google.com/maps/search/?api=1&query=${direccion}`,
-    "_blank",
+    '_blank',
   );
 }
 function llamar() {
@@ -365,13 +390,13 @@ function llamar() {
 function irAArticulos() {
   if (!store.value) return;
   router.push({
-    name: "storeArticles", // nombre de la ruta que definiste
+    name: 'storeArticles', // nombre de la ruta que definiste
     params: { id: store.value.tiendaId }, // id de la tienda
   });
 }
 
 function linkifyShort(text: string) {
-  if (!text) return "";
+  if (!text) return '';
   // Regex para URLs
   const urlRegex = /(https?:\/\/[^\s]+)/g;
 
@@ -388,7 +413,8 @@ onMounted(() => loadStore());
 </script>
 
 <style scoped>
-html, body {
+html,
+body {
   height: auto;
   min-height: 100%;
   overflow-y: auto;
@@ -406,7 +432,7 @@ html, body {
   display: flex;
   justify-content: center;
   padding: 30px 20px;
-  font-family: "Poppins", sans-serif;
+  font-family: 'Poppins', sans-serif;
   background: #f5f7fa;
   min-height: 100vh;
 }
@@ -429,6 +455,8 @@ html, body {
   border: #1f70b2 solid 1px;
 }
 .banner-carousel {
+  width: 100%;
+  height: 100%;
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
@@ -437,11 +465,30 @@ html, body {
   display: none;
 }
 .banner-img {
-  width: 100%; /* imagen ocupa todo el ancho del contenedor */
-  height: auto; /* mantiene proporción */
-  display: block; /* elimina espacios debajo de la imagen */
-  object-fit: cover; /* opcional: recorta imagen si no cabe perfectamente */
-  border-radius: 8px; /* opcional: esquinas redondeadas */
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 0;
+}
+.back-btn {
+  margin-left: 5px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  z-index: 12;
+  cursor: pointer;
+}
+.back-btn:hover {
+  background: rgba(255, 255, 255, 1);
 }
 
 .store-header {
@@ -732,6 +779,7 @@ html, body {
   height: 22px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  object-fit: contain;
 }
 
 .email-icon img:hover {
@@ -806,5 +854,12 @@ html, body {
   color: #1f70b2;
   font-weight: 500;
   font-size: 0.9rem;
+}
+.back-btn {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 </style>

@@ -3911,6 +3911,11 @@ postcss@^8.1.0, postcss@^8.5.6:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
+prettier@^3.8.3:
+  version "3.8.3"
+  resolved "https://registry.npmjs.org/prettier/-/prettier-3.8.3.tgz"
+  integrity sha512-7igPTM53cGHMW8xWuVTydi2KO233VFiTNyF5hLJqpilHfmn8C8gPf+PS7dUT64YcXFbiMGZxS9pCSxL/Dxm/Jw==
+
 primevue@^4.3.7:
   version "4.3.7"
   resolved "https://registry.npmjs.org/primevue/-/primevue-4.3.7.tgz"
