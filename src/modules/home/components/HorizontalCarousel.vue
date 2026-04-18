@@ -36,55 +36,71 @@
 
           <p class="nombre">{{ p.nombre }}</p>
           <p class="subtitulo">
-            Subcategoría: {{ p.subcategoria || "General" }}
+            Subcategoría: {{ p.subcategoria || 'General' }}
           </p>
 
           <div class="precio-agregar">
             <span class="precio">${{ p.precio }}</span>
 
             <div class="acciones" v-if="sessionUsuarioValidation()">
-              <!-- Si no está en el carrito, mostrar botón negro -->
-              <button
-                v-if="!(cantidadEnCarrito[p.articuloId] > 0)"
-                class="btn-agregar"
-                @click.stop="aumentarCantidad(p)"
-              >
-                <FontAwesomeIcon :icon="['fas', 'plus']" />
-              </button>
-
-              <!-- Si ya está en el carrito, mostrar contador con + / - -->
-              <div v-else class="contador-carrito">
+              
+              <div class="acciones" v-if="obtenerStock(p) !== 0">
+                <!-- Si no está en el carrito, mostrar botón negro -->
                 <button
-                  class="btn-carrito btn-mas"
+                  v-if="
+                    !(cantidadEnCarrito[p.articuloId] > 0) &&
+                    obtenerStock(p) > 0
+                  "
+                  class="btn-agregar"
                   @click.stop="aumentarCantidad(p)"
                 >
-                  <FontAwesomeIcon
-                    :icon="['fas', 'plus']"
-                    fixed-width
-                    size="sm"
-                  />
+                  <FontAwesomeIcon :icon="['fas', 'plus']" />
                 </button>
 
-                <span class="cantidad">{{
-                  cantidadEnCarrito[p.articuloId]
-                }}</span>
-
-                <button
-                  :class="{
-                    'btn-carrito': true,
-                    'btn-basura': cantidadEnCarrito[p.articuloId] === 1,
-                    'btn-menos': cantidadEnCarrito[p.articuloId] > 1,
-                  }"
-                  @click.stop="disminuirCantidad(p)"
-                >
-                  <FontAwesomeIcon
-                    :icon="
-                      cantidadEnCarrito[p.articuloId] === 1
-                        ? ['fas', 'trash-can']
-                        : ['fas', 'minus']
+                <!-- Si ya está en el carrito, mostrar contador con + / - -->
+                <div v-else class="contador-carrito">
+                  <button
+                    v-if="obtenerStock(p) !== 0"
+                    class="btn-carrito btn-mas"
+                    :disabled="
+                      obtenerStock(p) !== Infinity &&
+                      cantidadEnCarrito[p.articuloId] >= obtenerStock(p)
                     "
-                  />
-                </button>
+                    @click.stop="aumentarCantidad(p)"
+                  >
+                    <FontAwesomeIcon
+                      :icon="['fas', 'plus']"
+                      fixed-width
+                      size="sm"
+                    />
+                  </button>
+
+                  <span class="cantidad">{{
+                    cantidadEnCarrito[p.articuloId]
+                  }}</span>
+
+                  <button
+                    :class="{
+                      'btn-carrito': true,
+                      'btn-basura': cantidadEnCarrito[p.articuloId] === 1,
+                      'btn-menos': cantidadEnCarrito[p.articuloId] > 1,
+                    }"
+                    @click.stop="disminuirCantidad(p)"
+                  >
+                    <FontAwesomeIcon
+                      :icon="
+                        cantidadEnCarrito[p.articuloId] === 1
+                          ? ['fas', 'trash-can']
+                          : ['fas', 'minus']
+                      "
+                    />
+                  </button>
+                </div>
+              </div>
+              <div class="acciones" v-else>
+                <span v-if="obtenerStock(p) === 0" class="agotado-label">
+                  Agotado
+                </span>
               </div>
             </div>
           </div>
@@ -101,16 +117,16 @@
 </template>
 
 <script setup lang="ts">
-import "@/modules/home/styles/HorizontalCarousel.css";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
-import { watch, reactive, onMounted } from "vue";
-import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
-import type { Producto } from "@/types/Producto";
-import { db } from "@/db";
-import { FontAwesomeIcon } from "@/plugins/fontawesome";
-import { sessionUsuarioValidation } from "@/utils/sessionUser";
-import { sessionUser } from "@/utils/sessionUser";
-import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
+import '@/modules/home/styles/HorizontalCarousel.css';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { watch, reactive, onMounted } from 'vue';
+import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarousel';
+import type { Producto } from '@/types/Producto';
+import { db } from '@/db';
+import { FontAwesomeIcon } from '@/plugins/fontawesome';
+import { sessionUsuarioValidation } from '@/utils/sessionUser';
+import { sessionUser } from '@/utils/sessionUser';
+import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 
 const props = defineProps<{ productos: Producto[] }>();
 
@@ -133,7 +149,7 @@ const sincronizarCarrito = async () => {
     return;
   }
 
-  const items = await db.Carrito.where("id_usuario")
+  const items = await db.Carrito.where('id_usuario')
     .equals(sessionUser.value.id)
     .toArray();
 
@@ -145,12 +161,31 @@ const sincronizarCarrito = async () => {
 
 onMounted(() => sincronizarCarrito());
 
+const obtenerStock = (producto: Producto) => {
+  const variante = producto.variantes?.[0];
+
+  if (!variante) return 0;
+
+  if (variante.stock === -1) return Infinity; // ilimitado
+  return variante.stock ?? 0;
+};
+
 const aumentarCantidad = async (producto: Producto) => {
   if (!sessionPedidoId.value) {
     generarNuevoPedidoId(sessionUser.value.id);
   }
-  const item = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals([producto.articuloId, sessionUser.value?.id || ""])
+
+  const stock = obtenerStock(producto);
+  const cantidadActual = cantidadEnCarrito[producto.articuloId] || 0;
+
+  // 🚫 BLOQUEO POR STOCK
+  if (stock !== Infinity && cantidadActual >= stock) {
+    console.log('Stock máximo alcanzado');
+    return;
+  }
+
+  const item = await db.Carrito.where('[id_articulo+id_usuario]')
+    .equals([producto.articuloId, sessionUser.value?.id || ''])
     .first();
 
   if (item) {
@@ -158,23 +193,23 @@ const aumentarCantidad = async (producto: Producto) => {
     cantidadEnCarrito[producto.articuloId] = item.cantidad + 1;
   } else {
     const newItem = {
-      almacen: producto.almacen || "",
+      almacen: producto.almacen || '',
       anticipo: producto.anticipo || 0,
       cantidad: 1,
-      categoria: producto.categoria || "",
+      categoria: producto.categoria || '',
       descuentoCupon: 0,
-      estatus: "Preparacion",
-      fechaEntrega: "",
+      estatus: 'Preparacion',
+      fechaEntrega: '',
       fecha_hora: new Date().toLocaleString(),
       id_articulo: producto.articuloId,
       id_pedido: sessionPedidoId.value!,
-      id_usuario: sessionUser.value?.id || "anon",
-      metodo_pago: "Efectivo",
+      id_usuario: sessionUser.value?.id || 'anon',
+      metodo_pago: 'Efectivo',
       nombre: producto.nombre,
       precio: producto.precio,
       url: producto.url,
-      sku: producto.variantes[0]?.sku || "",
-      detalle: producto.variantes[0]?.detalle || "",
+      sku: producto.variantes[0]?.sku || '',
+      detalle: producto.variantes[0]?.detalle || '',
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;
@@ -182,8 +217,8 @@ const aumentarCantidad = async (producto: Producto) => {
 };
 
 const disminuirCantidad = async (producto: Producto) => {
-  const item = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals([producto.articuloId, sessionUser.value?.id || ""])
+  const item = await db.Carrito.where('[id_articulo+id_usuario]')
+    .equals([producto.articuloId, sessionUser.value?.id || ''])
     .first();
   if (!item) return;
 

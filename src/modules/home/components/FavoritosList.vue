@@ -61,14 +61,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
-import { db } from "@/db";
-import type { Producto } from "@/types/Producto";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
-import ArrowBack from "@/components/ArrowBack.vue";
-import { useFavoritos } from "@/db/composables/useFavoritos";
-import { sessionUser } from "@/utils/sessionUser";
+import { ref, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { db } from '@/db';
+import type { Producto } from '@/types/Producto';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import ArrowBack from '@/components/ArrowBack.vue';
+import { useFavoritos } from '@/db/composables/useFavoritos';
+import { sessionUser } from '@/utils/sessionUser';
 
 const router = useRouter();
 
@@ -98,9 +98,11 @@ const cargarFavoritos = async () => {
   favoritos.value = lista.map((f) => ({
     articuloId: f.articuloId,
     nombre: f.nombre,
-    url: f.url || "",
+    url: f.url || '',
     precio: f.precio || 0,
-    descripcion: f.descripcion || "",
+    descripcion: f.descripcion || '',
+    tiendaId: '',
+    variantes: [],
   }));
 };
 
@@ -108,14 +110,14 @@ onMounted(() => cargarFavoritos());
 
 // Ver detalle
 const verDetalle = (producto: Producto) => {
-  router.push({ name: "ProductoDetalle", params: { id: producto.articuloId } });
+  router.push({ name: 'ProductoDetalle', params: { id: producto.articuloId } });
 };
 
 // Quitar favorito
 const quitarFavorito = async (producto: Producto) => {
-  await db.Favoritos.where("articuloId").equals(producto.articuloId).delete();
+  await db.Favoritos.where('articuloId').equals(producto.articuloId).delete();
   favoritos.value = favoritos.value.filter(
-    (f) => f.articuloId !== producto.articuloId
+    (f) => f.articuloId !== producto.articuloId,
   );
 };
 </script>

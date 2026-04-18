@@ -215,71 +215,46 @@
       </div>
     </div>
 
-    <!-- Menú flotante lateral -->
-    <div class="floating-menu">
-      <img
-        src="@/assets/icons/menu.png"
-        alt="Menu"
-        class="menu-icon"
-        @click="toggleMenu"
-      />
-      <transition name="slide">
-        <div v-if="menuOpen" class="menu-content">
-          <h3>Opciones</h3>
+    <!-- MENÚ FUERA -->
+    <!-- MENÚ LATERAL TIPO FLOAT -->
+    <div class="side-menu" :class="{ open: menuOpen }">
+      <!-- Botón toggle -->
+      <div class="menu-toggle" @click="toggleMenu">☰</div>
 
-          <ul>
-            <li v-if="!esDuenoTienda">
-              <button class="btn-menu" @click="$router.back()">Volver</button>
-            </li>
-            <li
-              v-if="store.facebook || store.instagram || store.incluyeWhatsapp"
-            >
-              <div class="menu-icons">
-                <a v-if="store.facebook" :href="store.facebook" target="_blank">
-                  <img src="@/assets/icons/facebook.png" alt="Facebook" />
-                </a>
-                <a
-                  v-if="store.instagram"
-                  :href="store.instagram"
-                  target="_blank"
-                >
-                  <img src="@/assets/icons/instagram.png" alt="Instagram" />
-                </a>
-                <a
-                  v-if="store.incluyeWhatsapp"
-                  :href="`https://wa.me/${store.telefono}`"
-                  target="_blank"
-                >
-                  <img src="@/assets/icons/whatsapp.png" alt="WhatsApp" />
-                </a>
-              </div>
-            </li>
-            <li v-if="esDuenoTienda">
-              <button class="btn-menu" @click="artsTienda">
-                Agregar Productos
-              </button>
-            </li>
-
-            <li>
-              <button class="btn-menu" @click="abrirMaps">Cómo llegar</button>
-            </li>
-            <li>
-              <button class="btn-menu" @click="llamar">Llamar</button>
-            </li>
-            <li>
-              <button class="btn-menu" @click="irAArticulos">
-                ver Productos
-              </button>
-            </li>
-
-            <li v-if="esDuenoTienda">
-              <button class="btn-menu" @click="closeSesionTienda">
-                Cerrar sesión
-              </button>
-            </li>
-          </ul>
+      <!-- Botones -->
+      <div class="menu-items">
+        <div class="menu-item-wrapper" v-if="esDuenoTienda">
+          <button class="menu-item" @click="onPedidos">🚚</button>
+          <span class="menu-label"> Pedidos</span>
         </div>
-      </transition>
+
+        <div class="menu-item-wrapper" v-if="esDuenoTienda">
+          <button class="menu-item" @click="artsTienda">📋</button>
+          <span class="menu-label"> Agregar articulo</span>
+        </div>
+
+        <div class="menu-item-wrapper">
+          <button class="menu-item" @click="irAArticulos">🛒</button>
+          <span class="menu-label">Productos</span>
+        </div>
+
+        <div class="menu-item-wrapper">
+          <button class="menu-item" @click="abrirMaps">📍</button>
+          <span class="menu-label">Cómo llegar</span>
+        </div>
+
+        <div class="menu-item-wrapper">
+          <button class="menu-item" @click="llamar">📞</button>
+          <span class="menu-label">Llamar</span>
+        </div>
+
+        <div v-if="esDuenoTienda" class="menu-item-wrapper">
+          <button class="menu-item danger" @click="closeSesionTienda">
+            ⬅️
+          </button>
+          <span class="menu-label">Cerrar sesión</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -369,6 +344,17 @@ function artsTienda() {
   router.push({
     name: 'storeProducts',
     params: { id: tienda.id, nombre: tienda.nombreTienda },
+  });
+}
+
+function onPedidos() {
+  const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
+
+  router.push({
+    name: 'storePedidos',
+    params: {
+      id_tienda: tienda.id || '', // Asegúrate de pasar el ID correcto
+    },
   });
 }
 
@@ -861,5 +847,121 @@ body {
   display: flex;
   align-items: center;
   cursor: pointer;
+}
+
+/* Contenedor tipo tarjeta flotante */
+/* 🔥 Fondo oscuro tipo modal */ /* CONTENEDOR */
+.side-menu {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  z-index: 999;
+}
+
+/* BOTÓN PRINCIPAL */
+.menu-toggle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #0d1b2a;
+  color: white;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+/* CONTENEDOR DE BOTONES */
+.menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-20px);
+  transition: all 0.3s ease;
+}
+
+/* CUANDO ESTÁ ABIERTO */
+.side-menu.open .menu-items {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+/* BOTONES */
+.menu-item {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+
+  border: none;
+  background: #f1f1f1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 18px;
+  cursor: pointer;
+
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.menu-item:hover {
+  transform: scale(1.1);
+}
+
+/* BOTÓN ACTIVO (como el azul de tu imagen) */
+.menu-item:nth-child(2) {
+  background: #0d1b2a;
+  color: white;
+}
+
+/* BOTÓN PELIGRO */
+.menu-item.danger {
+  color: red;
+}
+
+/* WRAPPER PARA ALINEAR */
+.menu-item-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 5px;
+}
+
+/* LABEL */
+.menu-label {
+  background: white;
+  padding: 6px 12px;
+  border-radius: 10px;
+
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+/* CUANDO EL MENÚ ESTÁ ABIERTO */
+.side-menu.open .menu-label {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>

@@ -20,15 +20,31 @@
           placeholder="Buscar producto..."
           class="filtro-input"
         />
+
         <select v-model="filtroCategoria" class="filtro-input">
           <option value="">Todas las categorías</option>
           <option v-for="cat in categorias" :key="cat" :value="cat">
             {{ cat }}
           </option>
         </select>
+
         <button class="icon-btn" @click="limpiarFiltros">
           <img loading="lazy" src="@/assets/icons/clean.png" alt="Limpiar" />
         </button>
+
+        <!-- ORDEN POR PRECIO -->
+        <select v-model="ordenPrecio" class="filtro-input">
+          <option value="">Ordenar por precio</option>
+          <option value="asc">Menor → Mayor</option>
+          <option value="desc">Mayor → Menor</option>
+        </select>
+
+        <!-- FILTRO POR STOCK -->
+        <select v-model="filtroStock" class="filtro-input">
+          <option value="">Stock</option>
+          <option value="con">Con stock</option>
+          <option value="sin">Sin stock</option>
+        </select>
       </div>
     </transition>
 
@@ -42,22 +58,53 @@
       >
         <div class="img-container">
           <img
+             style="border-radius: 5%;"
             loading="lazy"
             :src="FIREBASE_STORAGE_BASE_URL + producto.url"
             :alt="producto.nombre"
             @error="onImageError($event)"
           />
+
+           
           <span
+            v-if="sessionUsuarioValidation() || !esDuenoTienda"
             class="heart-icon"
-            :class="{ active: favoritos[producto.articuloId] }"
-            @click.stop="toggleFavorito(producto.articuloId)"
+            :class="{ active: estaFavorito(producto.articuloId) }"
+            @click.stop="toggleFavoritoLocal(producto, sessionUser.id)"
           >
-            ❤
+            <FontAwesomeIcon
+              :icon="
+                estaFavorito(producto.articuloId)
+                  ? ['fas', 'heart']
+                  : ['far', 'heart']
+              "
+            />
+          </span>
+
+          <span
+            v-if="esDuenoTienda"
+            class="heart-icon"
+            @click.stop="editarArticulo(producto.articuloId)"
+          >
+            ✏️
           </span>
         </div>
         <div class="info">
           <h3>{{ producto.nombre }}</h3>
-          <p class="subcategoria">{{ producto.categoria || "General" }}</p>
+
+          <p class="stock" :class="estadoStock(producto)">
+            {{
+              estadoStock(producto) === 'agotado'
+                ? 'Sin stock'
+                : estadoStock(producto) === 'poco'
+                  ? 'Pocas unidades'
+                  : estadoStock(producto) === 'disponible'
+                    ? `Disponible`
+                    : `Disponible: ${obtenerStock(producto)}`
+            }}
+          </p>
+
+          <p class="subcategoria">{{ producto.categoria || 'General' }}</p>
           <p class="precio">${{ producto.precio }}</p>
         </div>
       </div>
@@ -89,12 +136,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useArticulos } from "@/composables/useArticulos";
-import ArrowBack from "@/components/ArrowBack.vue";
-import userDefaultImage from "@/assets/icons/user_back_profile.png";
-import { useRoute, useRouter } from "vue-router";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { ref, computed, onMounted } from 'vue';
+import { useArticulos } from '@/composables/useArticulos';
+import ArrowBack from '@/components/ArrowBack.vue';
+import userDefaultImage from '@/assets/icons/user_back_profile.png';
+import { useRoute, useRouter } from 'vue-router';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarousel';
+import { sessionUser } from '@/utils/sessionUser';
+import { sessionUsuarioValidation } from '@/utils/sessionUser';
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import type { Producto } from '@/types/Producto';
+
+const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
 
 const route = useRoute();
 const router = useRouter();
@@ -102,24 +156,49 @@ const tiendaId = route.params.id as string;
 
 const defaultImage = userDefaultImage;
 const showHeader = true;
+const tiendaLocal = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
+const esDuenoTienda = computed(() => {
+  return tiendaLocal?.id === tiendaId;
+});
 // Filtros
-const filtroNombre = ref("");
-const filtroCategoria = ref("");
+const filtroNombre = ref('');
+const filtroCategoria = ref('');
+const ordenPrecio = ref(''); // "asc" | "desc"
+const filtroStock = ref(''); // "con" | "sin"
 const showFiltros = ref(false);
-
-
 // Paginación
 const paginaActual = ref(1);
 const itemsPorPagina = 6;
 
 // Favoritos local
-const favoritos = ref<Record<string, boolean>>({});
+//const favoritos = ref<Record<string, boolean>>({});
 
 // Categorías dinámicas
 const categorias = ref<string[]>([]);
 
 const { articulos, cargarArticulosPorTienda } = useArticulos();
+
+function getPrecioReal(producto: any) {
+  if (!producto.variantes?.length) return producto.precio || 0;
+
+  return Math.min(...producto.variantes.map((v: any) => v.precio || 0));
+}
+function getStockInfo(producto: any) {
+  if (!producto.variantes?.length) {
+    return { disponible: producto.stock > 0, total: producto.stock || 0 };
+  }
+
+  const total = producto.variantes.reduce(
+    (sum: number, v: any) => sum + (v.stock > 0 ? v.stock : 0),
+    0,
+  );
+
+  return {
+    disponible: total > 0,
+    total,
+  };
+}
 
 onMounted(async () => {
   await cargarArticulosPorTienda(tiendaId);
@@ -136,14 +215,38 @@ onMounted(async () => {
 const articulosFiltrados = computed(() => {
   let filtered = articulos.value;
 
+  // 🔍 1. FILTRO POR NOMBRE
   if (filtroNombre.value) {
     filtered = filtered.filter((a) =>
       a.nombre?.toLowerCase().includes(filtroNombre.value.toLowerCase()),
     );
   }
 
+  // 📂 2. FILTRO POR CATEGORÍA
   if (filtroCategoria.value) {
     filtered = filtered.filter((a) => a.categoria === filtroCategoria.value);
+  }
+
+  // 📦 3. FILTRO POR STOCK (USANDO VARIANTES)
+  if (filtroStock.value === 'con') {
+    filtered = filtered.filter((a) =>
+      a.variantes?.some((v: any) => v.stock === -1 || v.stock > 0),
+    );
+  }
+
+  if (filtroStock.value === 'sin') {
+    filtered = filtered.filter((a) =>
+      a.variantes?.every((v: any) => v.stock === 0),
+    );
+  }
+
+  // 💰 4. ORDEN POR PRECIO (USANDO VARIANTES)
+  if (ordenPrecio.value === 'asc') {
+    filtered.sort((a, b) => (a.precio || 0) - (b.precio || 0));
+  }
+
+  if (ordenPrecio.value === 'desc') {
+    filtered.sort((a, b) => (b.precio || 0) - (a.precio || 0));
   }
 
   return filtered;
@@ -165,8 +268,10 @@ function toggleFiltros() {
 }
 
 function limpiarFiltros() {
-  filtroNombre.value = "";
-  filtroCategoria.value = "";
+  filtroNombre.value = '';
+  filtroCategoria.value = '';
+  ordenPrecio.value = '';
+  filtroStock.value = '';
   paginaActual.value = 1;
 }
 
@@ -178,13 +283,31 @@ function onImageError(event: Event) {
 function irADetalle(producto: any) {
   router.push({
     path: `/producto/${producto.articuloId}`,
-    query: { fromStore: "true", storeId: tiendaId },
+    query: { fromStore: 'true', storeId: tiendaId },
   });
 }
 
-function toggleFavorito(articuloId: string) {
-  favoritos.value[articuloId] = !favoritos.value[articuloId];
+function editarArticulo(id: string) {
+  router.push(`/store/product/edit/${id}`);
 }
+
+const estadoStock = (producto: Producto) => {
+  const stock = obtenerStock(producto);
+
+  if (stock === 0) return 'agotado';
+  if (stock === Infinity) return 'disponible';
+  if (stock <= 5) return 'poco';
+  return 'normal';
+};
+
+const obtenerStock = (producto: Producto) => {
+  const variante = producto.variantes?.[0];
+
+  if (!variante) return 0;
+
+  if (variante.stock === -1) return Infinity; // ilimitado
+  return variante.stock ?? 0;
+};
 </script>
 
 <style scoped>
@@ -238,14 +361,15 @@ function toggleFavorito(articuloId: string) {
 .icon-circle {
   width: 36px;
   height: 36px;
-  background: white;
+
+  background: var(--color-bg-blue-dark);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  border: none;
+  border: white 2px solid;
   padding: 6px;
 }
 
@@ -418,5 +542,26 @@ function toggleFavorito(articuloId: string) {
   .precio {
     font-size: 0.9rem;
   }
+}
+.stock {
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+  font-weight: 500;
+}
+
+.agotado {
+  color: #e74c3c;
+}
+
+.poco {
+  color: #f39c12;
+}
+
+.disponible {
+  color: #2ecc71;
+}
+
+.normal {
+  color: #3498db;
 }
 </style>

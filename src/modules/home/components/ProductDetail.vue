@@ -15,7 +15,11 @@
       <ArrowBack class="btn-icon back" @click="$router.back()" />
 
       <!-- Carrito -->
-      <button v-if="!esTienda" class="btn-icon cart" @click="$router.push('/cart')">
+      <button
+        v-if="!esTienda"
+        class="btn-icon cart"
+        @click="$router.push('/cart')"
+      >
         <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
       </button>
 
@@ -47,19 +51,21 @@
         </div>
       </div>
 
-      <div class="tienda-header" >
-        <h1 
-          class="titulo_header" 
+      <div class="tienda-header">
+        <h1
+          class="titulo_header"
           @click="irPerfilTienda"
-          :class="{ 'disabled': viewendesdeStore }"
-        >{{ producto.tiendaNombre }}</h1>
+          :class="{ disabled: viewendesdeStore }"
+        >
+          {{ producto.tiendaNombre }}
+        </h1>
         <img
           v-if="tiendaUrl"
           :src="tiendaUrl"
           alt="Logo tienda"
           class="logo-tienda"
           @click="irPerfilTienda"
-          :class="{ 'disabled': viewendesdeStore }"
+          :class="{ disabled: viewendesdeStore }"
         />
       </div>
 
@@ -85,6 +91,16 @@
           </span>
         </div>
       </div>
+      <p class="descripcion-title">Disponibilidad</p>
+
+      <p class="stock-badge" :class="estadoStock">
+        <span v-if="estadoStock === 'agotado'">🔴 Agotado</span>
+        <span v-else-if="estadoStock === 'poco'">
+          🟡 Últimas {{ stockActual }} unidades
+        </span>
+        <span v-else-if="estadoStock === 'disponible'"> 🟢 Disponible </span>
+        <span v-else> 🟢 {{ stockActual }} disponibles </span>
+      </p>
 
       <!-- Categoria -->
       <p class="descripcion-title">Categoría</p>
@@ -94,8 +110,8 @@
       <p class="descripcion-title">Tamaño</p>
       <p class="descripcion">
         {{
-          varianteSeleccionada?.tamano === "Otro"
-            ? varianteSeleccionada?.tamanoOtro || "Tamaño personalizado"
+          varianteSeleccionada?.tamano === 'Otro'
+            ? varianteSeleccionada?.tamanoOtro || 'Tamaño personalizado'
             : varianteSeleccionada?.tamano
         }}
       </p>
@@ -107,12 +123,25 @@
     <!-- Footer con botón agregar -->
     <div class="detalle-footer">
       <div v-if="sessionUsuarioValidation() && !esTienda">
+        <p
+          v-if="
+            stockActual !== Infinity &&
+            cantidadEnCarrito[claveCarritoActual] >= stockActual
+          "
+          class="stock-warning"
+        >
+          Has alcanzado el máximo disponible
+        </p>
         <div
           v-if="cantidadEnCarrito[claveCarritoActual] > 0"
           class="contador-carrito"
         >
           <button
             class="btn-carrito btn-mas"
+            :disabled="
+              stockActual !== Infinity &&
+              cantidadEnCarrito[claveCarritoActual] >= stockActual
+            "
             @click="aumentarCantidad(producto)"
           >
             <FontAwesomeIcon :icon="['fas', 'plus']" />
@@ -140,8 +169,13 @@
           </button>
         </div>
 
-        <button v-else class="btn-agregar" @click="aumentarCantidad(producto)">
-          + Agregar al carrito
+        <button
+          :disabled="stockActual === 0"
+          v-else
+          class="btn-agregar"
+          @click="aumentarCantidad(producto)"
+        >
+          {{ stockActual === 0 ? 'Sin stock' : '+ Agregar al carrito' }}
         </button>
       </div>
       <button
@@ -156,40 +190,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, reactive, onMounted } from "vue";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
-import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
-import type { Producto } from "@/types/Producto";
-import { db, type CarritoItem } from "@/db";
-import ArrowBack from "@/components/ArrowBack.vue";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
-import { sessionUsuarioValidation, sessionUser } from "@/utils/sessionUser";
-import { useRouter, useRoute } from "vue-router";
+import { ref, watch, computed, reactive, onMounted } from 'vue';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarousel';
+import type { Producto } from '@/types/Producto';
+import { db, type CarritoItem } from '@/db';
+import ArrowBack from '@/components/ArrowBack.vue';
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
+import { sessionUsuarioValidation, sessionUser } from '@/utils/sessionUser';
+import { useRouter, useRoute } from 'vue-router';
 
-import { useTiendas } from "@/composables/useTiendas";
+import { useTiendas } from '@/composables/useTiendas';
 
 const props = defineProps<{ producto: Producto }>();
-defineEmits(["agregarCarrito"]);
+defineEmits(['agregarCarrito']);
 
 const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 
 const router = useRouter();
 const route = useRoute();
-const tiendaUrl = ref("");
+const tiendaUrl = ref('');
 
 // Detectar si viene desde la vista de artículos de una tienda
 const viewendesdeStore = computed(() => {
-  return route.query.fromStore === "true";
+  return route.query.fromStore === 'true';
 });
 
 const tiendaLocal = computed(() => {
-  const stored = localStorage.getItem("tiendas");
+  const stored = localStorage.getItem('tiendas');
   if (!stored) return null;
   try {
     return JSON.parse(stored);
   } catch (error) {
-    console.warn("ProductDetail: invalid tiendas data", error);
+    console.warn('ProductDetail: invalid tiendas data', error);
     return null;
   }
 });
@@ -212,7 +246,7 @@ const toggleFavorito = (producto: Producto) => {
   if (sessionUsuarioValidation()) {
     toggleFavoritoLocal(producto, sessionUser.value.id);
   } else {
-    router.push("/login");
+    router.push('/login');
   }
 };
 
@@ -222,7 +256,7 @@ const cantidadEnCarrito = reactive<Record<string, number>>({});
 // Sincronizar con Dexie
 const sincronizarCarrito = async () => {
   if (!props.producto || !sessionUser.value?.id) return;
-  const items = await db.Carrito.where("id_usuario")
+  const items = await db.Carrito.where('id_usuario')
     .equals(sessionUser.value.id)
     .toArray();
 
@@ -249,25 +283,25 @@ const coloresVariantes = computed(() => {
 // clave para cantidad en carrito por variante
 const claveCarritoActual = computed(() => {
   const variante = varianteSeleccionada.value;
-  return `${props.producto.articuloId}-${variante?.sku || "default"}`;
+  return `${props.producto.articuloId}-${variante?.sku || 'default'}`;
 });
 
 // Detectar si el usuario es una tienda
 // Solo consideramos modo tienda cuando viene desde StoreArticles y hay una sesión activa de tienda,
 // no solo una tienda almacenada en localStorage con un usuario normal logueado.
 const esTienda = computed(() => {
-  console.log("=== esTienda Calculation ===");
-  console.log("viewendesdeStore:", viewendesdeStore.value);
-  console.log("sessionUsuarioValidation:", !!sessionUsuarioValidation());
-  console.log("tiendaLocal:", tiendaLocal.value);
+  console.log('=== esTienda Calculation ===');
+  console.log('viewendesdeStore:', viewendesdeStore.value);
+  console.log('sessionUsuarioValidation:', !!sessionUsuarioValidation());
+  console.log('tiendaLocal:', tiendaLocal.value);
 
   const resultado =
     viewendesdeStore.value &&
     !!tiendaLocal.value &&
     !sessionUsuarioValidation();
 
-  console.log("esTienda result:", resultado);
-  console.log("============================");
+  console.log('esTienda result:', resultado);
+  console.log('============================');
 
   return resultado;
 });
@@ -276,7 +310,7 @@ const { obtenerTienda } = useTiendas();
 // seleccionar variante
 function seleccionarColor(variante: any) {
   varianteSeleccionada.value = variante;
-  console.log("Variante seleccionada:", variante);
+  console.log('Variante seleccionada:', variante);
 }
 
 // Ejecutar sincronización al montar
@@ -290,9 +324,17 @@ const aumentarCantidad = async (producto: Producto) => {
 
   const variante = varianteSeleccionada.value;
   const key = [producto.articuloId, sessionUser.value.id, variante?.sku];
-  const clave = `${producto.articuloId}-${variante?.sku || "default"}`;
+  const clave = `${producto.articuloId}-${variante?.sku || 'default'}`;
 
-  const item = await db.Carrito.where("[id_articulo+id_usuario+sku]")
+  const cantidadActual = cantidadEnCarrito[clave] || 0;
+
+  // 🚫 BLOQUEO POR STOCK
+  if (stockActual.value !== Infinity && cantidadActual >= stockActual.value) {
+    console.log('Límite de stock alcanzado');
+    return;
+  }
+
+  const item = await db.Carrito.where('[id_articulo+id_usuario+sku]')
     .equals([producto.articuloId, sessionUser.value.id, variante?.sku])
     .first();
   if (item) {
@@ -305,20 +347,20 @@ const aumentarCantidad = async (producto: Producto) => {
       id: undefined,
 
       // 🔑 IDENTIDAD
-      sku: variante?.sku || "default",
+      sku: variante?.sku || 'default',
       id_articulo: producto.articuloId,
       id_usuario: sessionUser.value.id,
       id_pedido: sessionPedidoId.value!,
 
       // 📦 PRODUCTO BASE (obligatorio en tu modelo)
-      almacen: variante?.almacen || producto.almacen || "",
+      almacen: variante?.almacen || producto.almacen || '',
       anticipo: producto.anticipo || 0,
-      categoria: producto.categoria || "",
+      categoria: producto.categoria || '',
       descuentoCupon: 0,
-      estatus: "Preparacion",
-      fechaEntrega: "",
+      estatus: 'Preparacion',
+      fechaEntrega: '',
       fecha_hora: new Date().toLocaleString(),
-      metodo_pago: "Efectivo",
+      metodo_pago: 'Efectivo',
 
       // 🎨 VARIANTE (lo que quieres diferenciar)
       nombre: producto.nombre,
@@ -326,7 +368,8 @@ const aumentarCantidad = async (producto: Producto) => {
       url: variante?.url ?? producto.url,
 
       cantidad: 1,
-      detalle: variante?.detalle || "",
+      detalle: variante?.detalle || '',
+      id_tienda: producto.tiendaId || '',
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[clave] = 1;
@@ -336,9 +379,13 @@ const aumentarCantidad = async (producto: Producto) => {
 // Función para disminuir / eliminar
 const disminuirCantidad = async (producto: Producto) => {
   const variante = varianteSeleccionada.value;
-  const clave = `${producto.articuloId}-${variante?.sku || "default"}`;
-  const item = await db.Carrito.where("[id_articulo+id_usuario+sku]")
-    .equals([producto.articuloId, sessionUser.value.id, variante?.sku || "default"])
+  const clave = `${producto.articuloId}-${variante?.sku || 'default'}`;
+  const item = await db.Carrito.where('[id_articulo+id_usuario+sku]')
+    .equals([
+      producto.articuloId,
+      sessionUser.value.id,
+      variante?.sku || 'default',
+    ])
     .first();
   if (!item) return;
 
@@ -353,6 +400,22 @@ const disminuirCantidad = async (producto: Producto) => {
 
 const imagenActual = computed(() => {
   return varianteSeleccionada.value?.url || props.producto.url;
+});
+
+const stockActual = computed(() => {
+  const variante = varianteSeleccionada.value;
+
+  if (!variante) return 0;
+
+  if (variante.stock === -1) return Infinity; // ilimitado
+  return variante.stock ?? 0;
+});
+
+const estadoStock = computed(() => {
+  if (stockActual.value === 0) return 'agotado';
+  if (stockActual.value === Infinity) return 'disponible';
+  if (stockActual.value <= 5) return 'poco';
+  return 'normal';
 });
 
 watch(
@@ -376,17 +439,17 @@ watch(
 
 onMounted(async () => {
   // Debug: mostrar estado de sesiones
-  console.log("=== ProductDetail Mounted ===");
-  console.log("sessionUser:", sessionUser.value);
-  console.log("sessionUsuarioValidation():", !!sessionUsuarioValidation());
-  console.log("tiendaLocal:", tiendaLocal.value);
-  console.log("esTienda:", esTienda.value);
-  console.log("=============================");
+  console.log('=== ProductDetail Mounted ===');
+  console.log('sessionUser:', sessionUser.value);
+  console.log('sessionUsuarioValidation():', !!sessionUsuarioValidation());
+  console.log('tiendaLocal:', tiendaLocal.value);
+  console.log('esTienda:', esTienda.value);
+  console.log('=============================');
 
   if (props.producto?.tiendaId) {
     const ot = await obtenerTienda(props.producto.tiendaId);
-    tiendaUrl.value = ot?.logoUrl || "";
-    console.log("Tienda obtenida en detalle:", tiendaUrl.value);
+    tiendaUrl.value = ot?.logoUrl || '';
+    console.log('Tienda obtenida en detalle:', tiendaUrl.value);
   }
 });
 </script>
@@ -494,7 +557,7 @@ onMounted(async () => {
   font-weight: bold;
   color: var(--color-bg-blue-ligth);
   margin: 0;
-  font-family: "Poppins", sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 .tienda-header {
   display: flex;
@@ -686,5 +749,46 @@ onMounted(async () => {
   flex-direction: column;
   height: 100%; /* importante para ocupar todo el modal */
   overflow-y: auto; /* scroll interno si el contenido es grande */
+}
+
+.stock-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  display: block; /* 👈 cambia de inline-block a block */
+  text-align: left; /* 👈 fuerza alineación a la izquierda */
+}
+
+/* estados */
+.stock-badge.agotado {
+  background: #ffe5e5;
+  color: #e74c3c;
+}
+
+.stock-badge.poco {
+  background: #fff4e5;
+  color: #f39c12;
+}
+
+.stock-badge.disponible {
+  background: #e8f8f5;
+  color: #27ae60;
+}
+
+.stock-badge.normal {
+  background: #eef6ff;
+  color: #1f70b2;
+}
+
+.btn-carrito:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.stock-warning {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>

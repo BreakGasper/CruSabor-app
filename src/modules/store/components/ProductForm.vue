@@ -2,6 +2,9 @@
   <div class="register-container">
     <!-- Header -->
     <div class="register-header">
+      <div class="back-btn">
+        <ArrowBack @click="$router.back()" />
+      </div>
       <h1 class="title">Registrar Artículo</h1>
       <p class="subtitle">Rápido y fácil ✨</p>
       <div class="step-indicator">
@@ -110,7 +113,7 @@
           <label>Categoría</label>
           <div class="custom-select-wrapper">
             <div class="custom-select" @click="toggleDropdown">
-              {{ form.categoria || "Selecciona" }}
+              {{ form.categoria || 'Selecciona' }}
             </div>
             <div v-if="showDropdown" class="dropdown-list">
               <div
@@ -239,7 +242,7 @@
                       class="color-preview"
                       :style="{ backgroundColor: variante.colorCodigo }"
                     ></div>
-                    <span>{{ variante.color || "Elegir Color" }}</span>
+                    <span>{{ variante.color || 'Elegir Color' }}</span>
                   </div>
 
                   <div
@@ -439,19 +442,26 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
-import { db } from "@/firebase";
-import { push, ref as dbRef } from "firebase/database";
-import type { Producto } from "@/types/Producto";
+import { onMounted, ref, watch } from 'vue';
+import { db } from '@/firebase';
+import { push, ref as dbRef, get, update } from 'firebase/database';
+import type { Producto } from '@/types/Producto';
 import {
   obtenerCategorias,
   type CategoriaData,
-} from "@/composables/useCategorias";
-import { uploadArticuloImagen } from "@/composables/useStorage"; // ajusta ruta
-import Dialog from "primevue/dialog";
-import Button from "primevue/button";
+} from '@/composables/useCategorias';
+import { uploadArticuloImagen } from '@/composables/useStorage'; // ajusta ruta
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
+import { useRoute } from 'vue-router';
+import { Html5Qrcode } from 'html5-qrcode';
+import ArrowBack from '@/components/ArrowBack.vue';
 
-import { Html5Qrcode } from "html5-qrcode";
+const route = useRoute();
+const articuloId = route.params.articuloId as string | undefined;
+
+const isEdit = ref(!!articuloId);
+
 const props = defineProps({
   tiendaId: {
     type: String,
@@ -462,64 +472,64 @@ const props = defineProps({
     required: true,
   },
 });
-const dialogMensaje = ref("");
+const dialogMensaje = ref('');
 const dialogError = ref(false);
 
 const step = ref(1);
-const precioDisplay = ref(""); // lo que ve el usuario
+const precioDisplay = ref(''); // lo que ve el usuario
 const precioValue = ref(0); // valor numérico real
 const scannerIndex = ref<number | null>(null);
 const categorias = ref<CategoriaData[]>([]);
-const form = ref<Omit<Producto, "articuloId">>({
-  nombre: "",
-  descripcion: "",
-  categoria: "",
-  subcategoria: "",
-  url: "",
+const form = ref<Omit<Producto, 'articuloId'>>({
+  nombre: '',
+  descripcion: '',
+  categoria: '',
+  subcategoria: '',
+  url: '',
   precio: 0,
   anticipo: 0,
   descuentoCupon: 0,
-  metodo_pago: "",
-  unidadMedida: "",
-  almacen: "",
+  metodo_pago: '',
+  unidadMedida: '',
+  almacen: '',
   tiendaId: props.tiendaId,
   tiendaNombre: props.tiendaNombre,
-  icono: "",
-  fecha_hora: "",
+  icono: '',
+  fecha_hora: '',
   variantes: [],
 });
 
 const colores = ref([
-  { nombre: "Rojo", codigo: "#FF0000" },
-  { nombre: "Azul", codigo: "#0000FF" },
-  { nombre: "Verde", codigo: "#428f0b" },
-  { nombre: "Amarillo", codigo: "#FFFF00" },
-  { nombre: "Negro", codigo: "#000000" },
-  { nombre: "Blanco", codigo: "#FFFFFF" },
-  { nombre: "Naranja", codigo: "#FFA500" },
-  { nombre: "Morado", codigo: "#800080" },
-  { nombre: "Rosa", codigo: "#FFC0CB" },
-  { nombre: "Gris", codigo: "#808080" },
+  { nombre: 'Rojo', codigo: '#FF0000' },
+  { nombre: 'Azul', codigo: '#0000FF' },
+  { nombre: 'Verde', codigo: '#428f0b' },
+  { nombre: 'Amarillo', codigo: '#FFFF00' },
+  { nombre: 'Negro', codigo: '#000000' },
+  { nombre: 'Blanco', codigo: '#FFFFFF' },
+  { nombre: 'Naranja', codigo: '#FFA500' },
+  { nombre: 'Morado', codigo: '#800080' },
+  { nombre: 'Rosa', codigo: '#FFC0CB' },
+  { nombre: 'Gris', codigo: '#808080' },
 
   // Colores adicionales
-  { nombre: "Marrón", codigo: "#A52A2A" },
-  { nombre: "Celeste", codigo: "#87CEEB" },
-  { nombre: "Turquesa", codigo: "#40E0D0" },
-  { nombre: "Vino", codigo: "#8B0000" },
-  { nombre: "Mostaza", codigo: "#FFDB58" },
-  { nombre: "Beige", codigo: "#F5F5DC" },
-  { nombre: "Salmón", codigo: "#FA8072" },
-  { nombre: "Fucsia", codigo: "#FF00FF" },
-  { nombre: "Caqui", codigo: "#F0E68C" },
-  { nombre: "Azul Marino", codigo: "#000080" },
-  { nombre: "Verde Oliva", codigo: "#808000" },
-  { nombre: "Gris Perla", codigo: "#C0C0C0" },
-  { nombre: "Rosa Pastel", codigo: "#FFD1DC" },
-  { nombre: "Verde Menta", codigo: "#98FF98" },
-  { nombre: "Terracota", codigo: "#E2725B" },
-  { nombre: "Cobre", codigo: "#B87333" },
-  { nombre: "Oro", codigo: "#FFD700" },
-  { nombre: "Plata", codigo: "#C0C0C0" },
+  { nombre: 'Marrón', codigo: '#A52A2A' },
+  { nombre: 'Celeste', codigo: '#87CEEB' },
+  { nombre: 'Turquesa', codigo: '#40E0D0' },
+  { nombre: 'Vino', codigo: '#8B0000' },
+  { nombre: 'Mostaza', codigo: '#FFDB58' },
+  { nombre: 'Beige', codigo: '#F5F5DC' },
+  { nombre: 'Salmón', codigo: '#FA8072' },
+  { nombre: 'Fucsia', codigo: '#FF00FF' },
+  { nombre: 'Caqui', codigo: '#F0E68C' },
+  { nombre: 'Azul Marino', codigo: '#000080' },
+  { nombre: 'Verde Oliva', codigo: '#808000' },
+  { nombre: 'Gris Perla', codigo: '#C0C0C0' },
+  { nombre: 'Rosa Pastel', codigo: '#FFD1DC' },
+  { nombre: 'Verde Menta', codigo: '#98FF98' },
+  { nombre: 'Terracota', codigo: '#E2725B' },
+  { nombre: 'Cobre', codigo: '#B87333' },
+  { nombre: 'Oro', codigo: '#FFD700' },
+  { nombre: 'Plata', codigo: '#C0C0C0' },
 ]);
 const imagenFile = ref<File | null>(null);
 
@@ -561,12 +571,12 @@ function onVariantImageSelected(e: Event, variante: any) {
 function abrirScanner(index: number) {
   scannerIndex.value = index;
 
-  const scannerId = "scanner-" + index;
+  const scannerId = 'scanner-' + index;
   const html5QrCode = new Html5Qrcode(scannerId);
 
   html5QrCode
     .start(
-      { facingMode: "environment" },
+      { facingMode: 'environment' },
       {
         fps: 10,
         qrbox: 250,
@@ -578,10 +588,10 @@ function abrirScanner(index: number) {
       },
       (errorMessage) => {
         // error opcional, ignorar
-        console.log("No se detectó código: ", errorMessage);
+        console.log('No se detectó código: ', errorMessage);
       },
     )
-    .catch((err) => console.error("Error al iniciar scanner: ", err));
+    .catch((err) => console.error('Error al iniciar scanner: ', err));
 }
 function toggleColorDropdown(index: number) {
   if (colorDropdownIndex.value === index) colorDropdownIndex.value = null;
@@ -589,50 +599,50 @@ function toggleColorDropdown(index: number) {
 }
 function validarVariantes(): boolean {
   if (form.value.variantes.length === 0) {
-    alert("Debes agregar al menos una variante antes de continuar.");
+    alert('Debes agregar al menos una variante antes de continuar.');
     return false;
   }
 
   for (const v of form.value.variantes) {
     if (!v.precio) {
-      alert("Cada variante debe tener precio.");
+      alert('Cada variante debe tener precio.');
       return false;
     }
 
     if (!v.color) {
-      alert("Cada variante debe tener color.");
+      alert('Cada variante debe tener color.');
       return false;
     }
 
     // Validar material
     if (!v.material) {
-      alert("Selecciona un material para cada variante.");
+      alert('Selecciona un material para cada variante.');
       return false;
     }
 
-    if (v.material === "Otro" && !v.materialOtro) {
-      alert("Debes especificar el material personalizado.");
+    if (v.material === 'Otro' && !v.materialOtro) {
+      alert('Debes especificar el material personalizado.');
       return false;
     }
 
     // Validar tamaño
     if (!v.tamano) {
-      alert("Selecciona un tamaño para cada variante.");
+      alert('Selecciona un tamaño para cada variante.');
       return false;
     }
 
-    if (v.tamano === "Otro" && !v.tamanoOtro) {
-      alert("Debes especificar el tamaño personalizado.");
+    if (v.tamano === 'Otro' && !v.tamanoOtro) {
+      alert('Debes especificar el tamaño personalizado.');
       return false;
     }
 
     if (!v.detalle) {
-      alert("Debes agregar un detalle para cada variante.");
+      alert('Debes agregar un detalle para cada variante.');
       return false;
     }
 
     if (!v.url && !v._file) {
-      alert("Cada variante debe tener una imagen.");
+      alert('Cada variante debe tener una imagen.');
       return false;
     }
   }
@@ -649,27 +659,27 @@ function handleSubmit() {
 function seleccionarColor(variante: any, colorNombre: string) {
   const colorObj = colores.value.find((c) => c.nombre === colorNombre);
   variante.color = colorNombre;
-  variante.colorCodigo = colorObj?.codigo || "#fff";
+  variante.colorCodigo = colorObj?.codigo || '#fff';
   colorDropdownIndex.value = null;
 }
 
 function agregarVariante() {
   form.value.variantes.push({
-    color: "",
-    colorCodigo: "",
-    tamano: "",
-    tamanoOtro: "", // ➕ Nuevo campo
-    material: "",
-    materialOtro: "", // ➕ Nuevo campo
-    marca: "",
+    color: '',
+    colorCodigo: '',
+    tamano: '',
+    tamanoOtro: '', // ➕ Nuevo campo
+    material: '',
+    materialOtro: '', // ➕ Nuevo campo
+    marca: '',
     stock: 0,
     estatus: true,
     tieneStock: false,
-    almacen: "",
+    almacen: '',
     precio: precioValue.value || 0,
-    sku: "",
-    url: "",
-    detalle: "",
+    sku: '',
+    url: '',
+    detalle: '',
   });
 }
 
@@ -690,39 +700,55 @@ function selectCategoria(nombre: string) {
 
 onMounted(async () => {
   categorias.value = await obtenerCategorias();
+
+  if (isEdit.value && articuloId) {
+    const snapshot = await get(dbRef(db, `articulos/${articuloId}`));
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+
+      Object.assign(form.value, data);
+
+      precioValue.value = data.precio || 0;
+      precioDisplay.value = data.precio ? `$${data.precio}` : '';
+
+      // cargar variantes
+      form.value.variantes = data.variantes || [];
+    }
+  }
 });
 // Función para forzar dos decimales en precio
 
 // Bloquear caracteres no numéricos
 
 function onPrecioKeydown(e: KeyboardEvent) {
-  const allowedKeys = ["Backspace", "ArrowLeft", "ArrowRight", "Tab", "Delete"];
+  const allowedKeys = ['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete'];
   const isNumber = /^[0-9]$/.test(e.key);
-  const isDot = e.key === "." && !precioDisplay.value.includes(".");
+  const isDot = e.key === '.' && !precioDisplay.value.includes('.');
   if (!isNumber && !isDot && !allowedKeys.includes(e.key)) e.preventDefault();
 }
 
 function onPrecioInput(e: Event) {
-  let val = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, "");
-  if (val.startsWith("0") && val.length > 1 && val[1] !== ".")
-    val = val.replace(/^0+/, "");
-  if (val.includes(".")) {
-    const [entero, decimales] = val.split(".");
-    val = entero + "." + decimales.slice(0, 2);
+  let val = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, '');
+  if (val.startsWith('0') && val.length > 1 && val[1] !== '.')
+    val = val.replace(/^0+/, '');
+  if (val.includes('.')) {
+    const [entero, decimales] = val.split('.');
+    val = entero + '.' + decimales.slice(0, 2);
   }
   precioDisplay.value = val;
   precioValue.value = val ? parseFloat(val) : 0;
   form.value.precio = precioValue.value; // sincronizar solo aquí
 }
 function onVariantePrecioInput(e: Event, variante: any) {
-  let val = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, "");
+  let val = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, '');
 
-  if (val.startsWith("0") && val.length > 1 && val[1] !== ".")
-    val = val.replace(/^0+/, "");
+  if (val.startsWith('0') && val.length > 1 && val[1] !== '.')
+    val = val.replace(/^0+/, '');
 
-  if (val.includes(".")) {
-    const [entero, decimales] = val.split(".");
-    val = entero + "." + decimales.slice(0, 2);
+  if (val.includes('.')) {
+    const [entero, decimales] = val.split('.');
+    val = entero + '.' + decimales.slice(0, 2);
   }
 
   variante.precio = val ? parseFloat(val) : 0;
@@ -753,21 +779,21 @@ watch(precioValue, (nuevoPrecio) => {
   // Si no existen variantes, crear una automáticamente
   if (step.value === 3 && form.value.variantes.length === 0) {
     form.value.variantes.push({
-      color: "",
-      colorCodigo: "",
-      tamano: "",
-      tamanoOtro: "",
-      material: "",
-      materialOtro: "",
-      marca: "",
+      color: '',
+      colorCodigo: '',
+      tamano: '',
+      tamanoOtro: '',
+      material: '',
+      materialOtro: '',
+      marca: '',
       stock: 0,
       estatus: true,
       tieneStock: false,
-      almacen: "",
+      almacen: '',
       precio: nuevoPrecio, // precio inicial
-      sku: "",
-      url: "",
-      detalle: "",
+      sku: '',
+      url: '',
+      detalle: '',
     });
     return;
   }
@@ -788,7 +814,7 @@ function formatPrecioDisplay() {
 }
 
 function unformatPrecioDisplay() {
-  precioDisplay.value = precioDisplay.value.replace(/^\$/, "");
+  precioDisplay.value = precioDisplay.value.replace(/^\$/, '');
 }
 function triggerFileInput() {
   fileInput.value?.click();
@@ -807,21 +833,21 @@ function nextStep() {
 
 function crearVarianteBase() {
   return {
-    color: "Gris",
-    colorCodigo: "#cccccc",
-    tamano: "Otro",
-    tamanoOtro: "",
-    material: "Otro",
-    materialOtro: "",
-    marca: "",
+    color: 'Gris',
+    colorCodigo: '#cccccc',
+    tamano: 'Otro',
+    tamanoOtro: '',
+    material: 'Otro',
+    materialOtro: '',
+    marca: '',
     stock: -1,
     estatus: true,
     tieneStock: false,
-    almacen: form.value.almacen || "",
+    almacen: form.value.almacen || '',
     precio: precioValue.value,
     sku: generarSKU(),
-    url: form.value.url || "",
-    detalle: "Producto Base",
+    url: form.value.url || '',
+    detalle: 'Producto Base',
     // 🔒 bandera para bloquear
     isDefault: true,
   };
@@ -839,7 +865,7 @@ async function submitForm() {
   try {
     form.value.fecha_hora = new Date().toISOString();
 
-    let urlFinal = "";
+    let urlFinal = '';
 
     if (imagenFile.value) {
       urlFinal = await uploadArticuloImagen(imagenFile.value);
@@ -850,7 +876,7 @@ async function submitForm() {
         let skuFinal = v.sku;
 
         // 🧠 si no hay SKU, generar uno
-        if (!skuFinal || skuFinal.trim() === "") {
+        if (!skuFinal || skuFinal.trim() === '') {
           skuFinal = generarSKU();
         }
 
@@ -864,19 +890,31 @@ async function submitForm() {
           ...v,
           sku: skuFinal, // ✅ aquí lo aseguras
           url: urlFinalVariante,
-          _file: "",
+          _file: '',
         };
       }),
     );
 
-    await push(dbRef(db, "articulos"), {
-      ...form.value,
-      url: urlFinal,
-      variantes: variantesFinal,
-    });
+    if (isEdit.value && articuloId) {
+      await update(dbRef(db, `articulos/${articuloId}`), {
+        ...form.value,
+        url: urlFinal,
+        variantes: variantesFinal,
+      });
+
+      dialogMensaje.value = 'Artículo actualizado correctamente ✏️';
+    } else {
+      await push(dbRef(db, 'articulos'), {
+        ...form.value,
+        url: urlFinal,
+        variantes: variantesFinal,
+      });
+
+      dialogMensaje.value = 'Artículo registrado correctamente ✅';
+    }
 
     // 🟦 Mostrar el diálogo personalizado
-    dialogMensaje.value = "Artículo registrado correctamente";
+    dialogMensaje.value = 'Artículo registrado correctamente';
     dialogError.value = true;
 
     // Reset
@@ -884,56 +922,56 @@ async function submitForm() {
     imagenFile.value = null;
 
     Object.assign(form.value, {
-      nombre: "",
-      descripcion: "",
-      categoria: "",
-      subcategoria: "",
-      url: "",
+      nombre: '',
+      descripcion: '',
+      categoria: '',
+      subcategoria: '',
+      url: '',
       precio: 0,
       anticipo: 0,
       descuentoCupon: 0,
-      metodo_pago: "",
-      unidadMedida: "",
+      metodo_pago: '',
+      unidadMedida: '',
       estatus: false,
-      almacen: "",
-      icono: "",
-      fecha_hora: "",
+      almacen: '',
+      icono: '',
+      fecha_hora: '',
       variantes: [],
       tiendaId: props.tiendaId,
     });
   } catch (error) {
-    console.error("Error registrando artículo:", error);
+    console.error('Error registrando artículo:', error);
 
     // Diálogo de error
-    dialogMensaje.value = "Error al registrar el artículo ❌";
+    dialogMensaje.value = 'Error al registrar el artículo ❌';
     dialogError.value = true;
   }
 }
 
 const materiales = ref([
-  "Otro",
-  "Algodón",
-  "Poliéster",
-  "Metal",
-  "Plástico",
-  "Vidrio",
-  "Cuero",
-  "Madera",
-  "Cerámica",
-  "Cartón",
-  "Papel",
+  'Otro',
+  'Algodón',
+  'Poliéster',
+  'Metal',
+  'Plástico',
+  'Vidrio',
+  'Cuero',
+  'Madera',
+  'Cerámica',
+  'Cartón',
+  'Papel',
 ]);
 
 const tamanios = ref([
-  "Otro",
-  "XS",
-  "S",
-  "M",
-  "L",
-  "XL",
-  "Chico",
-  "Mediano",
-  "Grande",
+  'Otro',
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'Chico',
+  'Mediano',
+  'Grande',
 ]);
 
 function mostrarDialogo(mensaje: string) {
@@ -943,15 +981,15 @@ function mostrarDialogo(mensaje: string) {
 
 function validarPaso1() {
   if (!form.value.nombre.trim()) {
-    mostrarDialogo("El nombre del artículo es obligatorio.");
+    mostrarDialogo('El nombre del artículo es obligatorio.');
     return false;
   }
   if (!form.value.descripcion.trim()) {
-    mostrarDialogo("La descripción es obligatoria.");
+    mostrarDialogo('La descripción es obligatoria.');
     return false;
   }
   if (!form.value.url && !imagenFile.value) {
-    mostrarDialogo("Debes subir una imagen antes de continuar.");
+    mostrarDialogo('Debes subir una imagen antes de continuar.');
     return false;
   }
   return true;
@@ -959,15 +997,15 @@ function validarPaso1() {
 
 function validarPaso2() {
   if (!precioValue.value || precioValue.value <= 0) {
-    mostrarDialogo("El precio debe ser mayor a 0.");
+    mostrarDialogo('El precio debe ser mayor a 0.');
     return false;
   }
   if (!form.value.unidadMedida) {
-    mostrarDialogo("Debes seleccionar una unidad de medida.");
+    mostrarDialogo('Debes seleccionar una unidad de medida.');
     return false;
   }
   if (!form.value.categoria) {
-    mostrarDialogo("Debes seleccionar una categoría.");
+    mostrarDialogo('Debes seleccionar una categoría.');
     return false;
   }
   return true;
@@ -1221,7 +1259,7 @@ function validarPaso2() {
   gap: 0.5rem;
 }
 
-.estatus-wrapper input[type="checkbox"] {
+.estatus-wrapper input[type='checkbox'] {
   width: 20px;
   height: 20px;
   cursor: pointer;
@@ -1398,5 +1436,12 @@ function validarPaso2() {
   opacity: 0.4;
   pointer-events: none;
   cursor: not-allowed;
+}
+.back-btn {
+  position: absolute;
+  left: 25px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 </style>

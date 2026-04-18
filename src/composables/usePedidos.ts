@@ -1,6 +1,6 @@
-import { db } from "@/firebase";
-import { ref as dbRef, push, set, get, child } from "firebase/database";
-import { sessionUser } from "@/utils/sessionUser";
+import { db } from '@/firebase';
+import { ref as dbRef, push, set, get, child } from 'firebase/database';
+import { sessionUser } from '@/utils/sessionUser';
 
 // Interfaz de Pedido con items en lugar de 1 producto plano
 export interface Pedido {
@@ -45,10 +45,7 @@ export async function getPedidoById(idPedido: string): Promise<Pedido | null> {
 
   try {
     const snapshot = await get(
-      child(
-        dbRef(db),
-        `usuarios/${sessionUser.value.id}/pedidos/${idPedido}`
-      )
+      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos/${idPedido}`),
     );
 
     if (snapshot.exists()) {
@@ -60,7 +57,7 @@ export async function getPedidoById(idPedido: string): Promise<Pedido | null> {
 
     return null;
   } catch (error) {
-    console.error("Error al traer pedido:", error);
+    console.error('Error al traer pedido:', error);
     return null;
   }
 }
@@ -73,7 +70,7 @@ export async function getPedidosByUser(): Promise<Pedido[]> {
 
   try {
     const snapshot = await get(
-      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos`)
+      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos`),
     );
 
     if (snapshot.exists()) {
@@ -82,8 +79,8 @@ export async function getPedidosByUser(): Promise<Pedido[]> {
       // Función para convertir "15/5/2025" o "15/5/2025, 14:32" a Date
       function parseDateDMY(dateStr?: string): Date | null {
         if (!dateStr) return null;
-        const onlyDate = dateStr.split(",")[0].trim(); // quitamos hora si existe
-        const parts = onlyDate.split("/");
+        const onlyDate = dateStr.split(',')[0].trim(); // quitamos hora si existe
+        const parts = onlyDate.split('/');
         if (parts.length < 3) return null;
 
         const day = parseInt(parts[0], 10);
@@ -108,7 +105,7 @@ export async function getPedidosByUser(): Promise<Pedido[]> {
 
     return [];
   } catch (error) {
-    console.error("Error al traer pedidos:", error);
+    console.error('Error al traer pedidos:', error);
     return [];
   }
 }
@@ -118,7 +115,7 @@ export async function getPedidosByUser2(): Promise<Pedido[]> {
 
   try {
     const snapshot = await get(
-      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos`)
+      child(dbRef(db), `usuarios/${sessionUser.value.id}/pedidos`),
     );
 
     if (snapshot.exists()) {
@@ -133,20 +130,76 @@ export async function getPedidosByUser2(): Promise<Pedido[]> {
 
     return [];
   } catch (error) {
-    console.error("Error al traer pedidos:", error);
+    console.error('Error al traer pedidos:', error);
     return [];
   }
 }
-
-/**
- * Guardar un pedido único con múltiples items
- */
 export async function guardarPedidos(
   carrito: any[],
   metodoPago: string,
-  domicilioForm: any
+  domicilioForm: any,
 ) {
-  if (!sessionUser.value?.id) throw new Error("Usuario no autenticado");
+  if (!sessionUser.value?.id) throw new Error('Usuario no autenticado');
+
+  const fecha_hora = new Date().toLocaleString();
+
+  const total_compra = carrito.reduce(
+    (acc, item) => acc + item.precio * item.cantidad,
+    0,
+  );
+
+  const pedido: Pedido = {
+    id_usuario: sessionUser.value.id,
+    metodo_pago: metodoPago,
+    estatus: 'Preparacion',
+    fecha_hora,
+    total_compra,
+
+    domicilio: {
+      calleNumero: domicilioForm.calle + ' #' + domicilioForm.numero,
+      lugar: domicilioForm.colonia,
+      municipio: domicilioForm.municipio,
+      estado: domicilioForm.estado,
+      codigoPostal: domicilioForm.cp,
+    },
+
+    items: carrito.map((item) => ({
+      id_articulo: item.id_articulo,
+      nombreProducto: item.nombre,
+      precio: item.precio,
+      cantidad: item.cantidad,
+      categoria: item.categoria || '',
+      proveedor: item.id_tienda || '',
+      sku_code: item.sku_code || '',
+      url_image: item.url || '',
+      almacen: item.almacen || '',
+      anticipo: item.anticipo ?? null,
+      descuentoCupon: item.descuentoCupon ?? null,
+    })),
+  };
+
+  // 🔥 COLECCIÓN GLOBAL
+  const pedidosRef = dbRef(db, 'pedidos');
+  const nuevoPedidoRef = push(pedidosRef);
+
+  await set(nuevoPedidoRef, {
+    id_pedido: nuevoPedidoRef.key,
+    ...pedido,
+  });
+
+  console.log('Pedido guardado globalmente:', nuevoPedidoRef.key);
+
+  return nuevoPedidoRef.key;
+}
+/**
+ * Guardar un pedido único con múltiples items
+ */
+export async function guardarPedidos2(
+  carrito: any[],
+  metodoPago: string,
+  domicilioForm: any,
+) {
+  if (!sessionUser.value?.id) throw new Error('Usuario no autenticado');
 
   const pedidosRef = dbRef(db, `usuarios/${sessionUser.value.id}/pedidos`);
   const nuevoPedidoRef = push(pedidosRef);
@@ -156,20 +209,20 @@ export async function guardarPedidos(
   // Calcular el total del pedido
   const total_compra = carrito.reduce(
     (acc, item) => acc + item.precio * item.cantidad,
-    0
+    0,
   );
 
   const pedido: Pedido = {
     id_pedido: nuevoPedidoRef.key!,
     id_usuario: sessionUser.value.id,
     metodo_pago: metodoPago,
-    estatus: "Preparacion",
+    estatus: 'Preparacion',
     fecha_hora,
     total_compra,
 
     // domicilio agrupado
     domicilio: {
-      calleNumero: domicilioForm.calle + " #" + domicilioForm.numero,
+      calleNumero: domicilioForm.calle + ' #' + domicilioForm.numero,
       lugar: domicilioForm.colonia,
       municipio: domicilioForm.municipio,
       estado: domicilioForm.estado,
@@ -182,16 +235,44 @@ export async function guardarPedidos(
       nombreProducto: item.nombre,
       precio: item.precio,
       cantidad: item.cantidad,
-      categoria: item.categoria || "",
-      proveedor: item.proveedor || "",
-      sku_code: item.sku_code || "",
-      url_image: item.url || "",
-      almacen: item.almacen || "",
+      categoria: item.categoria || '',
+      proveedor: item.proveedor || '',
+      sku_code: item.sku_code || '',
+      url_image: item.url || '',
+      almacen: item.almacen || '',
       anticipo: item.anticipo ?? null,
       descuentoCupon: item.descuentoCupon ?? null,
     })),
   };
 
   await set(nuevoPedidoRef, pedido);
-  console.log("Pedido único guardado correctamente");
+  console.log('Pedido único guardado correctamente');
+}
+
+export async function getPedidosByProveedor(
+  idTienda: string,
+): Promise<Pedido[]> {
+  try {
+    const snapshot = await get(child(dbRef(db), 'pedidos'));
+
+    if (!snapshot.exists()) return [];
+
+    const data = snapshot.val();
+
+    return Object.keys(data)
+      .map((key) => ({
+        id_pedido: key,
+        ...data[key],
+      }))
+      .filter((pedido: Pedido) => {
+        if (pedido.estatus !== 'Preparacion') return false;
+
+        return (pedido.items || []).some(
+          (item: any) => item.proveedor === idTienda,
+        );
+      });
+  } catch (error) {
+    console.error('Error al traer pedidos por proveedor:', error);
+    return [];
+  }
 }

@@ -1,5 +1,5 @@
-import Dexie from "dexie";
-import type { Table } from "dexie";
+import Dexie from 'dexie';
+import type { Table } from 'dexie';
 
 // Interfaz del carrito
 export interface CarritoItem {
@@ -21,6 +21,7 @@ export interface CarritoItem {
   precio: number;
   url: string;
   detalle: string;
+  id_tienda?: string;
 }
 
 // Interfaz del favorito
@@ -46,12 +47,12 @@ class MRAPPDatabase extends Dexie {
   Favoritos!: Table<FavoritoItem, string>; // clave primaria articuloId
 
   constructor() {
-    super("MRAPP");
+    super('MRAPP');
     this.version(1).stores({
       Carrito:
-        "++id,id_pedido,id_articulo,id_usuario,almacen,cantidad,categoria,anticipo,descuentoCupon,estatus,fechaEntrega,fecha_hora,metodo_pago,[id_articulo+id_usuario+sku]",
+        '++id,id_pedido,id_articulo,id_usuario,almacen,cantidad,categoria,anticipo,descuentoCupon,estatus,fechaEntrega,fecha_hora,metodo_pago,id_tienda,[id_articulo+id_usuario+sku]',
       Favoritos:
-        "articuloId,idUsuario,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion",
+        'articuloId,idUsuario,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion',
       // Solo se indexa idUsuario y articuloId, el resto se guarda sin índice
     });
   }
