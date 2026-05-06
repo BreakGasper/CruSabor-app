@@ -25,7 +25,7 @@
         :key="item.id_articulo"
         class="item"
       >
-        <img :src="item.url_image" class="img" />
+        <img :src="item.url_image + FIREBASE_STORAGE_BASE_URL" class="img" />
 
         <div class="info">
           <p>
@@ -48,15 +48,16 @@ import { db } from '@/firebase';
 import { ref as dbRef, get, child } from 'firebase/database';
 import { sessionUser } from '@/utils/sessionUser';
 import { getPedidosByProveedor } from '@/composables/usePedidos';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
 
 const pedidos = ref<any[]>([]);
 
 // 🔥 TU ID DE TIENDA (proveedor)
 const props = defineProps<{
-  id: string;
+  id_tienda: string;
 }>();
 
-const idTienda = props.id;
+const idTienda = props.id_tienda;
 // CARGAR PEDIDOS
 const cargarPedidos = async () => {
   pedidos.value = await getPedidosByProveedor(idTienda);
