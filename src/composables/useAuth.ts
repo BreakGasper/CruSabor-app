@@ -1,4 +1,4 @@
-import { db } from "@/firebase";
+import { db } from '@/firebase';
 import {
   ref as dbRef,
   query,
@@ -7,8 +7,8 @@ import {
   get,
   set,
   update,
-} from "firebase/database";
-import { getDatabase, ref, child } from "firebase/database";
+} from 'firebase/database';
+import { getDatabase, ref, child } from 'firebase/database';
 
 export interface Usuario {
   id: string;
@@ -50,8 +50,8 @@ export async function getEmailByPhone(
   phone: string,
 ): Promise<{ email: string | null; valid: boolean; userId?: string }> {
   try {
-    const usersRef = dbRef(db, "usuarios");
-    const q = query(usersRef, orderByChild("celular"), equalTo(phone));
+    const usersRef = dbRef(db, 'usuarios');
+    const q = query(usersRef, orderByChild('celular'), equalTo(phone));
 
     const snapshot = await get(q);
 
@@ -69,7 +69,7 @@ export async function getEmailByPhone(
 
     return { email: null, valid: false };
   } catch (error) {
-    console.error("Error al obtener correo por teléfono:", error);
+    console.error('Error al obtener correo por teléfono:', error);
     return { email: null, valid: false };
   }
 }
@@ -86,7 +86,7 @@ export async function updateUserData(
     await update(userRef, updatedFields); // Actualiza solo los campos que vienen en updatedFields
     return true;
   } catch (error) {
-    console.error("Error al actualizar usuario:", error);
+    console.error('Error al actualizar usuario:', error);
     return false;
   }
 }
@@ -102,7 +102,7 @@ export async function updateUserPassword(
     await update(userRef, { pass: newPassword }); // Solo actualiza la propiedad "pass"
     return true;
   } catch (error) {
-    console.error("Error al actualizar contraseña:", error);
+    console.error('Error al actualizar contraseña:', error);
     return false;
   }
 }
@@ -115,13 +115,29 @@ export async function getUserById(userId: string): Promise<Usuario | null> {
     }
     return null;
   } catch (error) {
-    console.error("Error al traer usuario por ID:", error);
+    console.error('Error al traer usuario por ID:', error);
     return null;
   }
 }
+
+export async function fetchUsuarioById(
+  userId: string,
+): Promise<Usuario | null> {
+  try {
+    const snapshot = await get(dbRef(db, `usuarios/${userId}`));
+    if (snapshot.exists()) {
+      return { id: userId, ...snapshot.val() } as Usuario;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error al obtener usuario por ID:', error);
+    return null;
+  }
+}
+
 export async function findUserByPhone(phone: string): Promise<Usuario | null> {
-  const usersRef = dbRef(db, "usuarios");
-  const q = query(usersRef, orderByChild("celular"), equalTo(phone));
+  const usersRef = dbRef(db, 'usuarios');
+  const q = query(usersRef, orderByChild('celular'), equalTo(phone));
 
   const snapshot = await get(q);
   if (snapshot.exists()) {
@@ -136,8 +152,8 @@ export async function findUserByPhoneStore(
   phone: string,
 ): Promise<Tienda | null> {
   try {
-    const tiendasRef = dbRef(db, "tiendas");
-    const q = query(tiendasRef, orderByChild("telefono"), equalTo(phone));
+    const tiendasRef = dbRef(db, 'tiendas');
+    const q = query(tiendasRef, orderByChild('telefono'), equalTo(phone));
     const snapshot = await get(q);
 
     if (snapshot.exists()) {
@@ -147,13 +163,13 @@ export async function findUserByPhoneStore(
     }
     return null;
   } catch (error) {
-    console.error("Error buscando tienda por teléfono:", error);
+    console.error('Error buscando tienda por teléfono:', error);
     return null;
   }
 }
 
 export async function saveUser(user: Usuario) {
-  const userRef = dbRef(db, "usuarios/" + user.id);
+  const userRef = dbRef(db, 'usuarios/' + user.id);
   await set(userRef, user);
   return true;
 }
