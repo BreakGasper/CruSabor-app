@@ -266,9 +266,9 @@ export async function getPedidosByProveedor(
       }))
       .filter((pedido: Pedido) => {
         if (pedido.estatus !== 'Preparacion') return false;
-
+        console.log(pedido.items);
         return (pedido.items || []).some(
-          (item: any) => item.proveedor === idTienda,
+          (item: any) => String(item.proveedor) === String(idTienda),
         );
       });
   } catch (error) {

@@ -43,7 +43,6 @@
             <span class="precio">${{ p.precio }}</span>
 
             <div class="acciones" v-if="sessionUsuarioValidation()">
-              
               <div class="acciones" v-if="obtenerStock(p) !== 0">
                 <!-- Si no está en el carrito, mostrar botón negro -->
                 <button
@@ -210,6 +209,7 @@ const aumentarCantidad = async (producto: Producto) => {
       url: producto.url,
       sku: producto.variantes[0]?.sku || '',
       detalle: producto.variantes[0]?.detalle || '',
+      id_tienda: producto.tiendaId || '',
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;

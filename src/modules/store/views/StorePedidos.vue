@@ -39,7 +39,11 @@
             <span class="hora">{{ pedido.fecha_hora }}</span>
           </div>
 
-          <div class="cliente" style="font-size: 14px">
+          <div
+            class="cliente"
+            style="font-size: 14px"
+            @click.stop="openClienteDialog(pedido)"
+          >
             {{ pedido.usuario?.nombre || 'Sin nombre' }}
           </div>
         </div>
@@ -70,8 +74,8 @@
 
           <!-- ITEMS -->
           <div
-            v-for="item in pedido.itemsFiltrados"
-            :key="item.id_articulo"
+            v-for="(item, index) in pedido.itemsFiltrados"
+            :key="item.id_articulo + '-' + index"
             class="item"
           >
             <img
@@ -79,17 +83,24 @@
               class="img"
             />
 
-            <div class="info">
-              <strong>{{ item.nombreProducto }}</strong>
-              <span>Cantidad: {{ item.cantidad }}</span>
-              <span>${{ item.precio }}</span>
+            <div class="item-inline" style="font-size: small">
+              <strong class="nombre">
+                {{ item.nombreProducto }}
+              </strong>
+
+              <span class="detalle">
+                {{ item.cantidad }} pz × ${{ item.precio }} =
+                <strong style="color: darkgreen"
+                  >${{ item.cantidad * item.precio }}</strong
+                >
+              </span>
             </div>
           </div>
         </div>
       </transition>
 
       <!-- FOOTER -->
-      <div class="card-footer">
+      <div class="card-footer" style="font-size: small">
         <button @click="toggleExpanded(pedido.id_pedido!)">
           {{ expandedPedidos.has(pedido.id_pedido!) ? 'Ver menos' : 'Ver más' }}
         </button>
@@ -99,6 +110,88 @@
         </button>
       </div>
     </div>
+
+    <!-- DIALOG CLIENTE -->
+    <transition name="fade">
+      <div
+        v-if="clienteDialog"
+        class="dialog-overlay"
+        @click="closeClienteDialog"
+      >
+        <div class="dialog-card" @click.stop>
+          <div class="dialog-header">
+            <h3>Información del Cliente</h3>
+
+            <button class="close-btn" @click="closeClienteDialog">✕</button>
+          </div>
+
+          <div class="dialog-content">
+            <div class="cliente-avatar">
+              {{
+                clienteSeleccionado?.usuario?.nombre?.charAt(0).toUpperCase()
+              }}
+            </div>
+
+            <h2>
+              {{ clienteSeleccionado?.usuario?.nombre }}
+            </h2>
+
+            <div class="cliente-info">
+              <div class="info-row">
+                <span>📱 Teléfono</span>
+                <strong>
+                  {{ clienteSeleccionado?.usuario?.celular || '-' }}
+                </strong>
+              </div>
+
+              <div class="info-row">
+                <span>📍 Dirección</span>
+
+                <strong>
+                  {{
+                    clienteSeleccionado?.usuario?.calleNumero ||
+                    clienteSeleccionado?.domicilio?.calleNumero
+                  }}
+                </strong>
+              </div>
+
+              <div class="info-row">
+                <span>🏙 Municipio</span>
+
+                <strong>
+                  {{
+                    clienteSeleccionado?.usuario?.municipio ||
+                    clienteSeleccionado?.domicilio?.municipio
+                  }}
+                </strong>
+              </div>
+
+              <div class="info-row">
+                <span>🌎 Estado</span>
+
+                <strong>
+                  {{
+                    clienteSeleccionado?.usuario?.estado ||
+                    clienteSeleccionado?.domicilio?.estado
+                  }}
+                </strong>
+              </div>
+
+              <div class="info-row">
+                <span>📮 C.P.</span>
+
+                <strong>
+                  {{
+                    clienteSeleccionado?.usuario?.codigoPostal ||
+                    clienteSeleccionado?.domicilio?.codigoPostal
+                  }}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -118,7 +211,17 @@ const props = defineProps<{ id_tienda: string }>();
 const idTienda = props.id_tienda;
 
 const expandedPedidos = ref<Set<string>>(new Set());
+const clienteDialog = ref(false);
+const clienteSeleccionado = ref<any>(null);
 
+function openClienteDialog(pedido: any) {
+  clienteSeleccionado.value = pedido;
+  clienteDialog.value = true;
+}
+
+function closeClienteDialog() {
+  clienteDialog.value = false;
+}
 function toggleExpanded(id: string) {
   expandedPedidos.value.has(id)
     ? expandedPedidos.value.delete(id)
@@ -160,7 +263,7 @@ const pedidosFiltrados = computed(() => {
   return pedidos.value
     .map((pedido) => {
       const itemsFiltrados = pedido.items.filter(
-        (i: any) => i.proveedor === idTienda,
+        (i: any) => String(i.proveedor) === String(idTienda),
       );
 
       const totalTienda = itemsFiltrados.reduce(
@@ -312,7 +415,32 @@ select {
   display: flex;
   flex-direction: column;
 }
+.item-inline {
+  display: flex;
+  flex-direction: row !important;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+}
+.item-inline .nombre {
+  flex: 1;
+}
 
+.item-inline .detalle {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.nombre {
+  flex: 1;
+}
+
+.detalle {
+  white-space: nowrap;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 .card-footer {
   display: flex;
   justify-content: space-between;
@@ -338,5 +466,131 @@ button {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.clickable:hover {
+  color: #0165d8;
+}
+
+/* OVERLAY */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 999;
+  padding: 1rem;
+}
+
+/* CARD */
+.dialog-card {
+  width: 100%;
+  max-width: 420px;
+
+  background: white;
+  border-radius: 20px;
+
+  overflow: hidden;
+
+  animation: dialogIn 0.25s ease;
+}
+
+/* HEADER */
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 1rem 1.2rem;
+
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+  margin: 0;
+}
+
+/* CLOSE */
+.close-btn {
+  border: none;
+  background: #f3f3f3;
+
+  width: 35px;
+  height: 35px;
+
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* CONTENT */
+.dialog-content {
+  padding: 1.5rem;
+}
+
+.cliente-avatar {
+  width: 70px;
+  height: 70px;
+
+  border-radius: 50%;
+
+  background: #0165d8;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 28px;
+  font-weight: bold;
+
+  margin: 0 auto 1rem;
+}
+
+.dialog-content h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.cliente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+
+  padding: 0.8rem;
+  border-radius: 12px;
+
+  background: #f7f7f7;
+}
+
+.info-row span {
+  font-size: 12px;
+  color: gray;
+  margin-bottom: 4px;
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>
