@@ -1,12 +1,7 @@
 <template>
   <div class="tiendas-container">
     <!-- Header -->
-    <div class="header">
-      <div class="back-btn">
-        <ArrowBack @click="$router.back()" />
-      </div>
-      <h2 class="title">Tiendas</h2>
-    </div>
+    <PageHeader title="Tiendas" fallback="/" />
 
     <!-- Buscador -->
     <div class="search-wrapper">
@@ -36,13 +31,20 @@
     </div>
 
     <!-- Filtro por categoría -->
-    <div v-if="categorias.length > 1" class="chips">
+    <div class="chips">
       <button
         class="chip"
-        :class="{ active: categoriaSel === '' }"
-        @click="categoriaSel = ''"
+        :class="{ active: categoriaSel === '' && !soloFavoritas }"
+        @click="categoriaSel = ''; soloFavoritas = false"
       >
         Todas
+      </button>
+      <button
+        class="chip chip-fav"
+        :class="{ active: soloFavoritas }"
+        @click="soloFavoritas = !soloFavoritas"
+      >
+        ❤ Favoritas<span v-if="favoritasIds.length" class="chip-count">{{ favoritasIds.length }}</span>
       </button>
       <button
         v-for="cat in categorias"
@@ -63,7 +65,7 @@
     <!-- Estados -->
     <p v-if="loading" class="empty">Cargando tiendas...</p>
     <p v-else-if="tiendasFiltradas.length === 0" class="empty">
-      No encontramos tiendas con ese criterio.
+      {{ soloFavoritas && !busqueda ? 'Aún no tienes tiendas favoritas.' : 'No encontramos tiendas con ese criterio.' }}
     </p>
 
     <!-- Lista -->
@@ -108,7 +110,14 @@
           </div>
         </div>
 
-        <span class="chevron">›</span>
+        <button
+          class="fav-btn"
+          :class="{ active: esFavorita(t.tiendaId) }"
+          :title="esFavorita(t.tiendaId) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+          @click.stop="toggle(t)"
+        >
+          <FontAwesomeIcon :icon="esFavorita(t.tiendaId) ? ['fas', 'heart'] : ['far', 'heart']" />
+        </button>
       </div>
     </div>
   </div>
@@ -116,13 +125,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import ArrowBack from '@/components/ArrowBack.vue';
+import { useRouter, useRoute } from 'vue-router';
+import PageHeader from '@/components/PageHeader.vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
 
 const router = useRouter();
 const { tiendas, loading, cargarTiendas } = useTiendas();
+const { esFavorita, toggle, favoritasIds } = useTiendasFavoritas();
+const route = useRoute();
+/** Desde el perfil se llega con /tiendas?favoritas=1 */
+const soloFavoritas = ref(route.query.favoritas === '1');
 
 const busqueda = ref('');
 const categoriaSel = ref('');
@@ -142,6 +157,7 @@ const categorias = computed(() =>
 const tiendasFiltradas = computed(() => {
   const q = normalizar(busqueda.value.trim());
   return tiendas.value
+    .filter((t) => !soloFavoritas.value || esFavorita(t.tiendaId))
     .filter((t) => !categoriaSel.value || t.categoria === categoriaSel.value)
     .filter(
       (t) =>
@@ -271,6 +287,20 @@ function onImgError(e: Event) {
   border-color: var(--color-bg-blue-dark);
   color: #fff;
 }
+.chip-fav.active {
+  background: #e74c3c;
+  border-color: #e74c3c;
+}
+.chip-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  font-size: 0.72rem;
+}
+.chip-fav.active .chip-count {
+  background: rgba(255, 255, 255, 0.25);
+}
 
 .counter {
   margin: 0 0 0.75rem;
@@ -399,11 +429,26 @@ function onImgError(e: Event) {
   background: #e9f9ee;
   color: #128c7e;
 }
-.chevron {
-  color: #bbb;
-  font-size: 1.6rem;
-  line-height: 1;
+.fav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #f4f6f9;
+  color: #b5bcc6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   flex-shrink: 0;
+  padding: 0;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+.fav-btn:hover,
+.fav-btn.active {
+  background: #ffecec;
+  color: #e74c3c;
 }
 
 @media (max-width: 480px) {
@@ -419,8 +464,17 @@ function onImgError(e: Event) {
     align-items: flex-start;
     gap: 2px;
   }
-  .chevron {
-    display: none;
+  .fav-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .nombre-row {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .nombre {
+    white-space: normal;
+    line-height: 1.2;
   }
 }
 </style>

@@ -1,10 +1,7 @@
 <template>
   <div class="favoritos-container">
     <!-- Header (solo si showHeader es true) -->
-    <div v-if="showHeader" class="header">
-      <ArrowBack class="back-button" @click="$router.back()" />
-      <h2 class="carousel-title">Mis Favoritos</h2>
-    </div>
+    <PageHeader v-if="showHeader" title="Mis Favoritos" fallback="/perfil" />
 
     <div :class="['grid', { horizontal }]">
       <!-- No hay favoritos -->
@@ -66,7 +63,7 @@ import { useRouter } from 'vue-router';
 import { db } from '@/db';
 import type { Producto } from '@/types/Producto';
 import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
-import ArrowBack from '@/components/ArrowBack.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import { useFavoritos } from '@/db/composables/useFavoritos';
 import { sessionUser } from '@/utils/sessionUser';
 

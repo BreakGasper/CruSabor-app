@@ -168,5 +168,25 @@ async function tiendaLogueada(telefono: string): Promise<Tienda | null> {
 }
 
 
-  return { tiendas, loading, cargarTiendas, crearTienda, obtenerTienda,telefonoExiste ,tiendaLogueada};
+  /** Actualiza solo los campos indicados de una tienda (la dueña o dueño edita su perfil). */
+  async function actualizarTienda(tiendaId: string, cambios: Partial<Tienda>) {
+    if (!tiendaId) throw new Error("Tienda sin id");
+    // Nunca se tocan desde aquí: contraseña, id ni los campos vacíos/undefined
+    const { password, tiendaId: _id, ...resto } = cambios as any;
+    const limpio: Record<string, any> = {};
+    for (const [k, v] of Object.entries(resto)) if (v !== undefined) limpio[k] = v;
+    if (!Object.keys(limpio).length) return;
+    await update(dbRef(db, `tiendas/${tiendaId}`), limpio);
+  }
+
+  return {
+    tiendas,
+    loading,
+    cargarTiendas,
+    crearTienda,
+    obtenerTienda,
+    telefonoExiste,
+    tiendaLogueada,
+    actualizarTienda,
+  };
 }

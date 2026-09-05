@@ -1,27 +1,74 @@
 <template>
   <div class="pedidos-container">
     <!-- HEADER GLOBAL -->
-    <div class="top-bar">
-      <h2>Pedidos</h2>
+    <PageHeader title="Pedidos" :fallback="`/store/profile/${idTienda}`" sticky>
+      <button
+        class="icon-btn icon-circle"
+        :class="{ 'has-filters': filtrosActivos > 0 }"
+        @click="showFiltros = !showFiltros"
+        :title="filtrosActivos ? `Filtros (${filtrosActivos} activos)` : 'Filtros'"
+      >
+        <img loading="lazy" src="@/assets/icons/filter.png" alt="Filtro" class="filter-icon" />
+        <span v-if="filtrosActivos" class="filter-badge">{{ filtrosActivos }}</span>
+      </button>
+    </PageHeader>
 
-      <div class="controls">
-        <input v-model="search" placeholder="Buscar pedido o cliente..." />
-
-        <select v-model="filtroEstado">
-          <option value="">Todos</option>
-          <option value="Preparacion">Preparación</option>
-          <option value="Enviado">Enviado</option>
-          <option value="Cancelado">Cancelado</option>
-        </select>
-      </div>
+    <!-- PESTAÑAS: por entregar / entregados / cancelados -->
+    <div class="tabs">
+      <button
+        v-for="tab in TABS"
+        :key="tab.id"
+        class="tab"
+        :class="{ active: tabActiva === tab.id }"
+        @click="tabActiva = tab.id"
+      >
+        <span>{{ tab.label }}</span>
+        <span class="tab-count">{{ conteos[tab.id] }}</span>
+      </button>
     </div>
 
+    <!-- FILTROS -->
+    <transition name="fade">
+      <div v-show="showFiltros" class="filtros">
+        <input
+          type="search"
+          v-model="search"
+          placeholder="Cliente, artículo o # de pedido..."
+          class="filtro-input filtro-buscar"
+          aria-label="Buscar por cliente, artículo o número de pedido"
+        />
+        <label class="filtro-campo">
+          <span>Desde</span>
+          <input type="date" v-model="fechaDesde" class="filtro-input" aria-label="Desde" />
+        </label>
+        <label class="filtro-campo">
+          <span>Hasta</span>
+          <input type="date" v-model="fechaHasta" class="filtro-input" aria-label="Hasta" />
+        </label>
+        <select v-model="filtroPago" class="filtro-input" aria-label="Método de pago">
+          <option value="">Cualquier pago</option>
+          <option v-for="mp in metodosPago" :key="mp" :value="mp">{{ mp }}</option>
+        </select>
+        <select v-model="orden" class="filtro-input" aria-label="Ordenar">
+          <option value="recientes">Más recientes</option>
+          <option value="antiguos">Más antiguos</option>
+          <option value="mayor">Mayor total</option>
+          <option value="menor">Menor total</option>
+        </select>
+        <button class="icon-btn limpiar" @click="limpiarFiltros" title="Limpiar filtros">
+          <img loading="lazy" src="@/assets/icons/clean.png" alt="" /> Limpiar
+        </button>
+      </div>
+    </transition>
+
     <!-- CONTADOR -->
-    <div class="counter">{{ pedidosFiltrados.length }} pedidos</div>
+    <div class="counter">
+      {{ pedidosFiltrados.length }} {{ pedidosFiltrados.length === 1 ? 'pedido' : 'pedidos' }}
+    </div>
 
     <!-- EMPTY STATE -->
     <div v-if="pedidosFiltrados.length === 0" class="empty">
-      📦 No hay pedidos disponibles
+      {{ mensajeVacio }}
     </div>
 
     <!-- CARDS -->
@@ -29,7 +76,7 @@
       v-for="pedido in pedidosFiltrados"
       :key="pedido.id_pedido"
       class="pedido-card"
-      :class="{ urgente: esUrgente(pedido.fecha_hora) }"
+      :class="{ urgente: esUrgente(pedido) }"
     >
       <!-- HEADER -->
       <div class="card-header" @click="toggleExpanded(pedido.id_pedido!)">
@@ -49,8 +96,8 @@
         </div>
 
         <div class="right">
-          <span :class="['status', pedido.estatus.toLowerCase()]">
-            {{ pedido.estatus }}
+          <span :class="['status', pedido.estatusTienda.toLowerCase()]">
+            {{ pedido.estatusLabel }}
           </span>
 
           <div class="total">${{ pedido.totalTienda }}</div>
@@ -70,6 +117,26 @@
               {{ pedido.usuario?.calleNumero || pedido.domicilio.calleNumero }},
               {{ pedido.usuario?.municipio || pedido.domicilio.municipio }}
             </p>
+          </div>
+
+          <!-- HISTORIAL -->
+          <div v-if="pedido.historial?.length" class="timeline">
+            <div
+              v-for="(h, i) in pedido.historial"
+              :key="i"
+              class="timeline-item"
+              :class="h.estatus.toLowerCase()"
+            >
+              <span class="dot"></span>
+              <div class="timeline-text">
+                <strong>{{ etiqueta(h.estatus) }}</strong>
+                <span class="quien">
+                  · {{ h.por === 'cliente' ? 'Cliente' : h.por === 'tienda' ? 'Tienda' : 'Sistema' }}
+                </span>
+                <span class="cuando">{{ formatFecha(h.fecha) }}</span>
+                <p v-if="h.nota" class="nota">{{ h.nota }}</p>
+              </div>
+            </div>
           </div>
 
           <!-- ITEMS -->
@@ -105,9 +172,27 @@
           {{ expandedPedidos.has(pedido.id_pedido!) ? 'Ver menos' : 'Ver más' }}
         </button>
 
-        <button class="primary" @click.stop="markAsSent(pedido.id_pedido!)">
-          Marcar enviado
-        </button>
+        <div class="acciones-estatus">
+          <template v-if="pedido.estatusTienda === 'Preparacion'">
+            <button class="danger" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Cancelado')">
+              Cancelar
+            </button>
+            <button class="primary" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Enviado')">
+              🚚 Marcar enviado
+            </button>
+          </template>
+          <template v-else-if="pedido.estatusTienda === 'Enviado'">
+            <button class="danger" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Cancelado')">
+              Cancelar
+            </button>
+            <button class="success" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Entregado')">
+              ✅ Marcar entregado
+            </button>
+          </template>
+          <span v-else class="final-label">
+            {{ pedido.estatusTienda === 'Entregado' ? '✅ Entregado' : '✖ Cancelado' }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -196,16 +281,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { getPedidosByProveedor, type Pedido } from '@/composables/usePedidos';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import PageHeader from '@/components/PageHeader.vue';
+import Swal from 'sweetalert2';
+import {
+  suscribirPedidosProveedor,
+  actualizarEstatusTienda,
+  estatusDeTienda,
+  fechaPedido,
+  ESTATUS_LABEL,
+  type Pedido,
+  type EstatusPedido,
+} from '@/composables/usePedidos';
 import { fetchUsuarioById, type Usuario } from '@/composables/useAuth';
 import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
 
 const pedidos = ref<Pedido[]>([]);
+
+
 const usuariosPorId = ref<Record<string, Usuario | null>>({});
 
+/* ---------- Pestañas y filtros (mismo esquema que "Mis Pedidos" del cliente) ---------- */
+type TabId = 'pendientes' | 'entregados' | 'cancelados';
+const TABS: { id: TabId; label: string; estatus: EstatusPedido[] }[] = [
+  { id: 'pendientes', label: 'Por entregar', estatus: ['Preparacion', 'Enviado'] },
+  { id: 'entregados', label: 'Entregados', estatus: ['Entregado'] },
+  { id: 'cancelados', label: 'Cancelados', estatus: ['Cancelado'] },
+];
+const tabActiva = ref<TabId>('pendientes');
+
 const search = ref('');
-const filtroEstado = ref('');
+const fechaDesde = ref('');
+const fechaHasta = ref('');
+const filtroPago = ref('');
+type Orden = 'recientes' | 'antiguos' | 'mayor' | 'menor';
+const orden = ref<Orden>('recientes');
+const showFiltros = ref(false);
+
+const filtrosActivos = computed(
+  () =>
+    [search.value, fechaDesde.value, fechaHasta.value, filtroPago.value].filter(Boolean).length +
+    (orden.value !== 'recientes' ? 1 : 0),
+);
+
+function limpiarFiltros() {
+  search.value = '';
+  fechaDesde.value = '';
+  fechaHasta.value = '';
+  filtroPago.value = '';
+  orden.value = 'recientes';
+}
+
+const inicioDia = (yyyyMmDd: string) => {
+  const [y, m, d] = yyyyMmDd.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+};
+const finDia = (yyyyMmDd: string) => inicioDia(yyyyMmDd) + 24 * 60 * 60 * 1000 - 1;
 
 const props = defineProps<{ id_tienda: string }>();
 const idTienda = props.id_tienda;
@@ -237,9 +368,20 @@ function formatHora(fecha: string) {
   });
 }
 
-function esUrgente(fecha: string) {
-  const minutos = (Date.now() - new Date(fecha).getTime()) / 60000;
+/** Pendiente de preparar desde hace más de 30 min */
+function esUrgente(pedido: any) {
+  if (pedido.estatusTienda !== 'Preparacion') return false;
+  const minutos = (Date.now() - fechaPedido(pedido)) / 60000;
   return minutos > 30;
+}
+
+const etiqueta = (e: EstatusPedido) => ESTATUS_LABEL[e] || e;
+
+function formatFecha(iso: string) {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso
+    : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 async function cargarUsuarios(lista: Pedido[]) {
@@ -254,13 +396,49 @@ async function cargarUsuarios(lista: Pedido[]) {
   );
 }
 
-const cargarPedidos = async () => {
-  pedidos.value = await getPedidosByProveedor(idTienda);
-  await cargarUsuarios(pedidos.value);
-};
+let detener: (() => void) | null = null;
+const procesando = ref<string | null>(null);
 
-const pedidosFiltrados = computed(() => {
-  return pedidos.value
+function suscribir() {
+  detener?.();
+  detener = suscribirPedidosProveedor(idTienda, async (lista) => {
+    pedidos.value = lista;
+    await cargarUsuarios(lista);
+  });
+}
+
+async function cambiarEstatus(pedido: Pedido, nuevo: EstatusPedido) {
+  const esCancel = nuevo === 'Cancelado';
+  const { isConfirmed, value } = await Swal.fire({
+    title: esCancel ? '¿Cancelar este pedido?' : `¿Marcar como "${ESTATUS_LABEL[nuevo]}"?`,
+    text: esCancel
+      ? 'Se devolverá el stock de tus artículos y el cliente verá el pedido cancelado.'
+      : 'El cliente verá el cambio en su seguimiento.',
+    input: esCancel ? 'text' : undefined,
+    inputPlaceholder: 'Motivo (opcional)',
+    icon: esCancel ? 'warning' : 'question',
+    showCancelButton: true,
+    confirmButtonText: esCancel ? 'Sí, cancelar' : 'Confirmar',
+    cancelButtonText: 'Volver',
+    confirmButtonColor: esCancel ? '#e74c3c' : '#0165d8',
+  });
+  if (!isConfirmed) return;
+
+  procesando.value = pedido.id_pedido!;
+  try {
+    await actualizarEstatusTienda(pedido, idTienda, nuevo, value || undefined);
+    // la suscripción refresca la lista; feedback rápido:
+    Swal.fire({ toast: true, position: 'bottom', timer: 1800, showConfirmButton: false, icon: 'success', title: ESTATUS_LABEL[nuevo] });
+  } catch (e: any) {
+    Swal.fire({ icon: 'error', title: 'No se pudo actualizar', text: e?.message || String(e) });
+  } finally {
+    procesando.value = null;
+  }
+}
+
+/** Pedidos que incluyen artículos de esta tienda, con sus datos derivados */
+const pedidosTienda = computed(() =>
+  pedidos.value
     .map((pedido) => {
       const itemsFiltrados = pedido.items.filter(
         (i: any) => String(i.proveedor) === String(idTienda),
@@ -271,42 +449,73 @@ const pedidosFiltrados = computed(() => {
         0,
       );
 
+      const estatusTienda = estatusDeTienda(pedido, idTienda);
       return {
         ...pedido,
         itemsFiltrados,
         totalTienda,
+        estatusTienda,
+        estatusLabel: ESTATUS_LABEL[estatusTienda] || estatusTienda,
         usuario: usuariosPorId.value[pedido.id_usuario] ?? null,
       };
     })
-    .filter((p) => p.itemsFiltrados.length > 0)
-    .filter((p) =>
-      filtroEstado.value ? p.estatus === filtroEstado.value : true,
-    )
+    .filter((p) => p.itemsFiltrados.length > 0),
+);
+
+const conteos = computed<Record<TabId, number>>(() => {
+  const c: Record<TabId, number> = { pendientes: 0, entregados: 0, cancelados: 0 };
+  for (const p of pedidosTienda.value) {
+    const tab = TABS.find((t) => t.estatus.includes(p.estatusTienda))?.id ?? 'pendientes';
+    c[tab]++;
+  }
+  return c;
+});
+
+const metodosPago = computed(() =>
+  [...new Set(pedidosTienda.value.map((p) => p.metodo_pago).filter(Boolean))].sort(),
+);
+
+const pedidosFiltrados = computed(() => {
+  const estatusTab = TABS.find((t) => t.id === tabActiva.value)!.estatus;
+  const q = search.value.trim().toLowerCase();
+  const desde = fechaDesde.value ? inicioDia(fechaDesde.value) : -Infinity;
+  const hasta = fechaHasta.value ? finDia(fechaHasta.value) : Infinity;
+
+  const comparar: Record<Orden, (a: any, b: any) => number> = {
+    recientes: (a, b) => fechaPedido(b) - fechaPedido(a),
+    antiguos: (a, b) => fechaPedido(a) - fechaPedido(b),
+    mayor: (a, b) => b.totalTienda - a.totalTienda,
+    menor: (a, b) => a.totalTienda - b.totalTienda,
+  };
+
+  return pedidosTienda.value
+    .filter((p) => estatusTab.includes(p.estatusTienda))
     .filter((p) => {
-      const txt = search.value.toLowerCase();
-      return (
-        p.id_pedido?.toLowerCase().includes(txt) ||
-        p.usuario?.nombre?.toLowerCase().includes(txt)
-      );
+      const t = fechaPedido(p);
+      return t >= desde && t <= hasta;
     })
-    .sort(
-      (a, b) =>
-        new Date(b.fecha_hora).getTime() - new Date(a.fecha_hora).getTime(),
-    );
+    .filter((p) => !filtroPago.value || p.metodo_pago === filtroPago.value)
+    .filter(
+      (p) =>
+        !q ||
+        (p.id_pedido || '').toLowerCase().includes(q.replace(/^#/, '')) ||
+        (p.usuario?.nombre || '').toLowerCase().includes(q) ||
+        p.itemsFiltrados.some((i: any) => (i.nombreProducto || '').toLowerCase().includes(q)),
+    )
+    .sort(comparar[orden.value]);
 });
 
-function markAsSent(id: string) {
-  console.log('Enviar pedido:', id);
-}
-
-onMounted(() => {
-  cargarPedidos();
-
-  // 🔥 AUTO REFRESH
-  setInterval(() => {
-    cargarPedidos();
-  }, 15000);
+const mensajeVacio = computed(() => {
+  if (filtrosActivos.value) return 'Ningún pedido coincide con los filtros.';
+  return {
+    pendientes: '📦 No tienes pedidos por entregar.',
+    entregados: 'Aún no has entregado pedidos.',
+    cancelados: 'No hay pedidos cancelados.',
+  }[tabActiva.value];
 });
+
+onMounted(suscribir);
+onUnmounted(() => detener?.());
 </script>
 
 <style scoped>
@@ -315,27 +524,156 @@ onMounted(() => {
   max-width: 900px;
 }
 
-.top-bar {
-  display: block;
-  justify-content: space-between;
-  margin-bottom: 1rem;
+/* Botón de filtros en la cabecera */
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
 }
-
-.controls {
+.icon-circle {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  border-radius: 50%;
   display: flex;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  padding: 6px;
+}
+.icon-circle img {
+  width: 22px;
+  height: 22px;
+}
+/* El PNG del filtro es blanco: lo pintamos negro sobre el círculo blanco */
+.filter-icon {
+  filter: brightness(0);
+  opacity: 0.85;
+}
+.icon-circle.has-filters {
+  background: var(--color-bg-blue-ligth);
+}
+.icon-circle.has-filters .filter-icon {
+  filter: none;
+  opacity: 1;
+}
+.filter-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 
-input,
-select {
-  padding: 6px;
+/* Pestañas */
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: #eef1f5;
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+}
+.tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #555;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab.active {
+  background: #fff;
+  color: var(--color-bg-blue-dark);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.tab-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #dfe5ee;
+  color: #444;
+  font-size: 0.72rem;
+  line-height: 20px;
+}
+.tab.active .tab-count {
+  background: var(--color-bg-blue-dark);
+  color: #fff;
+}
+
+/* Panel de filtros */
+.filtros {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: #f2f4f8;
+  border-radius: 10px;
+}
+.filtro-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  background: #fff;
+  box-sizing: border-box;
+}
+.filtro-buscar {
+  flex: 1 1 100%;
+}
+.filtro-campo {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: #666;
+}
+.filtro-campo .filtro-input {
+  width: 100%;
+}
+.icon-btn.limpiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #444;
+  background: #e6e9ef;
+}
+.icon-btn.limpiar img {
+  width: 16px;
+  height: 16px;
 }
 
 .counter {
-  margin-bottom: 1rem;
-  font-weight: bold;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .empty {
@@ -393,6 +731,103 @@ select {
 
 .status.cancelado {
   background: #f8d7da;
+}
+
+.status.entregado {
+  background: #cfe8ff;
+  color: #0b4f8a;
+}
+
+/* Acciones por estatus */
+/* Botones de acción del mismo tamaño (alto y ancho) */
+.acciones-estatus {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.acciones-estatus button,
+.card-footer > button {
+  min-width: 150px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.card-footer > button {
+  min-width: 110px;
+  background: #f1f3f6;
+  color: #333;
+}
+.danger {
+  background: #fdecea;
+  color: #c0392b;
+}
+.success {
+  background: #27ae60;
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.final-label {
+  font-weight: 600;
+  color: #555;
+}
+
+/* Historial */
+.timeline {
+  border-left: 2px solid #e3e8ef;
+  margin: 0.25rem 0 1rem 6px;
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.timeline-item {
+  position: relative;
+  font-size: 12px;
+}
+.timeline-item .dot {
+  position: absolute;
+  left: -20px;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffc107;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #e3e8ef;
+}
+.timeline-item.enviado .dot {
+  background: #0165d8;
+}
+.timeline-item.entregado .dot {
+  background: #27ae60;
+}
+.timeline-item.cancelado .dot {
+  background: #e74c3c;
+}
+.timeline-text .quien {
+  color: #777;
+}
+.timeline-text .cuando {
+  display: block;
+  color: #999;
+  font-size: 11px;
+}
+.timeline-text .nota {
+  margin: 2px 0 0;
+  color: #555;
+  font-style: italic;
 }
 
 .card-body {
@@ -601,7 +1036,27 @@ button {
   box-sizing: border-box;
 }
 .top-bar h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.75rem;
+}
+.title-row .back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  color: #111;
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .title-row {
+    margin-bottom: 0;
+  }
 }
 .controls input {
   flex: 1;
@@ -665,8 +1120,29 @@ button {
     width: 100%;
     gap: 10px;
   }
-  .card-footer button {
-    flex: 1;
+  .tab {
+    font-size: 0.78rem;
+    padding: 8px 4px;
+    white-space: nowrap;
+  }
+  .tab-count {
+    min-width: 18px;
+    padding: 0 5px;
+    font-size: 0.68rem;
+  }
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .card-footer > button {
+    width: 100%;
+  }
+  .acciones-estatus {
+    width: 100%;
+  }
+  .acciones-estatus button {
+    flex: 1 1 0;
+    min-width: 0;
   }
   .img {
     width: 44px;

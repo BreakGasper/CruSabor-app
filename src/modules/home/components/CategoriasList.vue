@@ -1,12 +1,7 @@
 <template>
   <div class="categorias-container">
     <!-- Header -->
-    <div class="header">
-      <div class="back-btn">
-        <ArrowBack @click="$router.back()" />
-      </div>
-      <h2 class="title">Categorías</h2>
-    </div>
+    <PageHeader title="Categorías" fallback="/" />
 
     <!-- Buscador -->
     <div class="search-wrapper">
@@ -83,7 +78,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import ArrowBack from "@/components/ArrowBack.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import { obtenerCategorias } from "@/composables/useCategorias";
 import { useArticulos } from "@/composables/useArticulos";
 import defaultIcon from "@/assets/icons/default_articulo.png";

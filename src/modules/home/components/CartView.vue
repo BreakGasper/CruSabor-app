@@ -2,10 +2,7 @@
   <div class="cart-container">
     <!-- Header -->
     <div class="cart-header">
-      <!-- Botón volver con SVG -->
-      <ArrowBack class="btn-icon back" @click="$router.back()" />
-
-      <h2 class="cart-title">Mi Carrito</h2>
+      <PageHeader title="Mi Carrito" fallback="/" />
     </div>
 
     <!-- Lista de productos scrollable -->
@@ -98,7 +95,7 @@ import { reactive, ref, computed, onMounted } from "vue";
 import { db } from "@/db";
 import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
-import ArrowBack from "@/components/ArrowBack.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import { sessionUser } from "@/utils/sessionUser"; // asegúrate de importar
 import { watch } from "vue";
 import { useRouter } from "vue-router";
@@ -172,7 +169,9 @@ const ContinuarCompra = () => {
       envio: shippingFee.value,
       total: subtotal.value + shippingFee.value,
       totalArticulos: totalArticulos.value,
-      carritoItems: carritoItems,
+      // history.pushState no puede clonar un Proxy reactivo (DataCloneError) y
+      // Vue Router recurre a una recarga completa: pasamos una copia plana.
+      carritoItems: JSON.parse(JSON.stringify(carritoItems)),
     },
   });
 };
@@ -193,11 +192,7 @@ const ContinuarCompra = () => {
 }
 
 .cart-header {
-  display: flex;
-  align-items: center;
-  justify-content: center; /* centra el título */
-  padding: 1rem;
-  position: relative;
+  padding: 0 1rem;
 }
 
 .cart-title {

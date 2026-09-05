@@ -364,7 +364,7 @@
               <input
                 type="checkbox"
                 v-model="variante.tieneStock"
-                :disabled="variante.isDefault"
+                class="stock-check"
               />
             </div>
 
@@ -373,10 +373,11 @@
               <input
                 type="number"
                 min="1"
+                step="1"
+                inputmode="numeric"
                 v-model.number="variante.stock"
-                class="form-input small-input"
+                class="form-input small-input stock-input"
                 placeholder="Cantidad disponible"
-                :disabled="variante.isDefault"
               />
             </div>
             <div class="variante-row" v-else>
@@ -397,7 +398,9 @@
           <button class="modern-button secondary" @click="prevStep">
             Anterior
           </button>
-          <button class="modern-button" @click="handleSubmit">Registrar</button>
+          <button class="modern-button" :disabled="guardando" @click="handleSubmit">
+            {{ guardando ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Registrar' }}
+          </button>
         </div>
       </div>
     </div>
@@ -453,12 +456,15 @@ import {
 import { uploadArticuloImagen } from '@/composables/useStorage'; // ajusta ruta
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import Swal from 'sweetalert2';
 import { Html5Qrcode } from 'html5-qrcode';
 import ArrowBack from '@/components/ArrowBack.vue';
 
 const route = useRoute();
+const router = useRouter();
 const articuloId = route.params.articuloId as string | undefined;
+const guardando = ref(false);
 
 const isEdit = ref(!!articuloId);
 
@@ -535,12 +541,29 @@ const colores = ref([
 const imagenFile = ref<File | null>(null);
 
 const fileInput = ref<HTMLInputElement | null>(null);
-const onImageSelected = (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    imagenFile.value = file; // guardar archivo real
-    form.value.url = URL.createObjectURL(file); // preview
+const MAX_IMG_MB = 5;
+function imagenValida(file: File): boolean {
+  if (!file.type.startsWith('image/')) {
+    mostrarDialogo('El archivo debe ser una imagen (JPG, PNG o WebP).');
+    return false;
   }
+  if (file.size > MAX_IMG_MB * 1024 * 1024) {
+    mostrarDialogo(`La imagen no debe pesar más de ${MAX_IMG_MB} MB.`);
+    return false;
+  }
+  return true;
+}
+
+const onImageSelected = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!imagenValida(file)) {
+    input.value = '';
+    return;
+  }
+  imagenFile.value = file; // guardar archivo real
+  form.value.url = URL.createObjectURL(file); // preview
 };
 
 const showDropdown = ref(false);
@@ -599,51 +622,71 @@ function toggleColorDropdown(index: number) {
   else colorDropdownIndex.value = index;
 }
 function validarVariantes(): boolean {
-  if (form.value.variantes.length === 0) {
-    alert('Debes agregar al menos una variante antes de continuar.');
+  const variantes = form.value.variantes;
+  if (variantes.length === 0) {
+    mostrarDialogo('Debes tener al menos una variante del producto.');
     return false;
   }
 
-  for (const v of form.value.variantes) {
-    if (!v.precio) {
-      alert('Cada variante debe tener precio.');
+  const skus = new Set<string>();
+  for (let i = 0; i < variantes.length; i++) {
+    const v = variantes[i];
+    const n = i + 1;
+
+    // Precio
+    if (!v.precio || Number(v.precio) <= 0) {
+      mostrarDialogo(`La variante ${n} debe tener un precio mayor a 0.`);
       return false;
     }
+
+    // Stock: si dice que tiene, debe ser un entero de 1 en adelante
+    if (v.tieneStock) {
+      const stock = Number(v.stock);
+      if (!Number.isInteger(stock) || stock < 1) {
+        mostrarDialogo(`Indica la cantidad de stock de la variante ${n} (mínimo 1).`);
+        return false;
+      }
+    }
+
+    // SKU sin repetir
+    const sku = (v.sku || '').trim();
+    if (sku) {
+      if (skus.has(sku.toUpperCase())) {
+        mostrarDialogo(`El SKU "${sku}" está repetido en dos variantes.`);
+        return false;
+      }
+      skus.add(sku.toUpperCase());
+    }
+
+    // La variante base hereda imagen, color y detalle del producto: no se le exige lo demás
+    if (v.isDefault) continue;
 
     if (!v.color) {
-      alert('Cada variante debe tener color.');
+      mostrarDialogo(`Selecciona un color para la variante ${n}.`);
       return false;
     }
-
-    // Validar material
     if (!v.material) {
-      alert('Selecciona un material para cada variante.');
+      mostrarDialogo(`Selecciona un material para la variante ${n}.`);
       return false;
     }
-
-    if (v.material === 'Otro' && !v.materialOtro) {
-      alert('Debes especificar el material personalizado.');
+    if (v.material === 'Otro' && !v.materialOtro?.trim()) {
+      mostrarDialogo(`Especifica el material de la variante ${n}.`);
       return false;
     }
-
-    // Validar tamaño
     if (!v.tamano) {
-      alert('Selecciona un tamaño para cada variante.');
+      mostrarDialogo(`Selecciona un tamaño para la variante ${n}.`);
       return false;
     }
-
-    if (v.tamano === 'Otro' && !v.tamanoOtro) {
-      alert('Debes especificar el tamaño personalizado.');
+    if (v.tamano === 'Otro' && !v.tamanoOtro?.trim()) {
+      mostrarDialogo(`Especifica el tamaño de la variante ${n}.`);
       return false;
     }
-
-    if (!v.detalle) {
-      alert('Debes agregar un detalle para cada variante.');
+    if (!v.detalle?.trim()) {
+      mostrarDialogo(`Agrega un detalle a la variante ${n} (ej. "Edición especial").`);
       return false;
     }
-
     if (!v.url && !v._file) {
-      alert('Cada variante debe tener una imagen.');
+      mostrarDialogo(`La variante ${n} necesita una imagen.`);
       return false;
     }
   }
@@ -652,9 +695,8 @@ function validarVariantes(): boolean {
 }
 
 function handleSubmit() {
-  if (validarVariantes()) {
-    submitForm();
-  }
+  if (guardando.value) return;
+  if (validarVariantes()) submitForm();
 }
 
 function seleccionarColor(variante: any, colorNombre: string) {
@@ -803,10 +845,8 @@ watch(precioValue, (nuevoPrecio) => {
   // ✅ VALIDACIÓN CLAVE
   if (!form.value.variantes.length) return;
 
-  const primera = form.value.variantes[0];
-
-  if (!primera.precio || primera.precio === 0) {
-    primera.precio = nuevoPrecio;
+  for (const v of form.value.variantes) {
+    if (v.isDefault || !v.precio) v.precio = nuevoPrecio;
   }
 });
 
@@ -857,97 +897,71 @@ function crearVarianteBase() {
 
 function prevStep() {
   step.value = Math.max(step.value - 1, 1);
-
-  // 👇 Si regresa del paso 3 al 2, borrar variantes
-  if (step.value === 2) {
-    form.value.variantes = [];
-  }
 }
 async function submitForm() {
+  guardando.value = true;
   try {
     form.value.fecha_hora = new Date().toISOString();
+    form.value.precio = precioValue.value;
 
-    let urlFinal = '';
-
+    // Imagen del producto: subir la nueva o conservar la ya guardada (edición)
+    let urlFinal = form.value.url && !form.value.url.startsWith('blob:') ? form.value.url : '';
     if (imagenFile.value) {
       urlFinal = await uploadArticuloImagen(imagenFile.value);
     }
 
     const variantesFinal = await Promise.all(
       form.value.variantes.map(async (v) => {
-        let skuFinal = v.sku;
+        const skuFinal = v.sku && v.sku.trim() !== '' ? v.sku.trim() : generarSKU();
 
-        // 🧠 si no hay SKU, generar uno
-        if (!skuFinal || skuFinal.trim() === '') {
-          skuFinal = generarSKU();
-        }
+        // Imagen de la variante: la propia si subió una; la base (o una vista previa local) usa la del producto
+        let urlVariante = v.url;
+        if (v._file) urlVariante = await uploadArticuloImagen(v._file);
+        else if (v.isDefault || !urlVariante || urlVariante.startsWith('blob:')) urlVariante = urlFinal;
 
-        let urlFinalVariante = v.url;
-
-        if (v._file) {
-          urlFinalVariante = await uploadArticuloImagen(v._file);
-        }
-
+        const tieneStock = !!v.tieneStock;
+        const { _file, ...resto } = v as any;
         return {
-          ...v,
-          sku: skuFinal, // ✅ aquí lo aseguras
-          url: urlFinalVariante,
-          _file: '',
+          ...resto,
+          sku: skuFinal,
+          url: urlVariante,
+          tieneStock,
+          stock: tieneStock ? Math.max(1, Math.trunc(Number(v.stock) || 1)) : -1,
+          precio: Number(v.precio) || precioValue.value,
         };
       }),
     );
 
+    const payload = { ...form.value, url: urlFinal, variantes: variantesFinal };
+    const idTienda = form.value.tiendaId || props.tiendaId;
+
     if (isEdit.value && articuloId) {
-      await update(dbRef(db, `articulos/${articuloId}`), {
-        ...form.value,
-        url: urlFinal,
-        variantes: variantesFinal,
-      });
-
-      dialogMensaje.value = 'Artículo actualizado correctamente ✏️';
+      await update(dbRef(db, `articulos/${articuloId}`), payload);
     } else {
-      await push(dbRef(db, 'articulos'), {
-        ...form.value,
-        url: urlFinal,
-        variantes: variantesFinal,
-      });
-
-      dialogMensaje.value = 'Artículo registrado correctamente ✅';
+      await push(dbRef(db, 'articulos'), payload);
     }
 
-    // 🟦 Mostrar el diálogo personalizado
-    dialogMensaje.value = 'Artículo registrado correctamente';
-    dialogError.value = true;
-
-    // Reset
-    step.value = 1;
-    imagenFile.value = null;
-
-    Object.assign(form.value, {
-      nombre: '',
-      descripcion: '',
-      categoria: '',
-      categoriaId: '',
-      subcategoria: '',
-      url: '',
-      precio: 0,
-      anticipo: 0,
-      descuentoCupon: 0,
-      metodo_pago: '',
-      unidadMedida: '',
-      estatus: false,
-      almacen: '',
-      icono: '',
-      fecha_hora: '',
-      variantes: [],
-      tiendaId: props.tiendaId,
+    await Swal.fire({
+      icon: 'success',
+      title: isEdit.value ? 'Artículo actualizado' : 'Artículo registrado',
+      text: isEdit.value
+        ? 'Los cambios ya están publicados en tu tienda.'
+        : 'Tu producto ya está publicado en tu tienda.',
+      confirmButtonText: 'Ir a mi tienda',
+      confirmButtonColor: '#0165d8',
+      timer: 2500,
+      timerProgressBar: true,
     });
+
+    // Al terminar, de regreso al perfil de la tienda
+    router.replace(`/store/profile/${idTienda}`);
   } catch (error) {
     console.error('Error registrando artículo:', error);
-
-    // Diálogo de error
-    dialogMensaje.value = 'Error al registrar el artículo ❌';
-    dialogError.value = true;
+    mostrarDialogo(
+      isEdit.value ? 'No se pudo actualizar el artículo ❌' : 'No se pudo registrar el artículo ❌',
+    );
+  } finally {
+    guardando.value = false;
   }
 }
 
@@ -983,24 +997,38 @@ function mostrarDialogo(mensaje: string) {
 }
 
 function validarPaso1() {
-  if (!form.value.nombre.trim()) {
-    mostrarDialogo('El nombre del artículo es obligatorio.');
+  const nombre = form.value.nombre.trim();
+  const descripcion = form.value.descripcion.trim();
+
+  if (nombre.length < 3) {
+    mostrarDialogo('El nombre del artículo debe tener al menos 3 caracteres.');
     return false;
   }
-  if (!form.value.descripcion.trim()) {
-    mostrarDialogo('La descripción es obligatoria.');
+  if (nombre.length > 60) {
+    mostrarDialogo('El nombre del artículo no puede exceder 60 caracteres.');
+    return false;
+  }
+  if (descripcion.length < 10) {
+    mostrarDialogo('La descripción debe tener al menos 10 caracteres.');
     return false;
   }
   if (!form.value.url && !imagenFile.value) {
-    mostrarDialogo('Debes subir una imagen antes de continuar.');
+    mostrarDialogo('Debes subir una imagen del artículo antes de continuar.');
     return false;
   }
+  form.value.nombre = nombre;
+  form.value.descripcion = descripcion;
   return true;
 }
 
 function validarPaso2() {
-  if (!precioValue.value || precioValue.value <= 0) {
-    mostrarDialogo('El precio debe ser mayor a 0.');
+  const precio = Number(precioValue.value);
+  if (!precio || precio <= 0) {
+    mostrarDialogo('El precio debe ser mayor a $0.');
+    return false;
+  }
+  if (precio > 999999) {
+    mostrarDialogo('El precio no puede exceder $999,999.');
     return false;
   }
   if (!form.value.unidadMedida) {

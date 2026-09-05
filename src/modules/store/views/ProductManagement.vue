@@ -12,6 +12,7 @@ import { useRoute } from "vue-router";
 
 const route = useRoute();
 const tienda = JSON.parse(localStorage.getItem("tiendas") || "{}");
-const tiendaId = String(route.params.id);
-const tiendaNombre = tienda.nombre;
+// En /store/products/:id viene en la ruta; en /store/product/edit/:articuloId se toma de la sesión de tienda
+const tiendaId = String(route.params.id || tienda.id || "");
+const tiendaNombre = tienda.nombreTienda || tienda.nombre || "";
 </script>

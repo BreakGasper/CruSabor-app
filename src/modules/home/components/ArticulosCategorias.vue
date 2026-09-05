@@ -1,13 +1,7 @@
 <template>
   <div class="articulos-categoria-container">
     <!-- Header con flecha y título -->
-    <div class="header">
-      <div class="back-btn" style="width: 40px">
-        <ArrowBack @click="$router.back()" />
-      </div>
-
-      <h2 class="carousel-title">{{ categoriaNombre }}</h2>
-    </div>
+    <PageHeader :title="categoriaNombre || 'Categoría'" fallback="/categoria" />
 
     <div v-if="loading" class="loading">Cargando artículos...</div>
 
@@ -109,7 +103,7 @@ import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
 
 // ✅ Importamos useHorizontalCarousel solo para favoritos
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
-import ArrowBack from "@/components/ArrowBack.vue";
+import PageHeader from "@/components/PageHeader.vue";
 
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
 

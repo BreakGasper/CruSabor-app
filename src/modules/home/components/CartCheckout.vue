@@ -11,115 +11,64 @@
       <div v-if="paso === 1">
         <h2 class="card-title">Domicilio de entrega</h2>
 
-        <div v-if="sessionUser.value && !usarOtroDomicilio">
-          <p><strong>Domicilio registrado:</strong></p>
-          <p>{{ sessionUser.value.domicilio }}</p>
-          <p>
-            {{ sessionUser.value.municipio }}, {{ sessionUser.value.estado }}
-          </p>
-          <button
-            class="modern-button secondary"
-            @click="usarOtroDomicilio = true"
-          >
-            Usar otro domicilio
+        <!-- Nueva dirección (alta) -->
+        <div v-if="mostrarNuevaDireccion" class="nueva-direccion">
+          <p class="subtitulo">Registrar nueva dirección</p>
+          <DireccionForm
+            :guardando="guardandoDireccion"
+            @save="guardarNuevaDireccion"
+            @cancel="mostrarNuevaDireccion = false"
+          />
+        </div>
+
+        <!-- Sin direcciones registradas -->
+        <div v-else-if="direcciones.length === 0" class="sin-direcciones">
+          <p>Aún no tienes un domicilio registrado.</p>
+          <button class="modern-button full-width" @click="mostrarNuevaDireccion = true">
+            Registrar domicilio
           </button>
         </div>
 
-        <div v-else>
-          <div v-if="editable">
-            <div class="form-group row-calle-numero">
-              <label style="position: absolute; top: 0px; left: 20"
-                >Calle</label
-              >
-              <input
-                v-model="domicilioForm.calle"
-                placeholder="Calle"
-                class="form-input input-calle"
-                :disabled="!editable"
-              />
-              <label style="position: absolute; top: 0px; right: 0px"
-                >Número</label
-              >
-              <input
-                v-model="domicilioForm.numero"
-                placeholder="#"
-                class="form-input input-numero"
-                :disabled="!editable"
-              />
-            </div>
+        <!-- Dirección seleccionada -->
+        <div v-else class="domicilio-card">
+          <p class="domicilio-title">
+            <strong>Enviar al domicilio</strong>
+            <span class="gratis">{{ envio > 0 ? envioFormateado : "GRATIS" }}</span>
+          </p>
+          <p class="domicilio-alias">
+            {{ direccionSeleccionada?.principal ? '🏠' : '📍' }} {{ direccionSeleccionada?.alias }}
+          </p>
+          <p class="domicilio-info">{{ direccionTexto(direccionSeleccionada) }}</p>
+          <hr class="divider" />
+          <p class="change-link" @click="mostrarSelector = !mostrarSelector">
+            {{ mostrarSelector ? "Ocultar direcciones" : "Enviar a otro domicilio" }}
+          </p>
 
-            <div class="form-group row-colonia-cp">
-              <label style="position: absolute; top: 0; left: 0">Colonia</label>
-              <input
-                v-model="domicilioForm.colonia"
-                placeholder="Colonia"
-                class="form-input input-colonia"
-                :disabled="!editable"
-              />
-              <label style="position: absolute; top: 0; right: 0px"
-                >C.Postal.</label
-              >
-              <input
-                v-model="domicilioForm.cp"
-                placeholder="C.P."
-                class="form-input input-cp"
-                :disabled="!editable"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="municipio">Municipio</label>
-              <input
-                v-model="domicilioForm.municipio"
-                placeholder="Municipio"
-                class="form-input"
-                :disabled="!editable"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="estado">Estado</label>
-              <input
-                v-model="domicilioForm.estado"
-                placeholder="Estado"
-                class="form-input"
-                :disabled="!editable"
-              />
-            </div>
-
-            <button
-              class="modern-button full-width"
-              style="margin-top: 20px"
-              @click="GuardarDomicilioNuevo()"
+          <!-- Selector de direcciones guardadas -->
+          <div v-if="mostrarSelector" class="selector-direcciones">
+            <label
+              v-for="d in direcciones"
+              :key="d.id"
+              class="dir-opcion"
+              :class="{ activa: d.id === direccionSeleccionada?.id }"
             >
-              Guardar
+              <input type="radio" name="direccion" :value="d.id" v-model="direccionSelId" />
+              <span class="dir-body">
+                <span class="dir-alias">
+                  {{ d.alias }}
+                  <span v-if="d.principal" class="tag">Del registro</span>
+                  <span v-else-if="d.predeterminada" class="tag">Predeterminada</span>
+                </span>
+                <span class="dir-texto">{{ direccionTexto(d) }}</span>
+              </span>
+            </label>
+            <button v-if="puedeAgregar" class="btn-nueva" @click="mostrarNuevaDireccion = true">
+              ＋ Registrar nueva dirección
             </button>
-          </div>
-          <div v-else>
-            <div class="domicilio-card">
-              <p class="domicilio-title">
-                <strong>Enviar al domicilio</strong>
-                <span class="gratis">
-                  {{ envio > 0 ? envioFormateado : "GRATIS" }}</span
-                >
-              </p>
-              <p class="domicilio-info">
-                {{ domicilioForm.calle }} #{{ domicilioForm.numero }} -
-                {{ domicilioForm.colonia }}, {{ domicilioForm.municipio }} - CP
-                {{ domicilioForm.cp }}
-              </p>
-              <p class="domicilio-type">Residencial</p>
-              <hr class="divider" />
-              <p
-                class="change-link"
-                @click="
-                  usarOtroDomicilio = true;
-                  editable = true;
-                "
-              >
-                Enviar a otro domicilio
-              </p>
-            </div>
+            <p v-else class="limite">
+              Tienes el máximo de {{ MAX_DIRECCIONES }} ubicaciones. Elimina una desde tu perfil
+              para registrar otra.
+            </p>
           </div>
         </div>
       </div>
@@ -222,7 +171,7 @@
       <!-- Botones de navegación -->
       <div class="button-row">
         <button
-          v-if="editable === false"
+          v-if="!mostrarNuevaDireccion"
           class="modern-button full-width"
           @click="siguientePaso"
         >
@@ -234,20 +183,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect, onMounted, reactive } from "vue";
+import { ref, computed, watch, onMounted, reactive } from "vue";
 import { sessionUser } from "@/utils/sessionUser";
 import { useRouter } from "vue-router";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { useCarrito } from "@/db/composables/useCarrito";
-import { guardarPedidos } from "@/composables/usePedidos"; // importa la función
+import { guardarPedidos } from "@/composables/usePedidos";
+import DireccionForm from "@/components/DireccionForm.vue";
+import {
+  useDirecciones,
+  direccionTexto,
+  direccionCompleta,
+  MAX_DIRECCIONES,
+  type DireccionInput,
+} from "@/composables/useDirecciones";
 import Swal from "sweetalert2";
 
 const { obtenerCarritoByUser, vaciarCarritoPorUsuario } = useCarrito();
 const router = useRouter();
 const paso = ref(1);
-const usarOtroDomicilio = ref(false);
 const metodoPago = ref("");
-const editable = ref(false);
 const mpago = ref(false);
 const subtotal = ref(0);
 const envio = ref(0);
@@ -255,31 +210,77 @@ const total = ref(0);
 const totalArticulos = ref(0);
 const carrito = reactive<any[]>([]);
 
-const domicilioForm = ref({
-  calle: "",
-  numero: "",
-  colonia: "",
-  municipio: "",
-  estado: "",
-  cp: "",
+/* ---------- Libreta de direcciones ---------- */
+const { direcciones, predeterminada, puedeAgregar, agregar: agregarDireccion } = useDirecciones();
+const direccionSelId = ref("");
+const mostrarSelector = ref(false);
+const mostrarNuevaDireccion = ref(false);
+const guardandoDireccion = ref(false);
+
+// Al cargar, queda seleccionada la predeterminada (o la principal del registro)
+watch(
+  predeterminada,
+  (p) => {
+    if (!direccionSelId.value && p) direccionSelId.value = p.id;
+  },
+  { immediate: true },
+);
+
+const direccionSeleccionada = computed(
+  () =>
+    direcciones.value.find((d) => d.id === direccionSelId.value) ??
+    predeterminada.value ??
+    null,
+);
+
+/** Forma que espera guardarPedidos */
+const domicilioForm = computed(() => {
+  const d = direccionSeleccionada.value;
+  return {
+    calle: d?.calle || "",
+    numero: d?.numero || "",
+    colonia: d?.colonia || "",
+    municipio: d?.municipio || "",
+    estado: d?.estado || "",
+    cp: d?.cp || "",
+  };
 });
+
+/** Guarda la nueva dirección en la libreta (no toca la del registro) y la deja seleccionada */
+async function guardarNuevaDireccion(input: DireccionInput) {
+  guardandoDireccion.value = true;
+  try {
+    const id = await agregarDireccion(input);
+    direccionSelId.value = id;
+    mostrarNuevaDireccion.value = false;
+    mostrarSelector.value = false;
+  } catch (e: any) {
+    Swal.fire({ icon: "error", title: "No se pudo guardar la dirección", text: e?.message || String(e) });
+  } finally {
+    guardandoDireccion.value = false;
+  }
+}
 const envioFormateado = computed(() => {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
   }).format(envio.value);
 });
-const direccionFinal = computed(() => {
-  if (usarOtroDomicilio.value || editable.value) {
-    return `${domicilioForm.value.calle} ${domicilioForm.value.numero}, ${domicilioForm.value.colonia}, ${domicilioForm.value.municipio}, ${domicilioForm.value.estado}, CP ${domicilioForm.value.cp}`;
-  } else if (sessionUser.value) {
-    return `${sessionUser.value.domicilio}, ${sessionUser.value.municipio}, ${sessionUser.value.estado}`;
-  } else {
-    return "Cargando...";
-  }
-});
+const direccionFinal = computed(
+  () => direccionTexto(direccionSeleccionada.value) || "Sin domicilio",
+);
 
 const siguientePaso = async () => {
+  if (paso.value === 1 && !direccionCompleta(domicilioForm.value)) {
+    Swal.fire({
+      icon: "warning",
+      title: "Falta el domicilio",
+      text: "Selecciona o registra una dirección de entrega completa.",
+      confirmButtonColor: "#0165d8",
+    });
+    return;
+  }
+
   if (paso.value === 2 && !metodoPago.value) {
     mpago.value = true; // o un mensaje más elegante con un toast
     return; // evita pasar al siguiente paso
@@ -291,7 +292,18 @@ const siguientePaso = async () => {
       metodoPago: metodoPago.value,
     });
 
-    await guardarPedidos(carrito, metodoPago.value, domicilioForm.value);
+    try {
+      await guardarPedidos(carrito, metodoPago.value, domicilioForm.value);
+    } catch (e: any) {
+      // Stock insuficiente u otro error: el carrito se conserva para que el usuario ajuste
+      Swal.fire({
+        title: e?.name === "StockInsuficienteError" ? "Sin stock suficiente" : "No se pudo confirmar",
+        text: e?.message || String(e),
+        icon: "error",
+        confirmButtonColor: "#0165d8",
+      });
+      return;
+    }
     await vaciarCarritoPorUsuario();
 
     //router.push("/pedido-confirmado");
@@ -313,25 +325,6 @@ const siguientePaso = async () => {
 const anteriorPaso = () => {
   if (paso.value > 1) paso.value--;
 };
-
-watchEffect(() => {
-  if (sessionUser.value && !usarOtroDomicilio.value) {
-    const [calle, numero] = sessionUser.value.domicilio
-      ? sessionUser.value.domicilio.split("#").map((s: string) => s.trim())
-      : ["", ""];
-
-    domicilioForm.value = {
-      calle: calle || "",
-      numero: numero || "",
-      colonia: sessionUser.value.colonia || "",
-      municipio: sessionUser.value.municipio || "",
-      estado: sessionUser.value.estado || "",
-      cp: sessionUser.value.codigpostal || "",
-    };
-
-    editable.value = false;
-  }
-});
 
 onMounted(async () => {
   const state = window.history.state;
@@ -359,24 +352,13 @@ const cargarCarrito = async () => {
 };
 
 const FlechaBack = () => {
-  if (paso.value > 1) {
+  if (mostrarNuevaDireccion.value) {
+    mostrarNuevaDireccion.value = false;
+  } else if (paso.value > 1) {
     anteriorPaso();
-  } else if (editable.value) {
-    editable.value = false;
   } else {
     router.back();
   }
-};
-
-const GuardarDomicilioNuevo = () => {
-  sessionUser.value.domicilio = `${domicilioForm.value.calle} #${domicilioForm.value.numero}`;
-  sessionUser.value.colonia = domicilioForm.value.colonia;
-  sessionUser.value.municipio = domicilioForm.value.municipio;
-  sessionUser.value.estado = domicilioForm.value.estado;
-  sessionUser.value.codigpostal = domicilioForm.value.cp;
-
-  //Falta guardar el domicilio
-  editable.value = false;
 };
 </script>
 
@@ -596,6 +578,99 @@ const GuardarDomicilioNuevo = () => {
 .modern-button.secondary {
   background: #ddd;
   color: #333;
+}
+
+/* Selector de direcciones */
+.subtitulo {
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 0.75rem;
+}
+.sin-direcciones {
+  text-align: center;
+  color: #555;
+}
+.domicilio-alias {
+  margin: 0.25rem 0 0.1rem;
+  font-weight: 700;
+  color: #222;
+}
+.selector-direcciones {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dir-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  background: #f7f9fc;
+  cursor: pointer;
+  text-align: left;
+}
+.dir-opcion.activa {
+  border-color: var(--color-bg-blue-ligth);
+  background: #eef5ff;
+}
+.dir-opcion input {
+  margin-top: 4px;
+  accent-color: var(--color-bg-blue-dark);
+}
+.dir-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dir-alias {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #222;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e3e8ef;
+  color: #555;
+}
+.dir-texto {
+  font-size: 0.8rem;
+  color: #555;
+  line-height: 1.3;
+}
+.btn-nueva {
+  height: 40px;
+  border: 2px dashed #c9d3e0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-bg-blue-dark);
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-nueva:hover {
+  background: #eef5ff;
+}
+.limite {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4e5;
+  color: #8a5a00;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.nueva-direccion {
+  text-align: left;
 }
 
 .domicilio-card {

@@ -15,13 +15,7 @@
       <ArrowBack class="btn-icon back" @click="$router.back()" />
 
       <!-- Carrito -->
-      <button
-        v-if="!esTienda"
-        class="btn-icon cart"
-        @click="$router.push('/cart')"
-      >
-        <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
-      </button>
+      <CartButton v-if="!esTienda" class="btn-icon cart" />
 
       <button
         v-if="sessionUsuarioValidation() && !esTienda"
@@ -196,6 +190,7 @@ import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarou
 import type { Producto } from '@/types/Producto';
 import { db, type CarritoItem } from '@/db';
 import ArrowBack from '@/components/ArrowBack.vue';
+import CartButton from '@/components/CartButton.vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 import { sessionUsuarioValidation, sessionUser } from '@/utils/sessionUser';
@@ -478,9 +473,10 @@ onMounted(async () => {
 .detalle-img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* muestra toda la imagen completa */
-  object-position: top; /* centra la parte superior */
+  object-fit: cover; /* llena todo el ancho del contenedor */
+  object-position: center;
   display: block;
+  background: #f5f6fa;
 }
 
 .btn-icon {
@@ -690,10 +686,18 @@ onMounted(async () => {
   padding: 1rem;
   border: none;
   cursor: pointer;
-  border-top-left-radius: 60px; /* esquina sup izq */
-  border-bottom-right-radius: 20px; /* esquina inf der */
+  border-top-left-radius: 60px; /* esquina sup izq curva */
   border-top-right-radius: 0;
   border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0; /* esquina inf der recta, pegada al borde */
+}
+
+/* Sin stock: rojo con letras blancas */
+.btn-agregar:disabled {
+  background: #e74c3c;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 .contador-carrito {
@@ -854,7 +858,7 @@ onMounted(async () => {
     max-width: 340px;
   }
   .btn-agregar {
-    border-radius: 25px;
+    border-radius: 25px 25px 0 25px; /* inf der recta también en escritorio */
   }
 }
 </style>

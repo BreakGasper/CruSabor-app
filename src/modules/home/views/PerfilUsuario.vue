@@ -87,11 +87,9 @@
           <h3>🛒</h3>
           <!-- círculo con icono -->
         </div>
-        <PedidoList :limit="3" :showHeader="false" :showVerTodos="true" />
+        <!-- Últimos 3 pedidos, en fila con desplazamiento lateral -->
+        <PedidoList :limit="3" :showHeader="false" horizontal />
 
-        <p v-if="!pedidos.length">No tienes pedidos registrados.</p>
-
-        <!-- Después del v-for de pedidos -->
         <button class="ver-todos-btn" @click="irAMisPedidos">
           ➤ Ver todos mis pedidos...
         </button>
@@ -111,6 +109,14 @@
         </div>
       </div>
 
+      <div ref="tiendasRef" class="section-card">
+        <div class="header-row">
+          <span>Tiendas favoritas</span>
+          <h3>🏪</h3>
+        </div>
+        <TiendasFavoritas :limit="3" />
+      </div>
+
       <div ref="direccionesRef" class="section-card">
         <div class="header-row">
           <span>Ubicaciones</span>
@@ -118,7 +124,7 @@
           <h3>📍</h3>
           <!-- círculo con icono -->
         </div>
-        <span>No hay direcciones registradas</span>
+        <DireccionesList />
       </div>
 
       <div ref="configRef" class="section-card">
@@ -183,6 +189,8 @@ import { Eye, EyeOff } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import Button from "primevue/button";
 import FavoritosList from "@/modules/home/components/FavoritosList.vue";
+import TiendasFavoritas from "@/modules/home/components/TiendasFavoritas.vue";
+import DireccionesList from "@/modules/home/components/DireccionesList.vue";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { cerrarSesion, sessionUser } from "@/utils/sessionUser";
 import { getUserById, updateUserPassword } from "@/composables/useAuth";
@@ -206,6 +214,7 @@ const router = useRouter();
 const yoRef = ref<HTMLElement | null>(null);
 const pedidosRef = ref<HTMLElement | null>(null);
 const favoritosRef = ref<HTMLElement | null>(null);
+const tiendasRef = ref<HTMLElement | null>(null);
 const direccionesRef = ref<HTMLElement | null>(null);
 const configRef = ref<HTMLElement | null>(null);
 const pedidos = ref<any[]>([]);
@@ -216,6 +225,7 @@ const sectionRefs: Record<string, any> = {
   yo: yoRef,
   pedidos: pedidosRef,
   favoritos: favoritosRef,
+  tiendas: tiendasRef,
   direcciones: direccionesRef,
   config: configRef,
 };
@@ -301,6 +311,7 @@ const tabs = [
   { id: "yo", label: "👤" },
   { id: "pedidos", label: "🛒" },
   { id: "favoritos", label: "❤️" },
+  { id: "tiendas", label: "🏪" },
   { id: "direcciones", label: "📍" },
   { id: "config", label: "⚙️" },
 ];
@@ -734,47 +745,18 @@ console.log("Correo:", sessionUser.value?.email);
   color: #555;
 }
 
-/* ===== Responsive ===== */
-@media (max-width: 1024px) {
+/* ===== Responsive =====
+   El menú flotante se mantiene a la izquierda en todos los tamaños
+   (se puede ocultar con el ojo). Solo se compacta en móvil. */
+@media (max-width: 480px) {
   .menu-tabs-floating {
-    position: sticky;
-    top: 0;
-    left: auto;
-    transform: none;
-    flex-direction: row;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding: 0.6rem 1rem 0.6rem 70px; /* deja libre el botón volver */
-    background: #f8f9fb;
-    scrollbar-width: none;
-    z-index: 100;
-  }
-  .menu-tabs-floating::-webkit-scrollbar {
-    display: none;
-  }
-  .menu-tabs-floating.hidden {
-    display: none;
+    left: 10px;
+    gap: 0.6rem;
   }
   .tab-button {
-    padding: 0.45rem 0.9rem;
+    padding: 0.45rem 0.7rem;
     font-size: 0.9rem;
-    flex-shrink: 0;
   }
-  .show-tab {
-    top: auto;
-    bottom: 20px;
-    left: auto;
-    right: 20px;
-    transform: none;
-    border-radius: 50%;
-    padding: 0.8rem;
-  }
-  .back-button {
-    top: 10px;
-    left: 12px;
-  }
-}
-@media (max-width: 480px) {
   .sections {
     width: 100%;
     padding: 0 0.75rem 3rem;

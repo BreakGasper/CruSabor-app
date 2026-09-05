@@ -53,9 +53,7 @@
         </svg>
       </div>
 
-      <button class="btn-icon cart bg-bnt-cart" @click="$router.push('/cart')">
-        <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
-      </button>
+      <CartButton class="btn-icon cart bg-bnt-cart" />
     </div>
 
     <!-- Menú lateral -->
@@ -207,6 +205,7 @@ import {
 } from "lucide-vue-next";
 import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
 import ConfirmModal from "@/components/ConfirmModal.vue";
+import CartButton from "@/components/CartButton.vue";
 
 function verDetalle(produc: any) {
   productoSeleccionado.value = produc;

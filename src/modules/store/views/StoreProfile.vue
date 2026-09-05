@@ -6,6 +6,15 @@
         <div class="back-btn" v-if="!esDuenoTienda">
           <arrow-back @click="$router.back()" />
         </div>
+        <button
+          v-if="!esDuenoTienda"
+          class="fav-store-btn"
+          :class="{ active: esFavorita(store.tiendaId) }"
+          :title="esFavorita(store.tiendaId) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+          @click="toggleFavorita(store)"
+        >
+          <FontAwesomeIcon :icon="esFavorita(store.tiendaId) ? ['fas', 'heart'] : ['far', 'heart']" />
+        </button>
         <div v-if="store.bannerUrl" class="banner-carousel">
           <img :src="store.bannerUrl" class="banner-img" alt="Gallery" />
         </div>
@@ -21,6 +30,9 @@
         />
         <h1 class="store-name">{{ store.nombreTienda }}</h1>
         <p class="store-category">{{ store.categoria }}</p>
+        <button v-if="esDuenoTienda" class="btn-editar-tienda" @click="abrirEdicion">
+          ✏️ Editar mi tienda
+        </button>
       </div>
       <!-- Sección: Otros datos -->
       <div class="card-section">
@@ -295,6 +307,14 @@
       </div>
     </div>
 
+    <StoreEditModal
+      v-if="esDuenoTienda"
+      :visible="editando"
+      :tienda="store"
+      @close="editando = false"
+      @saved="onTiendaGuardada"
+    />
+
     <!-- MENÚ FUERA -->
     <!-- MENÚ LATERAL TIPO FLOAT -->
     <div class="side-menu" :class="{ open: menuOpen }">
@@ -304,12 +324,17 @@
       <!-- Botones -->
       <div class="menu-items">
         <div class="menu-item-wrapper" v-if="esDuenoTienda">
+          <button class="menu-item editar-btn" @click="abrirEdicion">✏️</button>
+          <span class="menu-label"> Editar mi tienda</span>
+        </div>
+
+        <div class="menu-item-wrapper" v-if="esDuenoTienda">
           <button class="menu-item" @click="onPedidos">🚚</button>
           <span class="menu-label"> Pedidos</span>
         </div>
 
         <div class="menu-item-wrapper" v-if="esDuenoTienda">
-          <button class="menu-item" @click="artsTienda">📋</button>
+          <button class="menu-item" @click="artsTienda">➕</button>
           <span class="menu-label"> Agregar articulo</span>
         </div>
 
@@ -357,9 +382,12 @@ import cashIcon from '@/assets/icons/money.png';
 import cardIcon from '@/assets/icons/card.png';
 import transferIcon from '@/assets/icons/trasfer.png';
 import ArrowBack from '@/components/ArrowBack.vue';
+import StoreEditModal from '@/modules/store/components/StoreEditModal.vue';
+import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { useArticulos } from '@/composables/useArticulos';
 import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
+import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
 import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
 import defaultArticulo from '@/assets/icons/default_articulo.png';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
@@ -382,6 +410,7 @@ const articulosTienda = computed<Producto[]>(() =>
 const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock } =
   useCarritoRapido();
 const productosVisibles = 6;
+const { esFavorita, toggle: toggleFavorita } = useTiendasFavoritas();
 
 const totalEnCarrito = computed(() =>
   Object.values(cantidadEnCarrito).reduce((a, b) => a + b, 0),
@@ -445,6 +474,39 @@ async function loadStore() {
 }
 
 const menuOpen = ref(false);
+
+/* ---------- Edición de la tienda (solo dueño) ---------- */
+const editando = ref(false);
+function abrirEdicion() {
+  menuOpen.value = false;
+  editando.value = true;
+}
+function onTiendaGuardada(cambios: Partial<Tienda>) {
+  if (store.value) store.value = { ...store.value, ...cambios };
+  // La sesión guarda algunos datos de la tienda: se mantienen al día
+  try {
+    const sesion = JSON.parse(localStorage.getItem('tiendas') || '{}');
+    if (sesion.id === store.value?.tiendaId) {
+      localStorage.setItem(
+        'tiendas',
+        JSON.stringify({
+          ...sesion,
+          nombre: cambios.nombreTienda ?? sesion.nombre,
+          nombreTienda: cambios.nombreTienda ?? sesion.nombreTienda,
+          telefono: cambios.telefono ?? sesion.telefono,
+          email: cambios.email ?? sesion.email,
+          domicilio: cambios.calle ?? sesion.domicilio,
+          colonia: cambios.colonia ?? sesion.colonia,
+          municipio: cambios.municipio ?? sesion.municipio,
+          codigpostal: cambios.cp ?? sesion.codigpostal,
+          estado: cambios.estado ?? sesion.estado,
+        }),
+      );
+    }
+  } catch { /* sesión ilegible: se ignora */ }
+  editando.value = false;
+  Swal.fire({ toast: true, position: 'bottom', timer: 1800, showConfirmButton: false, icon: 'success', title: 'Tienda actualizada' });
+}
 
 const paymentIcons: Record<string, string> = {
   Efectivo: cashIcon,
@@ -1093,6 +1155,52 @@ body {
 .side-menu.open .menu-label {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* ===== Editar tienda ===== */
+.btn-editar-tienda {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #1f70b2;
+  background: #fff;
+  color: #1f70b2;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-editar-tienda:hover {
+  background: #1f70b2;
+  color: #fff;
+}
+
+/* ===== Favorita ===== */
+.fav-store-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #b5bcc6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 12;
+  padding: 0;
+  font-size: 1.05rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s, color 0.2s;
+}
+.fav-store-btn:hover,
+.fav-store-btn.active {
+  color: #e74c3c;
+}
+.fav-store-btn:hover {
+  transform: scale(1.08);
 }
 
 /* ===== Productos de la tienda ===== */

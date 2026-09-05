@@ -41,10 +41,25 @@ export interface FavoritoItem {
   categoria?: string;
 }
 
+// Tienda favorita (por usuario)
+export interface TiendaFavoritaItem {
+  id?: number;
+  tiendaId: string;
+  idUsuario: string;
+  nombreTienda: string;
+  logoUrl?: string;
+  categoria?: string;
+  colonia?: string;
+  municipio?: string;
+  telefono?: string;
+  fecha_hora: string;
+}
+
 // Clase de la base de datos
 class MRAPPDatabase extends Dexie {
   Carrito!: Table<CarritoItem>;
   Favoritos!: Table<FavoritoItem, string>; // clave primaria articuloId
+  TiendasFavoritas!: Table<TiendaFavoritaItem, number>;
 
   constructor() {
     super('MRAPP');
@@ -54,6 +69,15 @@ class MRAPPDatabase extends Dexie {
       Favoritos:
         'articuloId,idUsuario,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion',
       // Solo se indexa idUsuario y articuloId, el resto se guarda sin índice
+    });
+
+    // v2: tiendas favoritas por usuario
+    this.version(2).stores({
+      Carrito:
+        '++id,id_pedido,id_articulo,id_usuario,almacen,cantidad,categoria,anticipo,descuentoCupon,estatus,fechaEntrega,fecha_hora,metodo_pago,id_tienda,[id_articulo+id_usuario+sku]',
+      Favoritos:
+        'articuloId,idUsuario,nombre,precio,categoriaId,descripcion,unidadMedida,puntuacion',
+      TiendasFavoritas: '++id,tiendaId,idUsuario,[tiendaId+idUsuario]',
     });
   }
 }

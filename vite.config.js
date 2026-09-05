@@ -4,6 +4,11 @@ import path from "path";
 import vueDevTools from "vite-plugin-vue-devtools";
 export default defineConfig({
   plugins: [vue(), vueDevTools({ launchEditor: "code" })],
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./tests/setup.ts"],
+    include: ["tests/**/*.spec.ts"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

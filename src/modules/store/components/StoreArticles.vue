@@ -1,10 +1,7 @@
 <template>
   <div class="articulos-list-container">
     <!-- Header -->
-    <div class="header-bar" v-if="showHeader">
-      <ArrowBack class="back-button" @click="$router.back()" />
-      <h2 class="header-title">Productos</h2>
-      <div class="header-icons">
+    <PageHeader v-if="showHeader" title="Productos" :fallback="`/store/profile/${tiendaId}`" sticky>
         <button
           v-if="!esDuenoTienda"
           class="icon-btn icon-circle cart-btn"
@@ -16,11 +13,10 @@
             totalEnCarrito
           }}</span>
         </button>
-        <button class="icon-btn icon-circle" @click="toggleFiltros">
+        <button class="icon-btn icon-circle" @click="toggleFiltros" title="Filtros">
           <img loading="lazy" src="@/assets/icons/filter.png" alt="Filtro" />
         </button>
-      </div>
-    </div>
+    </PageHeader>
 
     <!-- Filtros -->
     <transition name="slide-fade" v-if="showHeader">
@@ -195,7 +191,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useArticulos } from '@/composables/useArticulos';
-import ArrowBack from '@/components/ArrowBack.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import userDefaultImage from '@/assets/icons/user_back_profile.png';
 import { useRoute, useRouter } from 'vue-router';
 import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
