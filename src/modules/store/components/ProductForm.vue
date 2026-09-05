@@ -120,7 +120,7 @@
                 v-for="cat in categorias"
                 :key="cat.id"
                 class="dropdown-item"
-                @click="selectCategoria(cat.nombre)"
+                @click="selectCategoria(cat)"
               >
                 {{ cat.nombre }}
               </div>
@@ -484,6 +484,7 @@ const form = ref<Omit<Producto, 'articuloId'>>({
   nombre: '',
   descripcion: '',
   categoria: '',
+  categoriaId: '',
   subcategoria: '',
   url: '',
   precio: 0,
@@ -693,8 +694,9 @@ function toggleDropdown() {
   showDropdown.value = !showDropdown.value;
 }
 
-function selectCategoria(nombre: string) {
-  form.value.categoria = nombre;
+function selectCategoria(cat: CategoriaData) {
+  form.value.categoria = cat.nombre;
+  form.value.categoriaId = cat.id; // permite filtrar por categoría sin depender del nombre
   showDropdown.value = false;
 }
 
@@ -925,6 +927,7 @@ async function submitForm() {
       nombre: '',
       descripcion: '',
       categoria: '',
+      categoriaId: '',
       subcategoria: '',
       url: '',
       precio: 0,

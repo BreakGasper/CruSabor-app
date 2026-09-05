@@ -733,4 +733,65 @@ console.log("Correo:", sessionUser.value?.email);
   height: 1.2rem;
   color: #555;
 }
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .menu-tabs-floating {
+    position: sticky;
+    top: 0;
+    left: auto;
+    transform: none;
+    flex-direction: row;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.6rem 1rem 0.6rem 70px; /* deja libre el botón volver */
+    background: #f8f9fb;
+    scrollbar-width: none;
+    z-index: 100;
+  }
+  .menu-tabs-floating::-webkit-scrollbar {
+    display: none;
+  }
+  .menu-tabs-floating.hidden {
+    display: none;
+  }
+  .tab-button {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  .show-tab {
+    top: auto;
+    bottom: 20px;
+    left: auto;
+    right: 20px;
+    transform: none;
+    border-radius: 50%;
+    padding: 0.8rem;
+  }
+  .back-button {
+    top: 10px;
+    left: 12px;
+  }
+}
+@media (max-width: 480px) {
+  .sections {
+    width: 100%;
+    padding: 0 0.75rem 3rem;
+    box-sizing: border-box;
+  }
+  .section-card {
+    padding: 1.5rem 0.75rem 1rem;
+    border-radius: 16px;
+  }
+  .profile-header {
+    padding: 1.5rem 1rem;
+    border-radius: 0 0 28px 28px;
+  }
+}
+@media (min-width: 1025px) {
+  .sections {
+    max-width: 800px;
+  }
+}
 </style>

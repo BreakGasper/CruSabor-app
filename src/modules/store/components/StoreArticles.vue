@@ -5,6 +5,17 @@
       <ArrowBack class="back-button" @click="$router.back()" />
       <h2 class="header-title">Productos</h2>
       <div class="header-icons">
+        <button
+          v-if="!esDuenoTienda"
+          class="icon-btn icon-circle cart-btn"
+          title="Mi carrito"
+          @click="irAlCarrito"
+        >
+          <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
+          <span v-if="totalEnCarrito > 0" class="cart-badge">{{
+            totalEnCarrito
+          }}</span>
+        </button>
         <button class="icon-btn icon-circle" @click="toggleFiltros">
           <img loading="lazy" src="@/assets/icons/filter.png" alt="Filtro" />
         </button>
@@ -67,7 +78,7 @@
 
            
           <span
-            v-if="sessionUsuarioValidation() || !esDuenoTienda"
+            v-if="sessionUsuarioValidation() && !esDuenoTienda"
             class="heart-icon"
             :class="{ active: estaFavorito(producto.articuloId) }"
             @click.stop="toggleFavoritoLocal(producto, sessionUser.id)"
@@ -106,6 +117,52 @@
 
           <p class="subcategoria">{{ producto.categoria || 'General' }}</p>
           <p class="precio">${{ producto.precio }}</p>
+
+          <!-- Agregar al carrito (solo clientes, no el dueño) -->
+          <div v-if="!esDuenoTienda" class="acciones" @click.stop>
+            <button
+              v-if="!(cantidadEnCarrito[producto.articuloId] > 0)"
+              class="btn-agregar"
+              :disabled="sinStock(producto)"
+              @click.stop="aumentar(producto)"
+            >
+              <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
+              {{ sinStock(producto) ? 'Sin stock' : 'Agregar' }}
+            </button>
+
+            <div v-else class="contador-carrito">
+              <button
+                class="btn-carrito"
+                :class="
+                  cantidadEnCarrito[producto.articuloId] > 1
+                    ? 'btn-menos'
+                    : 'btn-basura'
+                "
+                @click.stop="disminuir(producto)"
+              >
+                <FontAwesomeIcon
+                  :icon="
+                    cantidadEnCarrito[producto.articuloId] > 1
+                      ? ['fas', 'minus']
+                      : ['fas', 'trash-can']
+                  "
+                />
+              </button>
+              <span class="cantidad">{{
+                cantidadEnCarrito[producto.articuloId]
+              }}</span>
+              <button
+                class="btn-carrito btn-mas"
+                :disabled="
+                  stockDe(producto) !== Infinity &&
+                  cantidadEnCarrito[producto.articuloId] >= stockDe(producto)
+                "
+                @click.stop="aumentar(producto)"
+              >
+                <FontAwesomeIcon :icon="['fas', 'plus']" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -147,8 +204,20 @@ import { sessionUser } from '@/utils/sessionUser';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import type { Producto } from '@/types/Producto';
+import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
 
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
+const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock } =
+  useCarritoRapido();
+
+const totalEnCarrito = computed(() =>
+  Object.values(cantidadEnCarrito).reduce((a, b) => a + b, 0),
+);
+
+function irAlCarrito() {
+  if (sessionUsuarioValidation()) router.push('/cart');
+  else router.push('/login');
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -213,7 +282,8 @@ onMounted(async () => {
 
 // Filtros computados
 const articulosFiltrados = computed(() => {
-  let filtered = articulos.value;
+  // useArticulos también carga el catálogo completo; nos quedamos solo con esta tienda
+  let filtered = articulos.value.filter((a) => a.tiendaId === tiendaId);
 
   // 🔍 1. FILTRO POR NOMBRE
   if (filtroNombre.value) {
@@ -563,5 +633,99 @@ const obtenerStock = (producto: Producto) => {
 
 .normal {
   color: #3498db;
+}
+
+/* Carrito en header */
+.cart-btn {
+  position: relative;
+  color: white;
+  font-size: 0.95rem;
+}
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e74c3c;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Agregar al carrito en cada card */
+.acciones {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: center;
+}
+.btn-agregar {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-bg-blue-dark);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-agregar:hover {
+  background: var(--color-bg-blue-ligth);
+}
+.btn-agregar:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+.contador-carrito {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #f0f2f5;
+  border-radius: 999px;
+  padding: 3px;
+}
+.btn-carrito {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.btn-carrito:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-mas {
+  background: #27ae60;
+}
+.btn-menos {
+  background: var(--color-bg-blue-ligth);
+}
+.btn-basura {
+  background: #e74c3c;
+}
+.cantidad {
+  font-weight: 700;
+  color: #333;
+  min-width: 24px;
+  text-align: center;
 }
 </style>

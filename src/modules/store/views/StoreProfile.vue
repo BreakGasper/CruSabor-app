@@ -197,11 +197,91 @@
         </div>
       </div>
 
-      <!-- Sección: Productos -->
-      <div class="card-section" v-if="store.productos">
-        <h2>Productos</h2>
-        <p>{{ store.productos }}</p>
-        <button class="btn-outline-blue">Ver Productos</button>
+      <!-- Sección: Productos de la tienda -->
+      <div class="card-section productos-section">
+        <div class="productos-head">
+          <h2>Productos</h2>
+          <button
+            v-if="articulosTienda.length > productosVisibles"
+            class="link-btn"
+            @click="irAArticulos"
+          >
+            Ver todos ({{ articulosTienda.length }})
+          </button>
+        </div>
+        <p v-if="store.productos" class="productos-desc">
+          {{ store.productos }}
+        </p>
+
+        <p v-if="cargandoArticulos" class="productos-empty">
+          Cargando productos...
+        </p>
+        <p v-else-if="articulosTienda.length === 0" class="productos-empty">
+          Esta tienda aún no ha publicado productos.
+        </p>
+
+        <div v-else class="productos-grid">
+          <div
+            v-for="p in articulosTienda.slice(0, productosVisibles)"
+            :key="p.articuloId"
+            class="producto-mini"
+            @click="irADetalleProducto(p)"
+          >
+            <img
+              loading="lazy"
+              :src="FIREBASE_STORAGE_BASE_URL + p.url"
+              :alt="p.nombre"
+              class="producto-mini-img"
+              @error="onImgError"
+            />
+            <div class="producto-mini-info">
+              <p class="producto-mini-nombre">{{ p.nombre }}</p>
+              <p class="producto-mini-precio">${{ p.precio }}</p>
+            </div>
+
+            <!-- Carrito: solo clientes (no el dueño) -->
+            <div v-if="!esDuenoTienda" class="producto-mini-acciones" @click.stop>
+              <button
+                v-if="!(cantidadEnCarrito[p.articuloId] > 0)"
+                class="mini-add"
+                :disabled="sinStock(p)"
+                :title="sinStock(p) ? 'Sin stock' : 'Agregar al carrito'"
+                @click.stop="aumentar(p)"
+              >
+                <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
+                <span>{{ sinStock(p) ? 'Sin stock' : 'Agregar' }}</span>
+              </button>
+              <div v-else class="mini-contador">
+                <button
+                  class="mini-btn"
+                  :class="cantidadEnCarrito[p.articuloId] > 1 ? 'menos' : 'basura'"
+                  @click.stop="disminuir(p)"
+                >
+                  <FontAwesomeIcon
+                    :icon="
+                      cantidadEnCarrito[p.articuloId] > 1
+                        ? ['fas', 'minus']
+                        : ['fas', 'trash-can']
+                    "
+                  />
+                </button>
+                <span class="mini-cantidad">{{
+                  cantidadEnCarrito[p.articuloId]
+                }}</span>
+                <button
+                  class="mini-btn mas"
+                  :disabled="
+                    stockDe(p) !== Infinity &&
+                    cantidadEnCarrito[p.articuloId] >= stockDe(p)
+                  "
+                  @click.stop="aumentar(p)"
+                >
+                  <FontAwesomeIcon :icon="['fas', 'plus']" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Botones principales -->
@@ -234,8 +314,18 @@
         </div>
 
         <div class="menu-item-wrapper">
-          <button class="menu-item" @click="irAArticulos">🛒</button>
+          <button class="menu-item" @click="irAArticulos">📋</button>
           <span class="menu-label">Productos</span>
+        </div>
+
+        <div class="menu-item-wrapper" v-if="!esDuenoTienda">
+          <button class="menu-item cart-menu-item" @click="irAlCarrito">
+            🛒
+            <span v-if="totalEnCarrito > 0" class="cart-badge">{{
+              totalEnCarrito
+            }}</span>
+          </button>
+          <span class="menu-label">Mi carrito</span>
         </div>
 
         <div class="menu-item-wrapper">
@@ -267,11 +357,51 @@ import cashIcon from '@/assets/icons/money.png';
 import cardIcon from '@/assets/icons/card.png';
 import transferIcon from '@/assets/icons/trasfer.png';
 import ArrowBack from '@/components/ArrowBack.vue';
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { useArticulos } from '@/composables/useArticulos';
+import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
+import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import defaultArticulo from '@/assets/icons/default_articulo.png';
+import { sessionUsuarioValidation } from '@/utils/sessionUser';
+import type { Producto } from '@/types/Producto';
 
 const router = useRouter();
 const route = useRoute();
 const { tiendaLogueada, obtenerTienda } = useTiendas();
 const store = ref<Tienda | null>(null);
+
+// Productos de la tienda + carrito rápido.
+// useArticulos carga todos los artículos; filtramos por tienda para no depender
+// de qué suscripción de Firebase responde primero.
+const { articulos, loading: cargandoArticulos } = useArticulos();
+const articulosTienda = computed<Producto[]>(() =>
+  store.value?.tiendaId
+    ? articulos.value.filter((a) => a.tiendaId === store.value?.tiendaId)
+    : [],
+);
+const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock } =
+  useCarritoRapido();
+const productosVisibles = 6;
+
+const totalEnCarrito = computed(() =>
+  Object.values(cantidadEnCarrito).reduce((a, b) => a + b, 0),
+);
+
+function irAlCarrito() {
+  if (sessionUsuarioValidation()) router.push('/cart');
+  else router.push('/login');
+}
+
+function irADetalleProducto(p: Producto) {
+  router.push({
+    path: `/producto/${p.articuloId}`,
+    query: { fromStore: 'true', storeId: store.value?.tiendaId || '' },
+  });
+}
+
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultArticulo;
+}
 const menuCollapsed = ref(true);
 const tiendaLocal = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
@@ -963,5 +1093,223 @@ body {
 .side-menu.open .menu-label {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* ===== Productos de la tienda ===== */
+.productos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.productos-head h2 {
+  margin-bottom: 0;
+}
+.link-btn {
+  border: none;
+  background: transparent;
+  color: #1f70b2;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+.productos-desc {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 8px 0 0;
+}
+.productos-empty {
+  color: #777;
+  text-align: center;
+  padding: 1rem 0;
+  font-size: 0.9rem;
+}
+.productos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.producto-mini {
+  background: #f7f9fc;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.producto-mini:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+}
+.producto-mini-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+  background: #fff;
+}
+.producto-mini-info {
+  padding: 8px 10px 4px;
+  text-align: left;
+}
+.producto-mini-nombre {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.producto-mini-precio {
+  margin: 2px 0 0;
+  color: #e74c3c;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.producto-mini-acciones {
+  padding: 6px 10px 10px;
+  margin-top: auto;
+}
+.mini-add {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 10px;
+  background: #1f70b2;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.mini-add:hover {
+  background: #105a8b;
+}
+.mini-add:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+.mini-contador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid #e3e8ef;
+}
+.mini-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.mini-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mini-btn.mas {
+  background: #27ae60;
+}
+.mini-btn.menos {
+  background: #1f70b2;
+}
+.mini-btn.basura {
+  background: #e74c3c;
+}
+.mini-cantidad {
+  font-weight: 700;
+  color: #333;
+  min-width: 22px;
+  text-align: center;
+}
+.cart-menu-item {
+  position: relative;
+}
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* ===== Responsive ===== */
+.store-actions {
+  flex-wrap: wrap;
+}
+.store-actions button {
+  flex: 1 1 45%;
+  min-width: 140px;
+}
+.info-row {
+  flex-wrap: wrap;
+  word-break: break-word;
+}
+@media (min-width: 768px) {
+  .horario-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .gallery-grid img {
+    width: calc(33.333% - 7px);
+    height: 140px;
+  }
+}
+@media (max-width: 480px) {
+  .store-detail-container {
+    padding: 12px 8px 90px;
+  }
+  .store-banner {
+    height: 190px;
+  }
+  .store-logo {
+    width: 100px;
+    height: 100px;
+  }
+  .store-header {
+    margin-top: -50px;
+  }
+  .store-name {
+    font-size: 1.4rem;
+  }
+  .card-section {
+    margin: 12px 10px;
+    padding: 16px;
+  }
+  .side-menu {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    top: auto;
+    bottom: 16px;
+    transform: none;
+  }
 }
 </style>

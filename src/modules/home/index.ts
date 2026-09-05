@@ -10,6 +10,7 @@ import PedidoList from "@/modules/home/components/PedidoList.vue";
 import PedidoDetalle from "./components/PedidoDetalle.vue";
 import { Component } from "lucide-vue-next";
 import ArticulosCategorias from "./components/ArticulosCategorias.vue";
+import TiendasList from "./components/TiendasList.vue";
 
 export default [
   {
@@ -33,6 +34,10 @@ export default [
     name: 'Favoritos',
     component: FavoritosList, // aquí registras tu FavoritosList
   },{
+    path: '/tiendas',
+    name: 'Tiendas',
+    component: TiendasList,
+    },{
     path: '/categoria',
     name: 'Categoria',
     component: CategoriasList, // aquí registras tu CategoriasList

@@ -383,4 +383,45 @@ const ContinuarCompra = () => {
   color: #27ae60; /* verde opcional para resaltar "Gratis" */
   font-weight: normal;
 }
+
+/* ===== Responsive ===== */
+.cart-header,
+.cart-items,
+.cart-summary {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .cart-container {
+    padding: 0 1rem;
+  }
+  .cart-summary {
+    border-radius: 30px 30px 0 0;
+  }
+  .cart-item img {
+    width: 96px;
+    height: 96px;
+  }
+  .nombre,
+  .precio {
+    font-size: 15px;
+  }
+}
+@media (max-width: 480px) {
+  .cart-item {
+    margin: 0;
+    gap: 0.6rem;
+    padding: 0.6rem;
+  }
+  .cart-item img {
+    width: 64px;
+    height: 64px;
+  }
+  .contador-carrito {
+    min-width: 84px;
+  }
+}
 </style>

@@ -120,17 +120,27 @@ const { toggleFavoritoLocal, estaFavorito, verDetalle } =
 const props = defineProps<{ id: string; categoriaNombre?: string }>();
 const { articulos, loading } = useArticulos();
 
-// Filtrado por categoría
-const articulosFiltrados = computed<Producto[]>(() =>
-  articulos.value.filter((art) => art.categoriaId === props.id)
-);
-
 const categoriaNombre = ref(props.categoriaNombre || "");
 watch(
   () => props.categoriaNombre,
   (newName) => {
     if (newName) categoriaNombre.value = newName;
   }
+);
+
+const norm = (v?: string) =>
+  (v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+// Filtrado por categoría.
+// Los artículos antiguos solo guardan el nombre (sin categoriaId),
+// así que aceptamos coincidencia por id o por nombre.
+const articulosFiltrados = computed<Producto[]>(() =>
+  articulos.value.filter(
+    (art) =>
+      art.categoriaId === props.id ||
+      (!!categoriaNombre.value &&
+        norm(art.categoria) === norm(categoriaNombre.value))
+  )
 );
 
 // --- CARRITO ---
@@ -369,5 +379,32 @@ watch(
 .cantidad {
   font-weight: 600;
   color: #333;
+}
+
+/* ===== Responsive ===== */
+.articulos-categoria-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 1.25rem;
+  }
+}
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .articulo-item {
+    height: auto;
+    min-height: 260px;
+  }
+  .img-container {
+    flex: 0 0 auto;
+  }
 }
 </style>

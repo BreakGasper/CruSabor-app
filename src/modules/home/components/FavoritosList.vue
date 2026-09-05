@@ -236,4 +236,17 @@ const quitarFavorito = async (producto: Producto) => {
   color: grey;
   margin-top: 2rem;
 }
+
+/* ===== Responsive ===== */
+.favoritos-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .grid:not(.horizontal) {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+}
 </style>

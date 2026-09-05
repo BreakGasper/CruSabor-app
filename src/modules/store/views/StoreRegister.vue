@@ -1526,4 +1526,26 @@ select:focus {
   height: 100%;
   object-fit: cover;
 }
+
+/* ===== Responsive ===== */
+.wizard-container {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .wizard-container {
+    padding: 12px;
+  }
+  .wizard-card {
+    padding: 22px 16px;
+  }
+  .buttons {
+    gap: 10px;
+  }
+  .buttons button {
+    flex: 1;
+  }
+}
 </style>

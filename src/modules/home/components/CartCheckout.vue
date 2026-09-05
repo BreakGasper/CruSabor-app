@@ -696,4 +696,41 @@ const GuardarDomicilioNuevo = () => {
   margin: 4px 0;
   font-size: 0.9rem;
 }
+
+/* ===== Responsive ===== */
+.checkout-card {
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .checkout-card {
+    max-width: 560px;
+    padding: 2.5rem;
+  }
+  .resumen-pedido {
+    max-width: none;
+  }
+}
+@media (max-width: 480px) {
+  .checkout-container {
+    padding-bottom: 2rem;
+  }
+  .checkout-card {
+    width: 100%;
+    max-width: none;
+    margin: 0 0.75rem;
+    padding: 1.5rem 1rem;
+    border-radius: 16px;
+  }
+  .checkout-header {
+    padding: 1.5rem 1rem;
+    border-radius: 0 0 28px 28px;
+    margin-bottom: 1.25rem;
+  }
+  .form-input {
+    font-size: 16px;
+  }
+  .payment-options {
+    gap: 1rem;
+  }
+}
 </style>

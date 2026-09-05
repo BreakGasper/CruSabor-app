@@ -79,7 +79,7 @@
             class="item"
           >
             <img
-              :src="item.url_image + FIREBASE_STORAGE_BASE_URL"
+              :src="FIREBASE_STORAGE_BASE_URL + item.url_image"
               class="img"
             />
 
@@ -591,6 +591,86 @@ button {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ===== Responsive ===== */
+.pedidos-container {
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.top-bar h2 {
+  margin: 0 0 0.75rem;
+}
+.controls input {
+  flex: 1;
+  min-width: 0;
+}
+.card-header .left {
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+.card-header .row {
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.card-header .row strong {
+  word-break: break-all;
+}
+.card-header .right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.card-footer {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (min-width: 768px) {
+  .top-bar {
+    display: flex;
+    align-items: center;
+  }
+  .top-bar h2 {
+    margin: 0;
+  }
+  .controls input {
+    min-width: 260px;
+  }
+}
+@media (max-width: 480px) {
+  .pedidos-container {
+    padding: 0.75rem;
+  }
+  .controls {
+    flex-wrap: wrap;
+  }
+  .controls input,
+  .controls select {
+    flex: 1 1 100%;
+    font-size: 16px;
+  }
+  .card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .card-header .right {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+  }
+  .card-footer button {
+    flex: 1;
+  }
+  .img {
+    width: 44px;
+    height: 44px;
   }
 }
 </style>

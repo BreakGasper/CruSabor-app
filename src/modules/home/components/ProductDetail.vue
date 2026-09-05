@@ -791,4 +791,70 @@ onMounted(async () => {
   font-size: 12px;
   margin-top: 4px;
 }
+
+/* ===== Responsive ===== */
+@media (max-width: 480px) {
+  .detalle-img-container {
+    height: 42vh;
+  }
+  .btn-fav {
+    top: calc(42vh - 25px);
+  }
+  .detalle-info {
+    padding: 1.25rem 1rem;
+    padding-bottom: 5rem; /* espacio para el botón fijo */
+  }
+  .detalle-footer {
+    width: 60%;
+  }
+}
+@media (min-width: 900px) {
+  .detalle-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: auto;
+    padding: 2rem;
+    gap: 2.5rem;
+    box-sizing: border-box;
+  }
+  .detalle-header {
+    flex: 1 1 0;
+    min-width: 0;
+    position: sticky;
+    top: 2rem;
+  }
+  .detalle-img-container {
+    height: 60vh;
+    max-height: 560px;
+    border-radius: 24px;
+  }
+  .btn-fav {
+    top: auto;
+    bottom: -25px;
+    right: 1.5rem;
+  }
+  .detalle-info {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+  }
+  .detalle-footer {
+    position: static;
+    width: 100%;
+    justify-content: flex-end;
+    order: 3;
+  }
+  .detalle-footer > div,
+  .detalle-footer > .btn-agregar {
+    width: 100%;
+    max-width: 340px;
+  }
+  .btn-agregar {
+    border-radius: 25px;
+  }
+}
 </style>

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit"
+    "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
@@ -56,7 +56,8 @@
     "typescript": "^5.9.2",
     "unplugin-auto-import": "^19.3.0",
     "vite": "^7.2.7",
-    "vite-plugin-vue-devtools": "^8.0.5"
+    "vite-plugin-vue-devtools": "^8.0.5",
+    "vue-tsc": "^3.3.11"
   },
   "description": "Aplicación web desarrollada con **Vue 3**, **Vite** y **Firebase**, que muestra artículos de comida organizados por categoría, usando **Pinia** para gestión de estado y **Vue Router** para navegación.",
   "main": "vite.config.js",

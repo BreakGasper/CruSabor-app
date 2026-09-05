@@ -96,6 +96,12 @@
             Categorias
           </a>
         </li>
+        <li>
+          <a @click.prevent="$router.push('/tiendas')" href="#">
+            <Store class="icon" />
+            Tiendas
+          </a>
+        </li>
       </ul>
 
       <ul class="sidebar-footer">
@@ -197,6 +203,7 @@ import {
   X,
   ShoppingCart,
   LogIn,
+  Store,
 } from "lucide-vue-next";
 import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
 import ConfirmModal from "@/components/ConfirmModal.vue";
@@ -630,5 +637,34 @@ onBeforeUnmount(() => {
 
 .scroll-top-btn:hover {
   transform: scale(1.1);
+}
+
+/* ===== Responsive: contenido centrado en pantallas grandes ===== */
+.home > .top-bar,
+.home > .carrusel-div,
+.home > .destacados {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.home > .top-bar {
+  padding-left: 0;
+  padding-right: 0;
+}
+@media (max-width: 480px) {
+  .home {
+    padding: 0.75rem;
+    padding-top: 100px;
+  }
+  .search-input {
+    font-size: 16px; /* evita zoom automático en iOS */
+  }
+}
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
 }
 </style>
