@@ -146,7 +146,8 @@
             class="item"
           >
             <img
-              :src="FIREBASE_STORAGE_BASE_URL + item.url_image"
+              :src="imagenUrl(item.url_image) || defaultImg"
+              @error="onImgError"
               class="img"
             />
 
@@ -294,7 +295,8 @@ import {
   type EstatusPedido,
 } from '@/composables/usePedidos';
 import { fetchUsuarioById, type Usuario } from '@/composables/useAuth';
-import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
+import defaultImg from '@/assets/icons/default_articulo.png';
 
 const pedidos = ref<Pedido[]>([]);
 
@@ -516,6 +518,11 @@ const mensajeVacio = computed(() => {
 
 onMounted(suscribir);
 onUnmounted(() => detener?.());
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
+}
 </script>
 
 <style scoped>

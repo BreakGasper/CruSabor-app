@@ -21,7 +21,8 @@
         >
           <img
             loading="lazy"
-            :src="FIREBASE_STORAGE_BASE_URL + item.url"
+            :src="imagenUrl(item.url) || defaultImg"
+            @error="onImgError"
             :alt="item.nombre"
             @click="verDetalle(item)"
           />
@@ -93,7 +94,8 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from "vue";
 import { db } from "@/db";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
+import defaultImg from "@/assets/icons/default_articulo.png";
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
 import PageHeader from "@/components/PageHeader.vue";
 import { sessionUser } from "@/utils/sessionUser"; // asegúrate de importar
@@ -175,6 +177,11 @@ const ContinuarCompra = () => {
     },
   });
 };
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
+}
 </script>
 
 <style scoped>

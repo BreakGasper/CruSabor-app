@@ -171,7 +171,7 @@ import ProductCard from "../components/ProductCard.vue";
 import ProductDetail from "../components/ProductDetail.vue";
 import ProductListItem from "../components/ProductListItem.vue";
 import { useIsMobile } from "@/composables/useIsMobile";
-import { useArticulos } from "@/composables/useArticulos";
+import { useArticulos, fechaArticulo } from "@/composables/useArticulos";
 import {
   cerrarSesion,
   cargarSesion,
@@ -227,8 +227,12 @@ function agregarAlCarrito(produc: any) {
   productoSeleccionado.value = null;
 }
 
+// Carrusel "Explorar": los 10 más recientes
 const productosParaCarrusel = computed(() =>
-  categoriasFiltradas.value.slice(0, 10).map((a) => ({
+  [...categoriasFiltradas.value]
+    .sort((a, b) => fechaArticulo(b) - fechaArticulo(a))
+    .slice(0, 10)
+    .map((a) => ({
     ...a, // incluye todos los articulos de firebase
     url: a.url || "", // <- Aquí asignamos la propiedad url
   }))

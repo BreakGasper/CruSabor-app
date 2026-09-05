@@ -224,6 +224,9 @@
         <p v-if="store.productos" class="productos-desc">
           {{ store.productos }}
         </p>
+        <p v-if="!esDuenoTienda && !store.envioDomicilio" class="aviso-envio">
+          🚫 Esta tienda no hace envíos a domicilio: sus productos no se pueden agregar al carrito.
+        </p>
 
         <p v-if="cargandoArticulos" class="productos-empty">
           Cargando productos...
@@ -241,7 +244,7 @@
           >
             <img
               loading="lazy"
-              :src="FIREBASE_STORAGE_BASE_URL + p.url"
+              :src="imagenUrl(p.url) || defaultArticulo"
               :alt="p.nombre"
               class="producto-mini-img"
               @error="onImgError"
@@ -256,12 +259,12 @@
               <button
                 v-if="!(cantidadEnCarrito[p.articuloId] > 0)"
                 class="mini-add"
-                :disabled="sinStock(p)"
-                :title="sinStock(p) ? 'Sin stock' : 'Agregar al carrito'"
+                :disabled="sinStock(p) || !store.envioDomicilio"
+                :title="!store.envioDomicilio ? 'Esta tienda no envía a domicilio' : sinStock(p) ? 'Sin stock' : 'Agregar al carrito'"
                 @click.stop="aumentar(p)"
               >
                 <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
-                <span>{{ sinStock(p) ? 'Sin stock' : 'Agregar' }}</span>
+                <span>{{ !store.envioDomicilio ? 'Sin envío' : sinStock(p) ? 'Sin stock' : 'Agregar' }}</span>
               </button>
               <div v-else class="mini-contador">
                 <button
@@ -388,7 +391,7 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { useArticulos } from '@/composables/useArticulos';
 import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
 import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
-import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
 import defaultArticulo from '@/assets/icons/default_articulo.png';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
 import type { Producto } from '@/types/Producto';
@@ -410,7 +413,7 @@ const articulosTienda = computed<Producto[]>(() =>
 const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock } =
   useCarritoRapido();
 const productosVisibles = 6;
-const { esFavorita, toggle: toggleFavorita } = useTiendasFavoritas();
+const { esFavorita, toggle: toggleFavorita, sincronizar: sincronizarFavorita } = useTiendasFavoritas();
 
 const totalEnCarrito = computed(() =>
   Object.values(cantidadEnCarrito).reduce((a, b) => a + b, 0),
@@ -471,6 +474,9 @@ async function loadStore() {
     const tienda = await tiendaLogueada(telefono);
     if (tienda) store.value = tienda;
   }
+
+  // Si el cliente la tiene en favoritos, la copia local se pone al día con los datos reales
+  if (store.value) await sincronizarFavorita(store.value);
 }
 
 const menuOpen = ref(false);
@@ -482,7 +488,10 @@ function abrirEdicion() {
   editando.value = true;
 }
 function onTiendaGuardada(cambios: Partial<Tienda>) {
-  if (store.value) store.value = { ...store.value, ...cambios };
+  if (store.value) {
+    store.value = { ...store.value, ...cambios };
+    sincronizarFavorita(store.value);
+  }
   // La sesión guarda algunos datos de la tienda: se mantienen al día
   try {
     const sesion = JSON.parse(localStorage.getItem('tiendas') || '{}');
@@ -1157,6 +1166,18 @@ body {
   transform: translateX(0);
 }
 
+
+/* Tienda sin envío a domicilio */
+.aviso-envio {
+  margin: 0 0 0.75rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4e5;
+  color: #8a5a00;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 /* ===== Editar tienda ===== */
 .btn-editar-tienda {
   margin-top: 8px;
@@ -1321,6 +1342,7 @@ body {
 .mini-btn {
   width: 30px;
   height: 30px;
+  padding: 0;
   border-radius: 50%;
   border: none;
   color: #fff;

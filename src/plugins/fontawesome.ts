@@ -9,9 +9,10 @@ import {
   faTrashCan,
   faCoffee,
   faShoppingCart,
+  faBan,
   faHeart as fasHeart, 
 } from "@fortawesome/free-solid-svg-icons";
 
-library.add(faPlus, faMinus, faTrashCan, faCoffee, faShoppingCart, fasHeart, farHeart);
+library.add(faPlus, faMinus, faTrashCan, faCoffee, faShoppingCart, faBan, fasHeart, farHeart);
 
 export { FontAwesomeIcon };

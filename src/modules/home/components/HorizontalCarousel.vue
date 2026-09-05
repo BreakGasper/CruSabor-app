@@ -14,7 +14,8 @@
           <div class="img-container" @click="verDetalle(p)">
             <img
               loading="lazy"
-              :src="FIREBASE_STORAGE_BASE_URL + p.url"
+              :src="FIREBASE_STORAGE_BASE_URL+imagenUrl(p.url) || defaultImg"
+              @error="onImgError"
               :alt="p.nombre"
             />
             <div v-if="sessionUsuarioValidation()">
@@ -51,9 +52,12 @@
                     obtenerStock(p) > 0
                   "
                   class="btn-agregar"
+                  :class="{ 'sin-envio': sinEnvio(p.tiendaId) }"
+                  :disabled="sinEnvio(p.tiendaId)"
+                  :title="sinEnvio(p.tiendaId) ? 'Esta tienda no envía a domicilio' : 'Agregar al carrito'"
                   @click.stop="aumentarCantidad(p)"
                 >
-                  <FontAwesomeIcon :icon="['fas', 'plus']" />
+                  <FontAwesomeIcon :icon="['fas', sinEnvio(p.tiendaId) ? 'ban' : 'plus']" />
                 </button>
 
                 <!-- Si ya está en el carrito, mostrar contador con + / - -->
@@ -117,7 +121,8 @@
 
 <script setup lang="ts">
 import '@/modules/home/styles/HorizontalCarousel.css';
-import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
+import defaultImg from '@/assets/icons/default_articulo.png';
 import { watch, reactive, onMounted } from 'vue';
 import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarousel';
 import type { Producto } from '@/types/Producto';
@@ -126,6 +131,8 @@ import { FontAwesomeIcon } from '@/plugins/fontawesome';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
 import { sessionUser } from '@/utils/sessionUser';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
+import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
+import Swal from 'sweetalert2';
 
 const props = defineProps<{ productos: Producto[] }>();
 
@@ -169,7 +176,13 @@ const obtenerStock = (producto: Producto) => {
   return variante.stock ?? 0;
 };
 
+const { sinEnvio } = useEnvioTienda();
+
 const aumentarCantidad = async (producto: Producto) => {
+  if (sinEnvio(producto.tiendaId)) {
+    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+    return;
+  }
   if (!sessionPedidoId.value) {
     generarNuevoPedidoId(sessionUser.value.id);
   }
@@ -235,4 +248,9 @@ watch(
   () => sessionUser.value?.id,
   () => sincronizarCarrito(),
 );
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
+}
 </script>

@@ -18,7 +18,8 @@
         <div class="img-container" @click="verDetalle(art)">
           <img
             loading="lazy"
-            :src="FIREBASE_STORAGE_BASE_URL + art.url || default_articulo"
+            :src="imagenUrl(art.url) || default_articulo"
+            @error="onImgError"
             :alt="art.nombre"
           />
 
@@ -47,9 +48,12 @@
           <button
             v-if="!(cantidadEnCarrito[art.articuloId] > 0)"
             class="btn-agregar"
+            :class="{ 'sin-envio': sinEnvio(art.tiendaId) }"
+            :disabled="sinEnvio(art.tiendaId)"
+            :title="sinEnvio(art.tiendaId) ? 'Esta tienda no envía a domicilio' : 'Agregar al carrito'"
             @click.stop="aumentarCantidad(art)"
           >
-            +
+            {{ sinEnvio(art.tiendaId) ? 'Sin envío' : '+' }}
           </button>
 
           <div v-else class="contador-carrito">
@@ -95,7 +99,7 @@
 import { ref, reactive, computed, watch, onMounted } from "vue";
 import type { Producto } from "@/types/Producto";
 import { useArticulos } from "@/composables/useArticulos";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import default_articulo from "@/assets/icons/default_articulo.png";
 import { db } from "@/db";
 import { sessionUsuarioValidation, sessionUser } from "@/utils/sessionUser";
@@ -103,12 +107,15 @@ import { sessionPedidoId, generarNuevoPedidoId } from "@/utils/sessionPedido";
 
 // ✅ Importamos useHorizontalCarousel solo para favoritos
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
+import { useEnvioTienda, MENSAJE_SIN_ENVIO } from "@/composables/useEnvioTienda";
+import Swal from "sweetalert2";
 import PageHeader from "@/components/PageHeader.vue";
 
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
 
 const { toggleFavoritoLocal, estaFavorito, verDetalle } =
   useHorizontalCarousel();
+const { sinEnvio } = useEnvioTienda();
 
 // Props
 const props = defineProps<{ id: string; categoriaNombre?: string }>();
@@ -155,6 +162,10 @@ const sincronizarCarrito = async () => {
 };
 
 const aumentarCantidad = async (producto: Producto) => {
+  if (sinEnvio(producto.tiendaId)) {
+    Swal.fire({ icon: "info", title: "Sin envío a domicilio", text: MENSAJE_SIN_ENVIO, confirmButtonColor: "#0165d8" });
+    return;
+  }
   if (!sessionPedidoId.value) generarNuevoPedidoId(sessionUser.value.id);
 
   const item = await db.Carrito.where("[id_articulo+id_usuario]")
@@ -220,6 +231,11 @@ watch(
   () => sessionUser.value?.id,
   () => sincronizarCarrito()
 );
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = default_articulo;
+}
 </script>
 
 <style scoped>
@@ -341,6 +357,13 @@ watch(
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
   cursor: pointer;
+}
+.btn-agregar.sin-envio,
+.btn-agregar:disabled {
+  background: #ccc;
+  color: #555;
+  cursor: not-allowed;
+  font-size: 0.75rem;
 }
 
 .contador-carrito {

@@ -20,7 +20,8 @@
         <div class="img-container">
           <img
             loading="lazy"
-            :src="FIREBASE_STORAGE_BASE_URL + prod.url"
+            :src="FIREBASE_STORAGE_BASE_URL + imagenUrl(prod.url) || defaultImg"
+            @error="onImgError"
             :alt="prod.nombre"
           />
           <span class="btn-quitar" @click.stop="quitarFavorito(prod)">
@@ -62,7 +63,8 @@ import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '@/db';
 import type { Producto } from '@/types/Producto';
-import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
+import defaultImg from '@/assets/icons/default_articulo.png';
 import PageHeader from '@/components/PageHeader.vue';
 import { useFavoritos } from '@/db/composables/useFavoritos';
 import { sessionUser } from '@/utils/sessionUser';
@@ -117,6 +119,11 @@ const quitarFavorito = async (producto: Producto) => {
     (f) => f.articuloId !== producto.articuloId,
   );
 };
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
+}
 </script>
 
 <style scoped>

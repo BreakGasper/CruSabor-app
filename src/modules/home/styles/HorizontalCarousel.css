@@ -176,6 +176,13 @@
     transform 0.2s ease;
 }
 
+.btn-agregar.sin-envio,
+.btn-agregar:disabled {
+  background: #ccc !important;
+  color: #666 !important;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 .btn-agregar:hover {
   background: #222;
   transform: scale(1.1);

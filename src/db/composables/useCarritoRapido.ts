@@ -4,6 +4,8 @@ import { db, type CarritoItem } from '../index';
 import type { Producto } from '@/types/Producto';
 import { sessionUser, sessionUsuarioValidation } from '@/utils/sessionUser';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
+import Swal from 'sweetalert2';
+import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
 
 /**
  * Carrito "rápido" para listas de productos (tienda, categorías, perfil de tienda).
@@ -16,6 +18,10 @@ import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 export function useCarritoRapido() {
   const router = useRouter();
   const cantidadEnCarrito = reactive<Record<string, number>>({});
+  const { sinEnvio } = useEnvioTienda();
+
+  /** true si la tienda del producto NO hace envíos a domicilio */
+  const sinEnvioTienda = (producto: Producto) => sinEnvio(producto.tiendaId);
 
   const varianteDefault = (producto: Producto) =>
     producto.variantes?.find((v) => v.isDefault) || producto.variantes?.[0];
@@ -63,6 +69,10 @@ export function useCarritoRapido() {
 
   const aumentar = async (producto: Producto) => {
     if (!requiereSesion()) return;
+    if (sinEnvioTienda(producto)) {
+      Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+      return;
+    }
     if (!sessionPedidoId.value) generarNuevoPedidoId(sessionUser.value.id);
 
     const stock = stockDe(producto);
@@ -123,5 +133,6 @@ export function useCarritoRapido() {
     sincronizar,
     stockDe,
     sinStock,
+    sinEnvioTienda,
   };
 }

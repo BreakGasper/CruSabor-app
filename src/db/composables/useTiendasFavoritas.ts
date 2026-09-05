@@ -71,11 +71,42 @@ export function useTiendasFavoritas() {
     }
   };
 
+  /**
+   * Refresca la copia local de una tienda favorita con sus datos actuales
+   * (nombre, logo, categoría, ubicación, teléfono). Se llama al entrar a su perfil.
+   * Devuelve true si había algo que actualizar.
+   */
+  const sincronizar = async (tienda: Tienda): Promise<boolean> => {
+    const idUsuario = sessionUser.value?.id as string | undefined;
+    const tiendaId = tienda?.tiendaId;
+    if (!idUsuario || !tiendaId) return false;
+
+    const fav = await db.TiendasFavoritas.where('[tiendaId+idUsuario]')
+      .equals([tiendaId, idUsuario])
+      .first();
+    if (!fav) return false;
+
+    const nuevos = {
+      nombreTienda: tienda.nombreTienda || fav.nombreTienda,
+      logoUrl: tienda.logoUrl || '',
+      categoria: tienda.categoria || '',
+      colonia: tienda.colonia || '',
+      municipio: tienda.municipio || '',
+      telefono: tienda.telefono || '',
+    };
+    const cambio = (Object.keys(nuevos) as (keyof typeof nuevos)[]).some((k) => (fav as any)[k] !== nuevos[k]);
+    if (!cambio) return false;
+
+    await db.TiendasFavoritas.update(fav.id!, nuevos);
+    await cargar(idUsuario);
+    return true;
+  };
+
   onMounted(() => cargar(sessionUser.value?.id));
   watch(
     () => sessionUser.value?.id,
     (id) => cargar(id),
   );
 
-  return { favoritas, favoritasIds, esFavorita, toggle, cargar };
+  return { favoritas, favoritasIds, esFavorita, toggle, cargar, sincronizar };
 }

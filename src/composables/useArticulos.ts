@@ -11,6 +11,19 @@ import { push, set } from "firebase/database";
 
 
 
+/** Fecha de publicación de un artículo en ms (0 si no tiene). Acepta ISO o texto local "d/m/aaaa, h:mm". */
+export function fechaArticulo(a: Pick<Producto, "fecha_hora"> | null | undefined): number {
+  const f = a?.fecha_hora;
+  if (!f) return 0;
+  const iso = Date.parse(f);
+  if (!isNaN(iso)) return iso;
+  const [d, h] = f.split(",").map((s) => s.trim());
+  const [dia, mes, anio] = (d || "").split("/").map(Number);
+  if (!anio) return 0;
+  const m = (h || "").match(/(\d+):(\d+)/);
+  return new Date(anio, mes - 1, dia, m ? +m[1] : 0, m ? +m[2] : 0).getTime();
+}
+
 export function useArticulos() {
   const articulos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);

@@ -5,7 +5,8 @@
       <div class="detalle-img-container">
         <img
           loading="lazy"
-          :src="FIREBASE_STORAGE_BASE_URL + imagenActual"
+          :src="FIREBASE_STORAGE_BASE_URL+imagenUrl(imagenActual) || defaultImg"
+          @error="onImgError"
           :alt="producto.nombre"
           class="detalle-img"
         />
@@ -96,6 +97,10 @@
         <span v-else> 🟢 {{ stockActual }} disponibles </span>
       </p>
 
+      <p v-if="sinEnvioTienda" class="aviso-envio">
+        🚫 Esta tienda no hace envíos a domicilio, por eso no puedes agregar este producto al carrito.
+      </p>
+
       <!-- Categoria -->
       <p class="descripcion-title">Categoría</p>
       <p class="descripcion">{{ producto.categoria }}</p>
@@ -164,12 +169,12 @@
         </div>
 
         <button
-          :disabled="stockActual === 0"
+          :disabled="stockActual === 0 || sinEnvioTienda"
           v-else
           class="btn-agregar"
           @click="aumentarCantidad(producto)"
         >
-          {{ stockActual === 0 ? 'Sin stock' : '+ Agregar al carrito' }}
+          {{ sinEnvioTienda ? 'Sin envío a domicilio' : stockActual === 0 ? 'Sin stock' : '+ Agregar al carrito' }}
         </button>
       </div>
       <button
@@ -185,7 +190,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, reactive, onMounted } from 'vue';
-import { FIREBASE_STORAGE_BASE_URL } from '@/constants/firebase_util';
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
+import defaultImg from '@/assets/icons/default_articulo.png';
 import { useHorizontalCarousel } from '@/modules/home/scripts/useHorizontalCarousel';
 import type { Producto } from '@/types/Producto';
 import { db, type CarritoItem } from '@/db';
@@ -197,6 +203,8 @@ import { sessionUsuarioValidation, sessionUser } from '@/utils/sessionUser';
 import { useRouter, useRoute } from 'vue-router';
 
 import { useTiendas } from '@/composables/useTiendas';
+import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
+import Swal from 'sweetalert2';
 
 const props = defineProps<{ producto: Producto }>();
 defineEmits(['agregarCarrito']);
@@ -206,6 +214,10 @@ const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 const router = useRouter();
 const route = useRoute();
 const tiendaUrl = ref('');
+
+// Solo se puede comprar a tiendas con envío a domicilio
+const { sinEnvio } = useEnvioTienda();
+const sinEnvioTienda = computed(() => sinEnvio(props.producto?.tiendaId));
 
 // Detectar si viene desde la vista de artículos de una tienda
 const viewendesdeStore = computed(() => {
@@ -313,6 +325,10 @@ if (props.producto) sincronizarCarrito();
 
 // Función para agregar / aumentar
 const aumentarCantidad = async (producto: Producto) => {
+  if (sinEnvioTienda.value) {
+    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+    return;
+  }
   if (!sessionPedidoId.value) {
     generarNuevoPedidoId(sessionUser.value.id);
   }
@@ -447,6 +463,11 @@ onMounted(async () => {
     console.log('Tienda obtenida en detalle:', tiendaUrl.value);
   }
 });
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
+}
 </script>
 
 <style scoped>
@@ -690,6 +711,18 @@ onMounted(async () => {
   border-top-right-radius: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0; /* esquina inf der recta, pegada al borde */
+}
+
+
+/* Tienda sin envío a domicilio */
+.aviso-envio {
+  margin: 0 0 0.75rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4e5;
+  color: #8a5a00;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
 /* Sin stock: rojo con letras blancas */

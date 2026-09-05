@@ -96,7 +96,7 @@
         >
           <img
             loading="lazy"
-            :src="imagenUrl(item.url_image) || defaultImage"
+            :src="FIREBASE_STORAGE_BASE_URL+ imagenUrl(item.url_image) || defaultImage"
             :alt="item.nombreProducto"
             class="item-img"
             @error="onImageError($event)"
@@ -156,7 +156,7 @@ import {
 } from "@/composables/usePedidos";
 import { sessionUser } from "@/utils/sessionUser";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
-import { imagenUrl } from "@/constants/firebase_util";
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();

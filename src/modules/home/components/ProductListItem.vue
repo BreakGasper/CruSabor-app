@@ -3,7 +3,8 @@
     <div class="image-content">
       <img
         loading="lazy"
-        :src="FIREBASE_STORAGE_BASE_URL + producto.url"
+        :src="imagenUrl(producto.url) || defaultImg"
+        @error="onImgError"
         :alt="producto.nombre"
       />
     </div>
@@ -22,7 +23,8 @@
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
+import defaultImg from "@/assets/icons/default_articulo.png";
 
 const router = useRouter();
 const props = defineProps<{
@@ -31,6 +33,11 @@ const props = defineProps<{
 
 function irADetalle() {
   router.push(`/producto/${props.producto.articuloId}`);
+}
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImg;
 }
 </script>
 

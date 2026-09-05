@@ -11,6 +11,7 @@ import PedidoDetalle from "./components/PedidoDetalle.vue";
 import { Component } from "lucide-vue-next";
 import ArticulosCategorias from "./components/ArticulosCategorias.vue";
 import TiendasList from "./components/TiendasList.vue";
+import ProductosList from "./components/ProductosList.vue";
 
 export default [
   {
@@ -37,6 +38,10 @@ export default [
     path: '/tiendas',
     name: 'Tiendas',
     component: TiendasList,
+    },{
+    path: '/productos',
+    name: 'Productos',
+    component: ProductosList,
     },{
     path: '/categoria',
     name: 'Categoria',

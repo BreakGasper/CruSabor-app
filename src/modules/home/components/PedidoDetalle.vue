@@ -119,7 +119,8 @@
         >
           <img
             loading="lazy"
-            :src="FIREBASE_STORAGE_BASE_URL + item.url_image || defaultImage"
+            :src="imagenUrl(item.url_image) || defaultImage"
+            @error="onImgError"
             class="producto-img"
           />
           <div>
@@ -150,7 +151,7 @@ import {
 } from "@/composables/usePedidos";
 import type { Pedido } from "@/composables/usePedidos";
 import { useTiendas } from "@/composables/useTiendas";
-import { FIREBASE_STORAGE_BASE_URL } from "@/constants/firebase_util";
+import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import PageHeader from "@/components/PageHeader.vue";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import moneyIcon from "@/assets/icons/money.png";
@@ -241,6 +242,11 @@ function getEstatusClass(estatus: string) {
     default:
       return "";
   }
+}
+
+/** Si la imagen no carga, se muestra la imagen por defecto */
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = defaultImage;
 }
 </script>
 
