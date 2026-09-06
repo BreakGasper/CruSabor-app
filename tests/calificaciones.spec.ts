@@ -113,7 +113,7 @@ describe('Portada', () => {
     expect(routerMock.push).toHaveBeenCalledWith({ name: 'categoriaArticulos', params: { id: 'c1', categoriaNombre: 'Ropa' } });
   });
 
-  it('TiendasDestacadas lista en vertical banner, nombre y corazón solo de tiendas que pueden vender, sin estrellas', async () => {
+  it('TiendasDestacadas lista en vertical banner, nombre, corazón y estrellas solo de lectura de tiendas que pueden vender', async () => {
     __setControlPorTienda({ t1: { estatus: 'activa' }, t2: { estatus: 'activa' }, t3: { estatus: 'bloqueada' } });
     __setVotos('tiendas', { t2: { u1: { estrellas: 5, fecha: '' } } });
     const w = mount(TiendasDestacadas, { global: { stubs: { FontAwesomeIcon: true } } });
@@ -123,8 +123,14 @@ describe('Portada', () => {
     expect(cards.map((c) => c.find('.nombre').text())).toEqual(['Muebles America', 'Pastelería Lola']);
     expect(cards[1].find('.banner img').attributes('src')).toBe('https://cdn.test/b1.jpg');
     expect(cards[0].find('.corazon').exists()).toBe(true);
-    // La calificación no se muestra en la portada, solo en el perfil de la tienda
-    expect(w.find('.star-rating').exists()).toBe(false);
+    // Las estrellas se ven pero están deshabilitadas: no se califica desde la portada
+    expect(cards[0].find('.star-rating .valor').text()).toBe('5.0');
+    expect(cards[0].find('.star-rating').classes()).not.toContain('editable');
+    expect(cards[1].find('.estrella').attributes('disabled')).toBeDefined();
+    sessionUser.value = { id: 'cli-9', nombre: 'Cli' };
+    await cards[1].findAll('.estrella')[3].trigger('click');
+    await flushPromises();
+    expect(__getAt('calificaciones/tiendas/t1')).toBeUndefined();
 
     // Click en la tarjeta abre el perfil de la tienda
     await cards[0].trigger('click');

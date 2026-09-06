@@ -31,6 +31,12 @@
             </button>
           </div>
           <p v-if="t.categoria" class="categoria">{{ t.categoria }}</p>
+          <!-- Solo lectura: para calificar hay que entrar al perfil de la tienda -->
+          <StarRating
+            size="sm"
+            :promedio="resumenDe(t.tiendaId).promedio"
+            :total="resumenDe(t.tiendaId).total"
+          />
         </div>
       </article>
     </div>
@@ -41,11 +47,12 @@
 /**
  * Tiendas en la portada, una tarjeta debajo de otra con el banner a todo lo ancho, el nombre
  * en negritas y el corazón de favoritos a la derecha. Solo se muestran tiendas que pueden
- * vender. La calificación con estrellas vive en el perfil de la tienda, no aquí.
+ * vender. Las estrellas se muestran solo de lectura; se califica desde el perfil de la tienda.
  */
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { FontAwesomeIcon } from '@/plugins/fontawesome';
+import StarRating from '@/components/StarRating.vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { useEstadoTiendas } from '@/composables/useMembresia';
 import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
@@ -161,7 +168,7 @@ function onLogoError(e: Event) {
   padding: 22px 14px 12px;
 }
 .categoria {
-  margin: 2px 0 0;
+  margin: 2px 0 6px;
 }
 .fila-nombre {
   display: flex;
