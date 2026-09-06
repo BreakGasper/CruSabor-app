@@ -22,9 +22,19 @@ async function llamar(token: string, ruta: string, init: RequestInit = {}) {
   }
   if (!r.ok) {
     const msg = data?.message || data?.error || `HTTP ${r.status}`;
-    throw new Error(`Mercado Pago ${ruta}: ${msg}`);
+    throw new ErrorMercadoPago(`Mercado Pago ${ruta}: ${msg}`, r.status);
   }
   return data;
+}
+
+/** Error de la API de Mercado Pago con el código HTTP (404 = el recurso no existe) */
+export class ErrorMercadoPago extends Error {
+  status: number;
+  constructor(mensaje: string, status: number) {
+    super(mensaje);
+    this.name = 'ErrorMercadoPago';
+    this.status = status;
+  }
 }
 
 export interface DatosPreferencia {

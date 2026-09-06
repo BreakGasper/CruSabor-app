@@ -96,7 +96,8 @@ const pagosMP: Record<string, any> = {};
 const mpFalso = {
   crearPreferencia: vi.fn(async (_t: string, d: any) => ({ id: `pref-${d.idempotencyKey}`, url: `https://mp.test/checkout/${d.idempotencyKey}` })),
   obtenerPago: vi.fn(async (_t: string, id: string | number) => {
-    if (!pagosMP[String(id)]) throw new Error('Mercado Pago /v1/payments: not found');
+    if (String(id) === 'caido') throw new Error('Mercado Pago /v1/payments: HTTP 503');
+    if (!pagosMP[String(id)]) throw Object.assign(new Error('Mercado Pago /v1/payments: Payment not found'), { status: 404 });
     return pagosMP[String(id)];
   }),
 };
@@ -200,8 +201,14 @@ describe('POST /pagos/membresia/webhook', () => {
     expect(almacen.tree.tiendas.t1.membresia.vigenteHasta).toBe('2026-01-31');
   });
 
-  it('si Mercado Pago falla responde 500 para que reintente', async () => {
-    const r = await post('/pagos/membresia/webhook?type=payment&data.id=404', {}, { 'x-signature': firma('404', 'c'), 'x-request-id': 'c' });
+  it('un pago que no existe en Mercado Pago (simulador) se ignora con 200', async () => {
+    const r = await post('/pagos/membresia/webhook?type=payment&data.id=123456', { type: 'payment', data: { id: '123456' } }, { 'x-signature': firma('123456', 'c'), 'x-request-id': 'c' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ignorado: true, motivo: 'pago no encontrado' });
+  });
+
+  it('si Mercado Pago está caído responde 500 para que reintente', async () => {
+    const r = await post('/pagos/membresia/webhook?type=payment&data.id=caido', {}, { 'x-signature': firma('caido', 'd'), 'x-request-id': 'd' });
     expect(r.status).toBe(500);
   });
 });

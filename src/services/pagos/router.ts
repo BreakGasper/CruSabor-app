@@ -150,7 +150,18 @@ export function crearRouterPagos(op: OpcionesRouter = {}) {
         return;
       }
 
-      const pago = await mp.obtenerPago(token(), dataId);
+      let pago: any;
+      try {
+        pago = await mp.obtenerPago(token(), dataId);
+      } catch (e: any) {
+        if (e?.status === 404) {
+          // El pago no existe en la cuenta (p. ej. la prueba del simulador de Mercado Pago): nada que reintentar
+          log('Webhook: pago no encontrado en Mercado Pago, se ignora', { dataId });
+          res.status(200).json({ ignorado: true, motivo: 'pago no encontrado' });
+          return;
+        }
+        throw e;
+      }
       const ref = parseExternalReference(pago.external_reference || pago.metadata?.external_reference);
       if (!ref) {
         res.status(200).json({ ignorado: true });
