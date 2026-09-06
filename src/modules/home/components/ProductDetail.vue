@@ -36,14 +36,14 @@
       <div class="precio-ranking">
         <!-- <p class="precio">${{ Number(producto.precio).toFixed(2) }}</p> -->
         <p class="precio">${{ Number(precioActual).toFixed(2) }}</p>
-        <div class="rating">
-          <span class="star filled">★</span>
-          <span class="star filled">★</span>
-          <span class="star filled">★</span>
-          <span class="star filled">★</span>
-          <span class="star">☆</span>
-          <span class="rating-value">4.5</span>
-        </div>
+        <StarRating
+          class="rating"
+          editable
+          :promedio="resumenDe(producto.articuloId).promedio"
+          :total="resumenDe(producto.articuloId).total"
+          :mi-voto="miVoto(producto.articuloId)"
+          @rate="calificarProducto"
+        />
       </div>
 
       <div class="tienda-header">
@@ -212,8 +212,29 @@ import { useTiendas } from '@/composables/useTiendas';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
 import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
 import Swal from 'sweetalert2';
+import StarRating from '@/components/StarRating.vue';
+import { useCalificaciones } from '@/composables/useCalificaciones';
 
 const props = defineProps<{ producto: Producto }>();
+
+/* Calificación del producto (1 a 5 estrellas, un voto por cliente) */
+const { resumenDe, miVoto, calificar } = useCalificaciones('articulos');
+async function calificarProducto(estrellas: number) {
+  if (await calificar(props.producto.articuloId, estrellas)) {
+    Swal.fire({ toast: true, position: 'bottom', timer: 1500, showConfirmButton: false, icon: 'success', title: `Calificaste con ${estrellas} ★` });
+    return;
+  }
+  const r = await Swal.fire({
+    icon: 'info',
+    title: 'Inicia sesión para calificar',
+    text: 'Necesitas una cuenta de cliente para calificar productos.',
+    showCancelButton: true,
+    confirmButtonText: 'Ingresar',
+    cancelButtonText: 'Ahora no',
+    confirmButtonColor: '#0165d8',
+  });
+  if (r.isConfirmed) router.push('/login');
+}
 defineEmits(['agregarCarrito']);
 
 const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();

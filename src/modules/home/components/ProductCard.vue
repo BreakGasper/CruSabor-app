@@ -22,6 +22,14 @@
     <div class="info">
       <h3 :title="producto.nombre">{{ producto.nombre }}</h3>
       <p class="subcategoria">{{ producto.subcategoria || producto.categoria || "General" }}</p>
+      <StarRating
+        size="sm"
+        editable
+        :promedio="resumenDe(producto.articuloId).promedio"
+        :total="resumenDe(producto.articuloId).total"
+        :mi-voto="miVoto(producto.articuloId)"
+        @rate="(n) => calificarProducto(n)"
+      />
       <div class="fila-precio">
         <span class="precio">${{ Number(producto.precio).toFixed(2) }}</span>
         <span v-if="esPorPedido(producto)" class="tag por-pedido" title="La tienda lo elabora cuando lo pides">Bajo pedido</span>
@@ -73,12 +81,19 @@ import { useCarritoRapido } from "@/db/composables/useCarritoRapido";
 import { useHorizontalCarousel } from "@/modules/home/scripts/useHorizontalCarousel";
 import { sessionUser, sessionUsuarioValidation } from "@/utils/sessionUser";
 import type { Producto } from "@/types/Producto";
+import StarRating from "@/components/StarRating.vue";
+import { useCalificaciones } from "@/composables/useCalificaciones";
 
 const router = useRouter();
 const props = defineProps<{ producto: Producto }>();
 
 const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda, esPorPedido } = useCarritoRapido();
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
+const { resumenDe, miVoto, calificar } = useCalificaciones("articulos");
+
+async function calificarProducto(estrellas: number) {
+  if (!(await calificar(props.producto.articuloId, estrellas))) router.push("/login");
+}
 
 function irADetalle() {
   router.push(`/producto/${props.producto.articuloId}`);

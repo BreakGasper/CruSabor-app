@@ -194,6 +194,12 @@ src/
 tests/                   Vitest: mocks de Firebase y router, pruebas de flujo y de componentes
 ```
 
+### Portada (Home) y calificaciones
+
+Orden de la portada: barra superior **fija** (menú · buscador · carrito · perfil, siempre visible al hacer scroll) → `CategoriasScroll` (categorías principales en scroll horizontal, solo icono y nombre; navega a `categoriaArticulos`) → `HorizontalCarousel` "Explorar" → `TiendasDestacadas` (lista vertical de tiendas que pueden vender: banner a todo lo ancho, logo, nombre en negritas y corazón de favoritos a la derecha; ordenadas por mejor calificación pero sin mostrar estrellas, que solo van en el perfil de la tienda) → "Productos".
+
+**Calificaciones** (`src/composables/useCalificaciones.ts`, componente `StarRating.vue`): `calificaciones/{articulos|tiendas}/{id}/{usuarioId} = { estrellas, fecha }`. Un voto por cliente (volver a votar lo reemplaza); el promedio y el total se calculan al leer con `resumirVotos`. Todo el nodo de cada tipo se escucha en vivo una vez y lo comparten las pantallas. Se puede votar desde la tarjeta y el detalle del producto, la tarjeta de tienda en la portada y el perfil de la tienda (la dueña o dueño solo ve el promedio). Sin sesión de cliente se ofrece ir al login.
+
 ### Deslizar para actualizar (móvil)
 
 `src/components/PullToRefresh.vue` envuelve el `router-view` en `App.vue`. En pantalla táctil, si la página y el contenedor bajo el dedo están arriba del todo y se arrastra hacia abajo más de 70 px, emite `refresh`; `App.vue` incrementa la `key` del `router-view`, con lo que la vista se desmonta y vuelve a montar y repite sus cargas de `onMounted`. No recarga la página ni toca sesión o carrito local. Funciona en todas las pantallas sin código por vista. Existe porque `overscroll-behavior: contain` desactiva el gesto nativo del navegador y en modo PWA no hay botón de recargar.

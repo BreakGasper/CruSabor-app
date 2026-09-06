@@ -30,6 +30,14 @@
         />
         <h1 class="store-name">{{ store.nombreTienda }}</h1>
         <p class="store-category">{{ store.categoria }}</p>
+        <StarRating
+          class="store-rating"
+          :editable="!esDuenoTienda"
+          :promedio="resumenTienda(store.tiendaId).promedio"
+          :total="resumenTienda(store.tiendaId).total"
+          :mi-voto="miVotoTienda(store.tiendaId)"
+          @rate="calificarTienda"
+        />
         <button v-if="esDuenoTienda" class="btn-editar-tienda" @click="abrirEdicion">
           ✏️ Editar mi tienda
         </button>
@@ -430,8 +438,30 @@ import { reportarPago, useSolicitudesPago } from '@/composables/useSolicitudesPa
 import { iniciarPagoMembresia, resultadoPagoDesdeQuery, MENSAJE_RESULTADO_PAGO } from '@/composables/useMercadoPago';
 import type { PlanMembresia } from '@/composables/useAdminTiendas';
 import type { Producto } from '@/types/Producto';
+import StarRating from '@/components/StarRating.vue';
+import { useCalificaciones } from '@/composables/useCalificaciones';
 
 const router = useRouter();
+
+/* Calificación de la tienda por los clientes (la dueña o dueño solo la ve) */
+const { resumenDe: resumenTienda, miVoto: miVotoTienda, calificar: calificarTiendaVoto } = useCalificaciones('tiendas');
+async function calificarTienda(estrellas: number) {
+  if (!store.value?.tiendaId) return;
+  if (await calificarTiendaVoto(store.value.tiendaId, estrellas)) {
+    Swal.fire({ toast: true, position: 'bottom', timer: 1500, showConfirmButton: false, icon: 'success', title: `Calificaste con ${estrellas} ★` });
+    return;
+  }
+  const r = await Swal.fire({
+    icon: 'info',
+    title: 'Inicia sesión para calificar',
+    text: 'Necesitas una cuenta de cliente para calificar tiendas.',
+    showCancelButton: true,
+    confirmButtonText: 'Ingresar',
+    cancelButtonText: 'Ahora no',
+    confirmButtonColor: '#0165d8',
+  });
+  if (r.isConfirmed) router.push('/login');
+}
 const route = useRoute();
 const { tiendaLogueada, obtenerTienda } = useTiendas();
 const store = ref<Tienda | null>(null);
@@ -908,6 +938,11 @@ body {
   margin: 12px 0 5px;
   color: var(--brand-blue-text);
 }
+.store-rating {
+  margin: 4px auto 8px;
+  justify-content: center;
+}
+
 .store-category {
   font-size: 1rem;
   color: var(--text-muted);

@@ -5,37 +5,23 @@
   </button>
 
   <div class="home">
-    <!-- 🔝 Barra superior: menú hamburguesa y usuario -->
-    <div class="top-bar-top" :class="{ 'solo-menu': !mostrarUsuario }">
-      <button class="menu-button" @click="menuAbierto = !menuAbierto">
+    <!-- 🔝 Barra superior fija: menú · buscador · carrito · perfil (no se pierde al hacer scroll) -->
+    <div class="top-bar-top">
+      <button class="menu-button" aria-label="Menú" @click="menuAbierto = !menuAbierto">
         <template v-if="!menuAbierto"> ☰ </template>
         <template v-else>
           <X class="close-icon" />
         </template>
       </button>
 
-      <button
-        v-if="mostrarUsuario"
-        class="user-button"
-        @click="validarLoginSession"
-      >
-        <img
-          loading="lazy"
-          src="@/assets/images/user.png"
-          alt="Usuario"
-          class="user-icon"
-        />
-      </button>
-    </div>
-
-    <!-- 🔍 Barra de búsqueda y carrito -->
-    <div class="top-bar">
       <div class="search-wrapper">
         <input
+          id="buscar-productos"
           v-model="busqueda"
-          type="text"
+          type="search"
           class="search-input"
           placeholder="Buscar productos..."
+          aria-label="Buscar productos"
         />
         <svg
           class="search-icon"
@@ -54,6 +40,15 @@
       </div>
 
       <CartButton class="btn-icon cart bg-bnt-cart" />
+
+      <button class="user-button" aria-label="Mi perfil" @click="validarLoginSession">
+        <img
+          loading="lazy"
+          src="@/assets/images/user.png"
+          alt="Usuario"
+          class="user-icon"
+        />
+      </button>
     </div>
 
     <!-- Menú lateral -->
@@ -130,11 +125,17 @@
     <!-- Overlay -->
     <div class="overlay" v-if="menuAbierto" @click="menuAbierto = false"></div>
 
-    <!-- Carrusel de productos destacados -->
+    <!-- Categorías: icono + nombre en scroll horizontal -->
+    <CategoriasScroll />
+
+    <!-- Carrusel de productos destacados (Explorar) -->
     <HorizontalCarousel
       :productos="productosParaCarrusel"
       class="carrusel-div"
     />
+
+    <!-- Tiendas: banner, nombre, favorito y calificación -->
+    <TiendasDestacadas />
 
     <!-- Lista de todos los productos -->
     <section class="destacados">
@@ -167,6 +168,8 @@
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
+import CategoriasScroll from "../components/CategoriasScroll.vue";
+import TiendasDestacadas from "../components/TiendasDestacadas.vue";
 import ProductCard from "../components/ProductCard.vue";
 import ProductDetail from "../components/ProductDetail.vue";
 import ProductListItem from "../components/ProductListItem.vue";
@@ -256,28 +259,13 @@ const categoriasFiltradas = computed(() => {
   );
 });
 
-const scrollY = ref(0);
-const mostrarUsuario = ref(true);
-
 function cerrarSesionLogin() {
   CerrarSessionHome();
   menuAbierto.value = false;
 }
 function handleScroll() {
-  const actualY = window.scrollY;
-  const threshold = 20; // scroll para ocultar/mostrar usuario
-
-  // Mostrar/ocultar icono usuario
-  if (actualY - scrollY.value > threshold) {
-    mostrarUsuario.value = false;
-  } else if (scrollY.value - actualY > threshold) {
-    mostrarUsuario.value = true;
-  }
-
-  // Mostrar botón scroll-top si baja más de 200px
-  showScrollTop.value = actualY > 200;
-
-  scrollY.value = actualY;
+  // La barra superior siempre queda visible; solo se controla el botón de subir
+  showScrollTop.value = window.scrollY > 200;
 }
 
 function scrollToTop() {
@@ -324,7 +312,7 @@ onBeforeUnmount(() => {
   max-width: 100%;
   overflow-x: hidden;
   padding: 1rem;
-  padding-top: 120px;
+  padding-top: 84px; /* deja espacio a la barra superior fija */
   margin: 0 auto;
 }
 .title {
@@ -334,38 +322,28 @@ onBeforeUnmount(() => {
   margin-bottom: 1rem;
 }
 
-/* 🔝 Barra superior: menú y usuario */
+/* 🔝 Barra superior fija: menú · buscador · carrito · perfil */
 .top-bar-top {
-  position: fixed; /* se queda fija */
+  position: fixed; /* se queda fija al hacer scroll */
   top: 10px; /* margen superior */
   left: 50%; /* centrada horizontalmente */
   transform: translateX(-50%);
-  width: calc(100% - 2rem); /* ancho responsivo */
+  width: calc(100% - 1.5rem); /* ancho responsivo */
   max-width: 1200px;
   z-index: 100; /* encima de todo */
-  background-color: var(--surface); /* fondo blanco */
-  padding: 0.5rem 1rem;
+  background-color: var(--surface);
+  padding: 0.45rem 0.6rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-radius: 12px; /* esquinas redondeadas */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* sombra sutil */
-}
-
-/* Modo solo menú: botón flotante compacto a la izquierda */
-.top-bar-top.solo-menu {
-  width: auto; /* solo rodea el botón */
-  padding: 0.2rem; /* más pequeño */
-  border-radius: 12px; /* forma rectangular pequeña */
-  left: 1rem; /* esquina superior izquierda */
-  top: 1rem; /* un poco de margen superior */
-  transform: none; /* quitar centrado */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); /* sombra sutil */
+  gap: 0.5rem;
+  border-radius: 16px; /* esquinas redondeadas */
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 .menu-button {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--text);
+  border: 0;
   font-size: 1.4rem; /* tamaño más compacto */
   width: 36px;
   height: 36px;
@@ -381,9 +359,10 @@ onBeforeUnmount(() => {
 }
 
 .user-button {
+  flex: 0 0 auto;
   background: var(--color-bg-blue-dark);
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border: none;
   border-radius: 8px;
   display: flex;
@@ -398,24 +377,6 @@ onBeforeUnmount(() => {
   height: 20px;
 }
 
-/* 🔍 Barra de búsqueda y carrito */
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--surface);
-  position: relative; /* ya no fixed ni sticky */
-  z-index: 10;
-}
-.search-input {
-  flex: 1;
-  padding: 0.5rem 1rem 0.5rem 2rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 1rem;
-}
 
 .cart-button {
   background: #007bff00;
@@ -590,11 +551,12 @@ onBeforeUnmount(() => {
 .search-wrapper {
   position: relative;
   flex: 1;
+  min-width: 0;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.7rem 1rem 0.7rem 2.8rem; /* espacio extra para icono */
+  padding: 0.6rem 0.8rem 0.6rem 2.4rem; /* espacio extra para icono */
   border: none;
   border-radius: 12px;
   background: var(--surface-2); /* gris claro */
@@ -617,6 +579,7 @@ onBeforeUnmount(() => {
 }
 .bg-bnt-cart {
   background-color: transparent;
+  flex: 0 0 auto;
 }
 .scroll-top-btn {
   position: fixed;
