@@ -202,7 +202,7 @@ const verificarCodigoIngresado = () => {
   max-width: 360px;
   margin: 2rem auto;
   padding: 2rem;
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
   text-align: center;
@@ -211,12 +211,12 @@ const verificarCodigoIngresado = () => {
 .forgot-password-container h2 {
   margin-bottom: 0.5rem;
   font-size: 1.5rem;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
 }
 
 .forgot-password-container p {
   font-size: 0.9rem;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 1rem;
 }
 
@@ -229,7 +229,7 @@ const verificarCodigoIngresado = () => {
 .forgot-password-container input {
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 0.95rem;
   outline: none;
 }
@@ -274,7 +274,7 @@ const verificarCodigoIngresado = () => {
 .input-telefono .prefijo {
   position: absolute;
   left: 10px;
-  color: #555;
+  color: var(--text-muted);
   font-weight: bold;
 }
 
@@ -282,7 +282,7 @@ const verificarCodigoIngresado = () => {
   padding-left: 50px;
   padding-right: 40px;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   height: 2.6rem;
   width: 100%;
   font-size: 0.95rem;

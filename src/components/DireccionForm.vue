@@ -110,7 +110,7 @@ defineExpose({ form });
   flex-direction: column;
   gap: 3px;
   font-size: 0.78rem;
-  color: #555;
+  color: var(--text-muted);
   min-width: 0;
 }
 .campo-alias,
@@ -122,11 +122,11 @@ defineExpose({ form });
 .campo input {
   width: 100%;
   padding: 0.65rem 0.75rem;
-  border: 1px solid #d5dbe3;
+  border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 16px;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
 }
 .campo input:focus {
   outline: none;
@@ -141,7 +141,7 @@ defineExpose({ form });
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text);
   cursor: pointer;
 }
 .check input {
@@ -176,9 +176,9 @@ defineExpose({ form });
   color: #fff;
 }
 .btn-sec {
-  border: 1px solid #d5dbe3;
-  background: #fff;
-  color: #333;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 .btn-pri:disabled,
 .btn-sec:disabled {

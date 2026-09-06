@@ -24,6 +24,8 @@ export interface CarritoItem {
   id_tienda?: string;
   /** nombre de la tienda, para mostrar y filtrar sin consultas extra */
   nombre_tienda?: string;
+  /** el artículo se elabora bajo pedido (sin control de stock) */
+  porPedido?: boolean;
 }
 
 // Interfaz del favorito

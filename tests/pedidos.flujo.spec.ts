@@ -160,7 +160,7 @@ describe('Cliente: cancelar', () => {
     let pedido = (await getPedidoById(id))!;
     pedido = await actualizarEstatusTienda(pedido, TIENDA_A, 'Enviado');
 
-    await expect(cancelarPedidoCliente(pedido)).rejects.toThrow(/en camino/);
+    await expect(cancelarPedidoCliente(pedido)).rejects.toThrow(/atendiendo tu pedido/);
     expect(__getAt(`pedidos/${id}/estatus`)).toBe('Enviado');
   });
 

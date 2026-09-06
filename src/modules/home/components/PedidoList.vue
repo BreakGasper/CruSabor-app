@@ -106,7 +106,10 @@
             @error="onImageError($event)"
           />
           <div class="item-info">
-            <p class="item-nombre">{{ item.nombreProducto }}</p>
+            <p class="item-nombre">
+              {{ item.nombreProducto }}
+              <span v-if="item.porPedido" class="tag-bajo-pedido">bajo pedido</span>
+            </p>
             <p class="item-detalle">
               {{ item.cantidad }} × ${{ Number(item.precio).toFixed(2) }}
               <span v-if="item.nombreTienda" class="item-tienda">· 🏪 {{ item.nombreTienda }}</span>
@@ -133,6 +136,17 @@
       <p v-if="pedido.estatus === 'Entregado' && pedido.fechaEntrega" class="entregado-en">
         Entregado el {{ pedido.fechaEntrega.split(',')[0] }}
       </p>
+      <p v-else-if="pedido.estatus === 'Atendiendo'" class="atendiendo-msg">
+        👨‍🍳 La tienda está atendiendo tu pedido{{ tieneArticulosPorPedido(pedido) ? ': tus artículos bajo pedido se están elaborando' : '' }}.
+      </p>
+      <p v-else-if="motivoCancelado(pedido)" class="motivo-cancelacion">
+        ✖ {{ motivoCancelado(pedido) }}
+      </p>
+      <ul v-if="cancelacionesParciales(pedido).length" class="cancelaciones-parciales">
+        <li v-for="c in cancelacionesParciales(pedido)" :key="c.tiendaId">
+          ✖ {{ c.nombre }}: {{ c.texto }}
+        </li>
+      </ul>
     </div>
     </div>
 
@@ -156,6 +170,10 @@ import {
   suscribirPedidosUsuario,
   nombresTiendasDelPedido,
   fechaPedido,
+  motivoCancelacion,
+  textoCancelacion,
+  cancelacionesPorTienda,
+  tieneArticulosPorPedido,
   ESTATUS_LABEL,
   type Pedido,
   type EstatusPedido,
@@ -167,6 +185,11 @@ import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();
 const defaultImage = userDefaultImage;
+
+/** Motivo de cancelación del pedido completo, en palabras para el cliente */
+const motivoCancelado = (p: Pedido) => textoCancelacion(motivoCancelacion(p), "cliente");
+/** Tiendas con su parte cancelada dentro de un pedido que sigue vivo */
+const cancelacionesParciales = (p: Pedido) => (p.estatus === "Cancelado" ? [] : cancelacionesPorTienda(p, "cliente"));
 
 // Props
 const props = withDefaults(
@@ -183,7 +206,7 @@ const props = withDefaults(
 /* ---------- Pestañas ---------- */
 type TabId = "pendientes" | "entregados" | "cancelados";
 const TABS: { id: TabId; label: string; estatus: EstatusPedido[] }[] = [
-  { id: "pendientes", label: "Por entregar", estatus: ["Preparacion", "Enviado"] },
+  { id: "pendientes", label: "Por entregar", estatus: ["Preparacion", "Atendiendo", "Enviado"] },
   { id: "entregados", label: "Entregados", estatus: ["Entregado"] },
   { id: "cancelados", label: "Cancelados", estatus: ["Cancelado"] },
 ];
@@ -405,7 +428,7 @@ function onImageError(event: Event) {
   position: relative;
   width: 36px;
   height: 36px;
-  background: white;
+  background: var(--surface);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -445,7 +468,7 @@ function onImageError(event: Event) {
 .tabs {
   display: flex;
   gap: 6px;
-  background: #eef1f5;
+  background: var(--surface-2);
   padding: 4px;
   border-radius: 12px;
   margin-bottom: 0.75rem;
@@ -460,15 +483,15 @@ function onImageError(event: Event) {
   border: none;
   border-radius: 9px;
   background: transparent;
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 .tab.active {
-  background: #fff;
-  color: var(--color-bg-blue-dark);
+  background: var(--surface);
+  color: var(--brand-navy-text);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 .tab-count {
@@ -476,7 +499,7 @@ function onImageError(event: Event) {
   padding: 0 6px;
   border-radius: 10px;
   background: #dfe5ee;
-  color: #444;
+  color: var(--text);
   font-size: 0.72rem;
   line-height: 20px;
 }
@@ -492,7 +515,7 @@ function onImageError(event: Event) {
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
   padding: 8px;
-  background: #f2f4f8;
+  background: var(--surface-2);
   border-radius: 10px;
 }
 .filtro-input {
@@ -500,9 +523,9 @@ function onImageError(event: Event) {
   min-width: 140px;
   padding: 8px 10px;
   font-size: 16px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-sizing: border-box;
 }
 .filtro-buscar {
@@ -515,7 +538,7 @@ function onImageError(event: Event) {
   flex-direction: column;
   gap: 2px;
   font-size: 0.72rem;
-  color: #666;
+  color: var(--text-muted);
 }
 .filtro-campo .filtro-input {
   width: 100%;
@@ -527,7 +550,7 @@ function onImageError(event: Event) {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.85rem;
-  color: #444;
+  color: var(--text);
   background: #e6e9ef;
 }
 .icon-btn.limpiar img {
@@ -546,7 +569,7 @@ function onImageError(event: Event) {
 
 .empty {
   text-align: center;
-  color: #777;
+  color: var(--text-muted);
   padding: 2rem 0;
 }
 
@@ -577,7 +600,7 @@ function onImageError(event: Event) {
 
 /* Card de pedido */
 .pedido-card {
-  background: white;
+  background: var(--surface);
   border-radius: 14px;
   padding: 0.85rem 0.9rem;
   margin-bottom: 0.8rem;
@@ -614,11 +637,11 @@ function onImageError(event: Event) {
   gap: 10px;
   min-width: 0;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
 }
 .pedido-meta .id {
   font-family: monospace;
-  color: #999;
+  color: var(--text-muted);
 }
 .estatus {
   flex-shrink: 0;
@@ -631,7 +654,7 @@ function onImageError(event: Event) {
 }
 .estatus-enviado {
   background: #e3f0ff;
-  color: #0b4f8a;
+  color: var(--brand-blue-text);
 }
 .estatus-entregado {
   background: #e8f5e9;
@@ -662,9 +685,9 @@ function onImageError(event: Event) {
   height: 44px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid #eee;
+  border: 1px solid var(--border);
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: var(--surface-2);
 }
 .item-info {
   flex: 1;
@@ -674,7 +697,7 @@ function onImageError(event: Event) {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #222;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -682,20 +705,20 @@ function onImageError(event: Event) {
 .item-detalle {
   margin: 0;
   font-size: 0.78rem;
-  color: #666;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .item-cat,
 .item-tienda {
-  color: #767676;
+  color: var(--text-muted);
 }
 .item-total {
   flex-shrink: 0;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #333;
+  color: var(--text);
 }
 .item-more {
   padding-left: 54px;
@@ -704,7 +727,7 @@ function onImageError(event: Event) {
   background: transparent;
   border: none;
   padding: 0;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -720,17 +743,53 @@ function onImageError(event: Event) {
   padding-top: 0.5rem;
   border-top: 1px dashed #e5e8ee;
   font-size: 0.8rem;
-  color: #666;
+  color: var(--text-muted);
 }
 .pedido-footer .total {
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
 }
 .entregado-en {
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
   color: #2e7d32;
+}
+.atendiendo-msg {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: #3730a3;
+}
+.motivo-cancelacion,
+.cancelaciones-parciales {
+  margin: 0.35rem 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fdecea;
+  color: #9b1c1c;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  list-style: none;
+}
+.cancelaciones-parciales li + li {
+  margin-top: 4px;
+}
+.tag-bajo-pedido {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.65rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.pedido-card.estado-atendiendo {
+  border-left-color: #4f46e5;
+}
+.estatus-atendiendo {
+  background: #e0e7ff;
+  color: #3730a3;
 }
 
 /* Paginación */

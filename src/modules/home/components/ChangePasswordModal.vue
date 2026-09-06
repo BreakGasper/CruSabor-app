@@ -156,7 +156,7 @@ async function cambiarContrasena() {
 }
 .modal-content {
   position: relative;
-  background: white;
+  background: var(--surface);
   padding: 2rem 1.5rem 2.5rem 1.5rem;
   border-radius: 12px;
   width: 90%;
@@ -197,7 +197,7 @@ async function cambiarContrasena() {
   padding-right: 2.5rem;
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
 }
 .eye-btn {
   position: absolute;
@@ -209,6 +209,6 @@ async function cambiarContrasena() {
 .eye-icon {
   width: 1.2rem;
   height: 1.2rem;
-  color: #555;
+  color: var(--text-muted);
 }
 </style>

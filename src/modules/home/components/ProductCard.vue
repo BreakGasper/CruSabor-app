@@ -24,7 +24,8 @@
       <p class="subcategoria">{{ producto.subcategoria || producto.categoria || "General" }}</p>
       <div class="fila-precio">
         <span class="precio">${{ Number(producto.precio).toFixed(2) }}</span>
-        <span v-if="sinStock(producto)" class="tag agotado">Agotado</span>
+        <span v-if="esPorPedido(producto)" class="tag por-pedido" title="La tienda lo elabora cuando lo pides">Bajo pedido</span>
+        <span v-else-if="sinStock(producto)" class="tag agotado">Agotado</span>
         <span v-else-if="sinEnvioTienda(producto)" class="tag sin-envio">Sin envío</span>
       </div>
 
@@ -76,7 +77,7 @@ import type { Producto } from "@/types/Producto";
 const router = useRouter();
 const props = defineProps<{ producto: Producto }>();
 
-const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda } = useCarritoRapido();
+const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda, esPorPedido } = useCarritoRapido();
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
 
 function irADetalle() {
@@ -97,7 +98,7 @@ function onImgError(e: Event) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background: white;
+  background: var(--surface);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -109,7 +110,7 @@ function onImgError(e: Event) {
 
 .img-container {
   position: relative;
-  background: #f5f6fa;
+  background: var(--surface-2);
 }
 .card img {
   width: 100%;
@@ -128,8 +129,8 @@ function onImgError(e: Event) {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: white;
-  color: #767676;
+  background: var(--surface);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -158,14 +159,14 @@ function onImgError(e: Event) {
   font-size: 1rem;
   font-weight: 700;
   margin: 0;
-  color: #222;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .subcategoria {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--text-muted);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -192,6 +193,10 @@ function onImgError(e: Event) {
 .tag.agotado {
   background: #fdecea;
   color: #c0392b;
+}
+.tag.por-pedido {
+  background: #eef2ff;
+  color: #3730a3;
 }
 .tag.sin-envio {
   background: #fff4e5;
@@ -233,7 +238,7 @@ function onImgError(e: Event) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f0f2f5;
+  background: var(--surface-2);
   border-radius: 999px;
   padding: 3px;
 }
@@ -270,7 +275,7 @@ function onImgError(e: Event) {
 }
 .cantidad {
   font-weight: 700;
-  color: #333;
+  color: var(--text);
   min-width: 24px;
   text-align: center;
 }

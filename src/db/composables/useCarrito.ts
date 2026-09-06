@@ -35,6 +35,17 @@ export function useCarrito() {
 
       console.log("Carrito del usuario vaciado");
 }
+  /** Quita del carrito del usuario solo los artículos indicados (los ya comprados) */
+  async function quitarArticulosDelCarrito(idsArticulo: string[]) {
+    if (!sessionUser.value?.id || !idsArticulo.length) return;
+    const ids = new Set(idsArticulo.map(String));
+    await db.Carrito
+      .where('id_usuario')
+      .equals(sessionUser.value.id)
+      .filter((i) => ids.has(String(i.id_articulo)))
+      .delete();
+  }
+
   async function obtenerCarritoByUser(): Promise<CarritoItem[]> {
   if (!sessionUser.value?.id) return []; // evita errores si no hay usuario
   return await db.Carrito
@@ -48,6 +59,7 @@ export function useCarrito() {
     obtenerCarrito,
     vaciarCarrito,
     obtenerCarritoByUser,
-    vaciarCarritoPorUsuario
+    vaciarCarritoPorUsuario,
+    quitarArticulosDelCarrito,
   };
 }

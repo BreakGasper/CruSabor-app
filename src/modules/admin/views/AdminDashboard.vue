@@ -215,9 +215,9 @@ function fechaCorta(iso?: string) {
 <style scoped>
 .admin-container {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--surface-2);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
-  color: #111827;
+  color: var(--text);
 }
 .admin-main {
   max-width: 1000px;
@@ -231,7 +231,7 @@ function fechaCorta(iso?: string) {
 }
 .page-hint {
   margin: 0.25rem 0 1.25rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -242,7 +242,7 @@ function fechaCorta(iso?: string) {
   margin-bottom: 1.25rem;
 }
 .stat {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1rem 1.1rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -265,7 +265,7 @@ function fechaCorta(iso?: string) {
 }
 .stat-label {
   font-size: 0.85rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-weight: 500;
 }
 .stat-pendiente {
@@ -288,7 +288,7 @@ function fechaCorta(iso?: string) {
   margin-bottom: 1.25rem;
 }
 .card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1rem 1.2rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -312,7 +312,7 @@ function fechaCorta(iso?: string) {
   font-size: 0.9rem;
 }
 .mini-lista a {
-  color: #111827;
+  color: var(--text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -320,7 +320,7 @@ function fechaCorta(iso?: string) {
   text-decoration: underline;
 }
 .mini-meta {
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 .ver-mas {
@@ -364,12 +364,12 @@ function fechaCorta(iso?: string) {
 }
 .solicitud-nombre {
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   text-decoration: none;
 }
 .solicitud-meta {
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .solicitud-acciones {
   display: flex;
@@ -378,9 +378,9 @@ function fechaCorta(iso?: string) {
 .btn-mini {
   padding: 7px 11px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111827;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
   font-size: 0.8rem;
   cursor: pointer;
@@ -406,16 +406,16 @@ function fechaCorta(iso?: string) {
 }
 .revision-fecha {
   font-size: 0.82rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .revision-vacia {
   margin: 0.4rem 0 0;
   font-size: 0.88rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .revision-vacia code {
   font-size: 0.82rem;
-  background: #f3f4f6;
+  background: var(--surface-2);
   padding: 1px 6px;
   border-radius: 6px;
 }
@@ -427,7 +427,7 @@ function fechaCorta(iso?: string) {
   flex-wrap: wrap;
   gap: 6px 18px;
   font-size: 0.9rem;
-  color: #374151;
+  color: var(--text);
 }
 .rojo {
   color: #b91c1c;
@@ -439,7 +439,7 @@ function fechaCorta(iso?: string) {
   gap: 12px;
 }
 .module {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1.1rem 1.2rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -463,7 +463,7 @@ function fechaCorta(iso?: string) {
 .module p {
   margin: 0;
   font-size: 0.88rem;
-  color: #5b6472;
+  color: var(--text-muted);
   flex: 1;
 }
 .soon.alerta {

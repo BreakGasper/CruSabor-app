@@ -142,8 +142,8 @@ const handleSubmit = async () => {
 .form-container {
   max-width: 600px;
   margin: 0 auto;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
@@ -152,7 +152,7 @@ const handleSubmit = async () => {
 .form-container h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text);
 }
 
 .form-group {
@@ -164,14 +164,14 @@ label {
   font-size: 0.9rem;
   font-weight: 500;
   margin-bottom: 0.4rem;
-  color: #555;
+  color: var(--text-muted);
 }
 
 input,
 textarea {
   width: 100%;
   padding: 0.6rem 0.8rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;

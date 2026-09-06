@@ -1,11 +1,50 @@
+/*
+ * Tokens de color de la app.
+ *
+ * - Marca (azules) y utilidades: iguales en ambos temas.
+ * - Semánticos (--bg-page, --surface, --surface-2, --text, --text-muted, --border):
+ *   cambian con el tema del sistema. Úsalos en lugar de white/#fff, #333, #666, #ccc…
+ *   para que el texto siempre se lea sobre su fondo en claro y en oscuro.
+ *
+ * Los colores de estado (badges verdes/rojos/ámbar con fondo pastel y texto oscuro)
+ * fijan fondo y texto juntos, por eso se leen bien en ambos modos y no se tocan.
+ */
 :root {
+  /* Marca */
   --color-bg-blue-dark: #011f41;
   --color-bg-blue-ligth: #0165d8;
+  --color-link-hover: #0b4f8a;
   --color-hover-btn-gray: #999;
-  --color-shadow: rgba(0, 0, 0, 0.2); 
+  --color-shadow: rgba(0, 0, 0, 0.2);
   --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
-  --color-bg-all: #f5f6fa
+
+  /* Semánticos: tema claro (por defecto) */
+  --bg-page: #f5f6fa;      /* fondo de pantalla */
+  --surface: #ffffff;      /* tarjetas, modales, inputs */
+  --surface-2: #f3f4f6;    /* fondos suaves dentro de una tarjeta, botones neutros */
+  --text: #111827;         /* texto principal */
+  --text-muted: #5b6472;   /* texto secundario */
+  --border: #d5dbe3;       /* bordes y separadores */
+
+  /* Compatibilidad con el nombre anterior */
+  --color-bg-all: var(--bg-page);
 }
+
+/* Tema oscuro: sigue la preferencia del sistema (teléfono y computadora) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-link-hover: #7cb3ff;
+    --color-shadow: rgba(0, 0, 0, 0.55);
+
+    --bg-page: #0f141b;
+    --surface: #1a2230;
+    --surface-2: #232d3b;
+    --text: #e6eaf0;
+    --text-muted: #a3adbb;
+    --border: #34404f;
+  }
+}
+
 /* Evitar zoom en botones e inputs por doble tap o pinch */
 html, body {
   touch-action: manipulation; /* previene pinch zoom */
@@ -22,4 +61,16 @@ select {
 /* Opcional: evitar que el doble tap haga zoom en Safari */
 body {
   overscroll-behavior: contain;
+}
+
+/* Texto en color de marca: azul marino / azul sobre superficies claras; en oscuro se aclara para contrastar */
+:root {
+  --brand-navy-text: var(--color-bg-blue-dark);
+  --brand-blue-text: #1f70b2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-navy-text: #9cc3ff;
+    --brand-blue-text: #7cb3ff;
+  }
 }

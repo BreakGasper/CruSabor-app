@@ -108,6 +108,20 @@
           </div>
         </div>
 
+        <!-- Bajo pedido -->
+        <div class="form-group por-pedido">
+          <label class="por-pedido-label">
+            <input type="checkbox" v-model="form.porPedido" class="por-pedido-check" />
+            <span>
+              <strong>Producto bajo pedido</strong>
+              <small>
+                Lo elaboras cuando el cliente lo pide. No se controla stock: siempre se puede agregar al carrito
+                y el cliente verá "Atendiendo tu pedido" cuando pulses <em>Atender</em> en el pedido.
+              </small>
+            </span>
+          </label>
+        </div>
+
         <!-- Categoría -->
         <div class="form-group">
           <label>Categoría</label>
@@ -358,8 +372,11 @@
               />
             </div>
 
-            <!-- Stock -->
-            <div class="variante-row">
+            <!-- Stock (un producto bajo pedido no lo controla) -->
+            <div v-if="form.porPedido" class="variante-row">
+              <label>Bajo pedido: sin control de stock</label>
+            </div>
+            <div v-else class="variante-row">
               <label>¿Tienes stock?</label>
               <input
                 type="checkbox"
@@ -368,7 +385,7 @@
               />
             </div>
 
-            <div class="variante-row" v-if="variante.tieneStock">
+            <div class="variante-row" v-if="!form.porPedido && variante.tieneStock">
               <label>Stock disponible</label>
               <input
                 type="number"
@@ -380,7 +397,7 @@
                 placeholder="Cantidad disponible"
               />
             </div>
-            <div class="variante-row" v-else>
+            <div class="variante-row" v-else-if="!form.porPedido">
               <label>Stock ilimitado</label>
             </div>
           </div>
@@ -413,7 +430,7 @@
     >
       <div
         style="
-          background: white;
+          background: var(--surface);
           border-radius: 16px;
           border: 1px solid black;
           padding: 20px;
@@ -504,6 +521,7 @@ const form = ref<Omit<Producto, 'articuloId'>>({
   tiendaNombre: props.tiendaNombre,
   icono: '',
   fecha_hora: '',
+  porPedido: false,
   variantes: [],
 });
 
@@ -949,7 +967,8 @@ async function submitForm() {
         if (v._file) urlVariante = await uploadArticuloImagen(v._file);
         else if (v.isDefault || !urlVariante || urlVariante.startsWith('blob:')) urlVariante = urlFinal;
 
-        const tieneStock = !!v.tieneStock;
+        // Bajo pedido: nunca se controla stock
+        const tieneStock = form.value.porPedido ? false : !!v.tieneStock;
         const { _file, ...resto } = v as any;
         return {
           ...resto,
@@ -962,7 +981,7 @@ async function submitForm() {
       }),
     );
 
-    const payload = { ...form.value, url: urlFinal, variantes: variantesFinal };
+    const payload = { ...form.value, porPedido: form.value.porPedido === true, url: urlFinal, variantes: variantesFinal };
     const idTienda = form.value.tiendaId || props.tiendaId;
 
     if (isEdit.value && articuloId) {
@@ -1080,7 +1099,7 @@ function validarPaso2() {
 }
 
 .register-container {
-  background: #f0f4f8;
+  background: var(--surface-2);
   min-height: 100vh;
   display: flex;
   justify-content: flex-start;
@@ -1125,12 +1144,12 @@ function validarPaso2() {
   font-weight: bold;
 }
 .step-indicator span.active {
-  background: #fff;
-  color: #0047ab;
+  background: var(--surface);
+  color: var(--brand-blue-text);
 }
 
 .register-card {
-  background: white;
+  background: var(--surface);
   width: 90%;
   max-width: 480px;
   border-radius: 25px;
@@ -1145,7 +1164,7 @@ function validarPaso2() {
 .card-title {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #0047ab;
+  color: var(--brand-blue-text);
   margin-bottom: 1rem;
   text-align: center;
 }
@@ -1158,6 +1177,33 @@ function validarPaso2() {
   align-items: center;
 }
 
+.por-pedido-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  cursor: pointer;
+}
+.por-pedido-label span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9rem;
+  color: #312e81;
+}
+.por-pedido-label small {
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.por-pedido-check {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -1168,7 +1214,7 @@ function validarPaso2() {
   width: 100%;
   padding: 0.85rem;
   border-radius: 16px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   outline: none;
   font-size: 1rem;
   transition: all 0.2s ease;
@@ -1209,8 +1255,8 @@ function validarPaso2() {
   transform: translateY(-2px);
 }
 .modern-button.secondary {
-  background: #f0f0f0;
-  color: #333;
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .switch-group {
@@ -1237,7 +1283,7 @@ function validarPaso2() {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #0047ab;
+  color: var(--brand-blue-text);
   font-size: 2rem;
   font-weight: bold;
 }
@@ -1282,13 +1328,13 @@ function validarPaso2() {
 .custom-select-wrapper {
   position: relative;
   width: 100%;
-  background-color: white;
+  background-color: var(--surface);
 }
 
 .custom-select {
   padding: 0.85rem;
   border-radius: 16px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   cursor: pointer;
 }
 
@@ -1297,13 +1343,13 @@ function validarPaso2() {
   width: 100%;
   max-height: 150px; /* altura máxima */
   overflow-y: auto; /* scroll */
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   z-index: 10;
 }
 .custom-select-wrapper .dropdown-list {
-  background: white !important;
+  background: var(--surface) !important;
 }
 
 .dropdown-item {
@@ -1311,7 +1357,7 @@ function validarPaso2() {
   cursor: pointer;
 }
 .dropdown-item:hover {
-  background: #f0f4f8;
+  background: var(--surface-2);
 }
 
 .estatus-wrapper {
@@ -1344,14 +1390,14 @@ function validarPaso2() {
 }
 
 .variante-card {
-  background: #f9f9f9;
+  background: var(--surface-2);
   border-radius: 16px;
   padding: 1rem;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
 }
 
 .remove-variante {
@@ -1381,7 +1427,7 @@ function validarPaso2() {
 .variante-field input {
   padding: 0.5rem;
   border-radius: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
 }
 
 .color-list {
@@ -1400,7 +1446,7 @@ function validarPaso2() {
 }
 
 .color-item:hover {
-  background: #f0f4f8;
+  background: var(--surface-2);
 }
 
 .color-circle {
@@ -1408,7 +1454,7 @@ function validarPaso2() {
   height: 16px;
   border-radius: 50%;
   margin-right: 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
 }
 
 .color-item.selected {
@@ -1422,9 +1468,9 @@ function validarPaso2() {
   width: 100%;
   max-height: 150px;
   overflow-y: auto;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   z-index: 10;
 }
 
@@ -1437,14 +1483,14 @@ function validarPaso2() {
 }
 
 .color-item:hover {
-  background: #f0f4f8;
+  background: var(--surface-2);
 }
 
 .color-preview {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   display: inline-block;
   margin-right: 8px;
   vertical-align: middle;
@@ -1453,9 +1499,9 @@ function validarPaso2() {
   width: 32px; /* más chico */
   height: 32px; /* igual que el ancho → círculo perfecto */
   border-radius: 50%;
-  background: white;
+  background: var(--surface);
 
-  color: #0047ab;
+  color: var(--brand-blue-text);
   font-size: 1rem; /* tamaño del emoji 📷 */
   display: flex;
   justify-content: center;
@@ -1466,7 +1512,7 @@ function validarPaso2() {
 }
 
 .circle-button:hover {
-  background: #f0f4f8;
+  background: var(--surface-2);
   transform: scale(1.05);
 }
 

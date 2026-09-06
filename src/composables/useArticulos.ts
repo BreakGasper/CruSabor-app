@@ -37,14 +37,18 @@ export interface UseArticulosOpciones {
 export function useArticulos(opciones: UseArticulosOpciones = {}) {
   const crudos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);
-  const { noPuedeVender } = useEstadoTiendas();
+  const { noPuedeVender, nombreDe } = useEstadoTiendas();
   // Cuando se cargan los artículos de una sola tienda (panel de la tienda) no se filtra
   const filtrarPorTienda = vueRef(!opciones.incluirTiendasInactivas);
 
+  // `tiendaNombre` es una copia hecha al publicar; se muestra el nombre vivo de la tienda si ya cargó
+  const conNombreVivo = (a: Producto): Producto => {
+    const actual = nombreDe(a.tiendaId);
+    return actual && actual !== a.tiendaNombre ? { ...a, tiendaNombre: actual } : a;
+  };
+
   const articulos = computed<Producto[]>(() =>
-    filtrarPorTienda.value
-      ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId))
-      : crudos.value,
+    (filtrarPorTienda.value ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId)) : crudos.value).map(conNombreVivo),
   );
 
   onMounted(() => {

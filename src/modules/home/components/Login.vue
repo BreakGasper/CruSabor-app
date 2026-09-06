@@ -267,7 +267,7 @@ function forgotPassword() {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,7 +336,7 @@ function forgotPassword() {
   width: 90%;
   max-width: 420px;
   margin-top: -1.75rem;
-  background: #fff;
+  background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 20px;
   box-shadow: 0 8px 25px rgba(1, 31, 65, 0.12);
@@ -348,7 +348,7 @@ function forgotPassword() {
 .card-title {
   font-size: 1.4rem;
   font-weight: 700;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
   text-align: center;
   margin: 0;
 }
@@ -356,7 +356,7 @@ function forgotPassword() {
   margin: -0.4rem 0 0.4rem;
   text-align: center;
   font-size: 0.85rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 
 /* Campos */
@@ -368,17 +368,17 @@ function forgotPassword() {
 .form-group label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 6px;
 }
 .form-input {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 16px; /* evita zoom automático en iOS */
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -488,7 +488,7 @@ function forgotPassword() {
   margin-top: -0.4rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   text-decoration: none;
 }
 .forgot-link:hover,
@@ -499,10 +499,10 @@ function forgotPassword() {
   margin: 0.4rem 0 0;
   text-align: center;
   font-size: 0.88rem;
-  color: #555;
+  color: var(--text-muted);
 }
 .switch-link a {
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -538,8 +538,8 @@ function forgotPassword() {
 }
 .btn-outline {
   border: 2px solid var(--color-bg-blue-ligth);
-  background: #fff;
-  color: var(--color-bg-blue-ligth);
+  background: var(--surface);
+  color: var(--brand-blue-text);
 }
 .btn-outline:hover {
   background: var(--color-bg-blue-ligth);
@@ -558,7 +558,7 @@ function forgotPassword() {
 }
 .modal-content {
   position: relative;
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 2rem;
   width: 90%;
@@ -574,7 +574,7 @@ function forgotPassword() {
   font-size: 1.5rem;
   font-weight: bold;
   cursor: pointer;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
   line-height: 1;
   padding: 0;
   z-index: 10;

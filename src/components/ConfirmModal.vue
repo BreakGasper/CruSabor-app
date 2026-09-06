@@ -49,7 +49,7 @@ function handleCancel() {
 }
 
 .modal-content {
-  background: white;
+  background: var(--surface);
   padding: 1.8rem 2rem;
   border-radius: 12px;
   width: 90%;
@@ -77,7 +77,7 @@ function handleCancel() {
 
 .btn.cancel {
   background: #ccc;
-  color: #333;
+  color: var(--text);
 }
 
 .btn.confirm {

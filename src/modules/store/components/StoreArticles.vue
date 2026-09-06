@@ -454,7 +454,7 @@ const obtenerStock = (producto: Producto) => {
   margin-bottom: 15px;
   flex-wrap: wrap;
   padding: 8px;
-  background: #f2f4f8;
+  background: var(--surface-2);
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
@@ -463,7 +463,7 @@ const obtenerStock = (producto: Producto) => {
   min-width: 120px;
   padding: 6px 10px;
   font-size: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 
@@ -497,7 +497,7 @@ const obtenerStock = (producto: Producto) => {
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
-  background: white;
+  background: var(--surface);
   cursor: pointer;
 }
 .card:hover {
@@ -522,7 +522,7 @@ const obtenerStock = (producto: Producto) => {
   right: 8px;
   font-size: 1.1rem;
   color: #bbb;
-  background: white;
+  background: var(--surface);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -549,11 +549,11 @@ const obtenerStock = (producto: Producto) => {
   font-size: 1rem;
   font-weight: 500;
   margin-bottom: 0.2rem;
-  color: #333;
+  color: var(--text);
 }
 .subcategoria {
   font-size: 0.85rem;
-  color: #777;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
 .precio {
@@ -714,7 +714,7 @@ const obtenerStock = (producto: Producto) => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  background: #f0f2f5;
+  background: var(--surface-2);
   border-radius: 999px;
   padding: 3px;
 }
@@ -746,7 +746,7 @@ const obtenerStock = (producto: Producto) => {
 }
 .cantidad {
   font-weight: 700;
-  color: #333;
+  color: var(--text);
   min-width: 24px;
   text-align: center;
 }

@@ -138,7 +138,7 @@ async function guardar() {
 .modal {
   width: 100%;
   max-width: 440px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 18px;
   padding: 1.5rem;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
@@ -151,7 +151,7 @@ async function guardar() {
 .modal-title {
   margin: 0;
   font-size: 1.15rem;
-  color: #111827;
+  color: var(--text);
 }
 .icono-row {
   display: flex;
@@ -188,10 +188,10 @@ async function guardar() {
   flex-direction: column;
   gap: 2px;
   font-size: 0.85rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .icono-texto strong {
-  color: #111827;
+  color: var(--text);
 }
 .link-quitar {
   align-self: flex-start;
@@ -214,18 +214,18 @@ async function guardar() {
 .form-group label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 5px;
 }
 .form-input {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 15px;
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
   resize: vertical;
 }
 .form-input:focus {
@@ -282,8 +282,8 @@ async function guardar() {
 }
 .btn-outline {
   border: 2px solid #111827;
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text);
 }
 .btn-primary:disabled,
 .btn-outline:disabled {

@@ -189,6 +189,7 @@ import { useRouter } from "vue-router";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { useCarrito } from "@/db/composables/useCarrito";
 import { guardarPedidos } from "@/composables/usePedidos";
+import { tiendasCerradas } from "@/composables/useHorarioTienda";
 import DireccionForm from "@/components/DireccionForm.vue";
 import {
   useDirecciones,
@@ -199,7 +200,7 @@ import {
 } from "@/composables/useDirecciones";
 import Swal from "sweetalert2";
 
-const { obtenerCarritoByUser, vaciarCarritoPorUsuario } = useCarrito();
+const { obtenerCarritoByUser, quitarArticulosDelCarrito } = useCarrito();
 const router = useRouter();
 const paso = ref(1);
 const metodoPago = ref("");
@@ -295,6 +296,24 @@ const siguientePaso = async () => {
     try {
       await guardarPedidos(carrito, metodoPago.value, domicilioForm.value);
     } catch (e: any) {
+      if (e?.name === "TiendaCerradaError") {
+        // Una tienda cerró mientras se confirmaba: sus artículos se quedan en el carrito
+        // y el resto del pedido se puede confirmar de nuevo.
+        const cerradas = new Set((e.tiendas || []).map((t: any) => String(t.id)));
+        const restantes = carrito.filter((i) => !cerradas.has(String(i.id_tienda || i.proveedor)));
+        carrito.splice(0, carrito.length, ...restantes);
+        recalcularTotales();
+        await Swal.fire({
+          title: "Tienda cerrada",
+          text: restantes.length
+            ? `${e.message} Puedes confirmar el resto del pedido.`
+            : e.message,
+          icon: "info",
+          confirmButtonColor: "#0165d8",
+        });
+        if (!restantes.length) router.replace("/cart");
+        return;
+      }
       // Stock insuficiente u otro error: el carrito se conserva para que el usuario ajuste
       Swal.fire({
         title:
@@ -309,7 +328,8 @@ const siguientePaso = async () => {
       });
       return;
     }
-    await vaciarCarritoPorUsuario();
+    // Solo salen del carrito los artículos que sí se compraron; los de tiendas cerradas siguen ahí
+    await quitarArticulosDelCarrito(carrito.map((i) => i.id_articulo));
 
     //router.push("/pedido-confirmado");
 
@@ -344,16 +364,21 @@ onMounted(async () => {
   }
 });
 
-const cargarCarrito = async () => {
-  if (!sessionUser.value?.id) return;
-
-  const items = await obtenerCarritoByUser();
-  carrito.splice(0, carrito.length, ...items);
-
+const recalcularTotales = () => {
   subtotal.value = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
   totalArticulos.value = carrito.reduce((sum, i) => sum + i.cantidad, 0);
   envio.value = subtotal.value < 200 ? 15 : 0;
   total.value = subtotal.value + envio.value;
+};
+
+/** Carga directa (sin pasar por el carrito): solo artículos de tiendas abiertas ahora */
+const cargarCarrito = async () => {
+  if (!sessionUser.value?.id) return;
+
+  const items = await obtenerCarritoByUser();
+  const cerradas = new Set((await tiendasCerradas(items.map((i) => i.id_tienda || ""))).map((t) => t.id));
+  carrito.splice(0, carrito.length, ...items.filter((i) => !cerradas.has(String(i.id_tienda))));
+  recalcularTotales();
 };
 
 const FlechaBack = () => {
@@ -393,10 +418,10 @@ const FlechaBack = () => {
   justify-content: center;
   width: 100px;
   padding: 1rem;
-  border: 2px solid #ddd;
+  border: 2px solid var(--border);
   border-radius: 12px;
   cursor: pointer;
-  background: #f9f9f9;
+  background: var(--surface-2);
   transition: all 0.2s ease-in-out;
   text-align: center;
 }
@@ -428,7 +453,7 @@ const FlechaBack = () => {
 }
 
 .checkout-container {
-  background: #f8f9fb;
+  background: var(--surface-2);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -457,7 +482,7 @@ const FlechaBack = () => {
 }
 
 .checkout-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 2rem;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
@@ -534,7 +559,7 @@ const FlechaBack = () => {
 .form-input {
   padding: 0.8rem;
   border-radius: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   font-size: 1rem;
   outline: none;
   transition: border 0.3s ease;
@@ -548,8 +573,8 @@ const FlechaBack = () => {
   margin-right: 0.5rem;
   padding: 0.6rem 1rem;
   border-radius: 12px;
-  border: 1px solid #ddd;
-  background: #f0f0f0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   cursor: pointer;
 }
 .payment-options button.active {
@@ -582,23 +607,23 @@ const FlechaBack = () => {
 }
 .modern-button.secondary {
   background: #ddd;
-  color: #333;
+  color: var(--text);
 }
 
 /* Selector de direcciones */
 .subtitulo {
   font-weight: 700;
-  color: #333;
+  color: var(--text);
   margin: 0 0 0.75rem;
 }
 .sin-direcciones {
   text-align: center;
-  color: #555;
+  color: var(--text-muted);
 }
 .domicilio-alias {
   margin: 0.25rem 0 0.1rem;
   font-weight: 700;
-  color: #222;
+  color: var(--text);
 }
 .selector-direcciones {
   margin-top: 0.75rem;
@@ -613,7 +638,7 @@ const FlechaBack = () => {
   padding: 0.6rem 0.7rem;
   border: 1px solid #dfe5ee;
   border-radius: 10px;
-  background: #f7f9fc;
+  background: var(--surface-2);
   cursor: pointer;
   text-align: left;
 }
@@ -634,7 +659,7 @@ const FlechaBack = () => {
 .dir-alias {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #222;
+  color: var(--text);
   display: flex;
   gap: 6px;
   align-items: center;
@@ -646,19 +671,19 @@ const FlechaBack = () => {
   padding: 2px 7px;
   border-radius: 999px;
   background: #e3e8ef;
-  color: #555;
+  color: var(--text-muted);
 }
 .dir-texto {
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
   line-height: 1.3;
 }
 .btn-nueva {
   height: 40px;
-  border: 2px dashed #c9d3e0;
+  border: 2px dashed var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: var(--color-bg-blue-dark);
+  background: var(--surface);
+  color: var(--brand-navy-text);
   font-weight: 700;
   cursor: pointer;
 }
@@ -679,7 +704,7 @@ const FlechaBack = () => {
 }
 
 .domicilio-card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -716,14 +741,14 @@ const FlechaBack = () => {
 
 .domicilio-type {
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
   text-align: left;
 }
 
 .divider {
   border: none;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--border);
   margin: 0.5rem 0;
 }
 
@@ -749,7 +774,7 @@ const FlechaBack = () => {
 .resumen-row.total {
   font-size: 1.2rem;
   font-weight: bold;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--border);
   padding-top: 6px;
   margin-top: 8px;
 }
@@ -758,8 +783,8 @@ const FlechaBack = () => {
   max-height: 200px; /* limita la altura si hay muchos productos */
   overflow-y: auto; /* scroll si excede el espacio */
   margin: 1rem 0;
-  border-top: 1px solid #ccc;
-  border-bottom: 1px solid #ccc;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 0.5rem 0;
 }
 

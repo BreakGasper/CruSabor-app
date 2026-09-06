@@ -549,14 +549,14 @@ async function pagarMembresia() {
     icon: 'info',
     title: 'Paga tu membresía en Mercado Pago',
     html: `
-      <p style="margin:0 0 10px;color:#374151;font-size:0.95rem">
+      <p style="margin:0 0 10px;color:var(--text);font-size:0.95rem">
         Plan <strong>${plan === 'anual' ? 'anual' : 'mensual'}</strong>${precio > 0 ? ` · <strong>${escapar(formatoMXN(precio))}</strong>` : ''}
       </p>
       <a href="${escapar(link)}" target="_blank" rel="noopener"
          style="display:inline-block;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#0165d8,#011f41);color:#fff;font-weight:700;text-decoration:none">
         Abrir Mercado Pago
       </a>
-      <p style="margin:14px 0 0;color:#5b6472;font-size:0.85rem;line-height:1.4">${escapar(configuracion.value.pagos.instrucciones)}</p>
+      <p style="margin:14px 0 0;color:var(--text-muted);font-size:0.85rem;line-height:1.4">${escapar(configuracion.value.pagos.instrucciones)}</p>
     `,
     showCancelButton: true,
     confirmButtonText: 'Ya pagué',
@@ -816,7 +816,7 @@ body {
 }
 .divider {
   border: none;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--border);
   margin: 12px 0; /* espacio arriba y abajo */
   width: 100%;
 }
@@ -833,7 +833,7 @@ body {
 .store-card {
   width: 100%;
   max-width: 700px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 20px;
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
   overflow: visible;
@@ -897,7 +897,7 @@ body {
   border-radius: 50%;
   border: 4px solid #fff;
   object-fit: cover;
-  background: #fff;
+  background: var(--surface);
   position: relative;
   z-index: 11;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -906,16 +906,16 @@ body {
   font-size: 1.8rem;
   font-weight: 700;
   margin: 12px 0 5px;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
 }
 .store-category {
   font-size: 1rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 /* Cards */
 .card-section {
-  background: #fff;
+  background: var(--surface);
   border-radius: 15px;
   padding: 20px;
   margin: 15px 20px;
@@ -924,13 +924,13 @@ body {
 .card-section h2 {
   font-weight: 600;
   margin-bottom: 10px;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
 }
 .info-row {
   display: flex;
   gap: 10px;
   font-size: 0.95rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 15px;
 }
 .info-row.vertical {
@@ -968,7 +968,7 @@ body {
   align-items: center;
   gap: 6px;
   background: #e3f2fd;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   padding: 6px 12px;
   border-radius: 8px;
   font-weight: 600;
@@ -1004,8 +1004,8 @@ body {
 .btn-outline-blue {
   flex: 1;
   border: 2px solid #1f70b2;
-  background: #fff;
-  color: #1f70b2;
+  background: var(--surface);
+  color: var(--brand-blue-text);
   padding: 14px 0;
   border-radius: 12px;
   font-weight: 600;
@@ -1023,7 +1023,7 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background: white; /*#1f70b2;*/
+  background: var(--surface); /*#1f70b2;*/
   border: 1px solid #1f70b2;
   border-radius: 0 10px 10px 0;
   padding: 10px;
@@ -1043,16 +1043,16 @@ body {
 }
 .menu-content {
   margin-top: 10px;
-  background: #fff;
+  background: var(--surface);
   padding: 10px;
   border-radius: 10px;
   width: 180px;
-  color: #333;
+  color: var(--text);
 }
 .menu-content h3 {
   margin: 0 0 10px 0;
   font-size: 1rem;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   text-align: center;
 }
 .menu-icons {
@@ -1073,7 +1073,7 @@ body {
   background: #e3f2fd;
   border: none;
   border-radius: 5px;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
@@ -1140,7 +1140,7 @@ body {
 
 .icon-with-label span {
   font-size: 0.8rem;
-  color: #333;
+  color: var(--text);
   margin-top: 5px;
   font-weight: 500;
 }
@@ -1196,7 +1196,7 @@ body {
   align-items: center;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   transition:
     transform 0.2s ease,
@@ -1225,7 +1225,7 @@ body {
 /*Evio a domicilio */
 
 .envio-section {
-  background: #fff;
+  background: var(--surface);
   border-radius: 15px;
   padding: 20px;
   margin: 15px 20px;
@@ -1245,7 +1245,7 @@ body {
   background: #eef6fd;
   padding: 6px 12px;
   border-radius: 12px;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   font-weight: 500;
   font-size: 0.9rem;
 }
@@ -1357,13 +1357,13 @@ body {
 
 /* LABEL */
 .menu-label {
-  background: white;
+  background: var(--surface);
   padding: 6px 12px;
   border-radius: 10px;
 
   font-size: 0.85rem;
   font-weight: 500;
-  color: #333;
+  color: var(--text);
 
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 
@@ -1440,8 +1440,8 @@ body {
   padding: 10px 16px;
   border-radius: 10px;
   border: 2px solid #0165d8;
-  background: #fff;
-  color: #0165d8;
+  background: var(--surface);
+  color: var(--brand-blue-text);
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
@@ -1466,7 +1466,7 @@ body {
 .aviso-info {
   background: #eaf2fc;
   border-color: #0165d8;
-  color: #0b3d7a;
+  color: var(--brand-blue-text);
 }
 .aviso-warning {
   background: #fff4e5;
@@ -1485,8 +1485,8 @@ body {
   padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid #1f70b2;
-  background: #fff;
-  color: #1f70b2;
+  background: var(--surface);
+  color: var(--brand-blue-text);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -1538,7 +1538,7 @@ body {
 .link-btn {
   border: none;
   background: transparent;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
   font-weight: 600;
   cursor: pointer;
   font-size: 0.9rem;
@@ -1548,12 +1548,12 @@ body {
   text-decoration: underline;
 }
 .productos-desc {
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin: 8px 0 0;
 }
 .productos-empty {
-  color: #777;
+  color: var(--text-muted);
   text-align: center;
   padding: 1rem 0;
   font-size: 0.9rem;
@@ -1565,7 +1565,7 @@ body {
   margin-top: 14px;
 }
 .producto-mini {
-  background: #f7f9fc;
+  background: var(--surface-2);
   border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
@@ -1583,7 +1583,7 @@ body {
   aspect-ratio: 1 / 1;
   object-fit: cover;
   display: block;
-  background: #fff;
+  background: var(--surface);
 }
 .producto-mini-info {
   padding: 8px 10px 4px;
@@ -1593,7 +1593,7 @@ body {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1635,10 +1635,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  background: var(--surface);
   border-radius: 999px;
   padding: 3px;
-  border: 1px solid #e3e8ef;
+  border: 1px solid var(--border);
 }
 .mini-btn {
   width: 30px;
@@ -1668,7 +1668,7 @@ body {
 }
 .mini-cantidad {
   font-weight: 700;
-  color: #333;
+  color: var(--text);
   min-width: 22px;
   text-align: center;
 }

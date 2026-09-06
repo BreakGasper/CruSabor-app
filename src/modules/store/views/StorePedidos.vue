@@ -100,11 +100,19 @@
             {{ pedido.estatusLabel }}
           </span>
 
+          <span v-if="avisoAtencion(pedido)" class="aviso-atencion">⏳ {{ avisoAtencion(pedido) }}</span>
+          <span v-if="conBajoPedido(pedido)" class="bajo-pedido">🛠️ Incluye artículos bajo pedido</span>
+
           <div class="total">${{ pedido.totalTienda }}</div>
 
           <div class="items-count">🛒 {{ pedido.itemsFiltrados.length }}</div>
         </div>
       </div>
+
+      <!-- MOTIVO DE CANCELACIÓN (visible sin expandir) -->
+      <p v-if="motivoCancelado(pedido)" class="motivo-cancelacion">
+        ✖ {{ motivoCancelado(pedido) }}
+      </p>
 
       <!-- BODY -->
       <transition name="fade">
@@ -131,7 +139,7 @@
               <div class="timeline-text">
                 <strong>{{ etiqueta(h.estatus) }}</strong>
                 <span class="quien">
-                  · {{ h.por === 'cliente' ? 'Cliente' : h.por === 'tienda' ? 'Tienda' : 'Sistema' }}
+                  · {{ ACTOR_LABEL[h.por] || 'Sistema' }}
                 </span>
                 <span class="cuando">{{ formatFecha(h.fecha) }}</span>
                 <p v-if="h.nota" class="nota">{{ h.nota }}</p>
@@ -154,6 +162,7 @@
             <div class="item-inline" style="font-size: small">
               <strong class="nombre">
                 {{ item.nombreProducto }}
+                <span v-if="item.porPedido" class="tag-bajo-pedido">bajo pedido</span>
               </strong>
 
               <span class="detalle">
@@ -175,6 +184,17 @@
 
         <div class="acciones-estatus">
           <template v-if="pedido.estatusTienda === 'Preparacion'">
+            <button class="danger" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Cancelado')">
+              Cancelar
+            </button>
+            <button class="atender" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Atendiendo')">
+              👨‍🍳 Atender
+            </button>
+            <button class="primary" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Enviado')">
+              🚚 Marcar enviado
+            </button>
+          </template>
+          <template v-else-if="pedido.estatusTienda === 'Atendiendo'">
             <button class="danger" :disabled="procesando === pedido.id_pedido" @click.stop="cambiarEstatus(pedido, 'Cancelado')">
               Cancelar
             </button>
@@ -290,7 +310,15 @@ import {
   actualizarEstatusTienda,
   estatusDeTienda,
   fechaPedido,
+  tiempoRestanteAtencion,
+  formatoTiempoRestante,
+  HORAS_LIMITE_ATENCION,
+  motivoCancelacion,
+  textoCancelacion,
+  tieneArticulosPorPedido,
   ESTATUS_LABEL,
+  ESTATUS_LABEL_TIENDA,
+  ACTOR_LABEL,
   type Pedido,
   type EstatusPedido,
 } from '@/composables/usePedidos';
@@ -306,7 +334,7 @@ const usuariosPorId = ref<Record<string, Usuario | null>>({});
 /* ---------- Pestañas y filtros (mismo esquema que "Mis Pedidos" del cliente) ---------- */
 type TabId = 'pendientes' | 'entregados' | 'cancelados';
 const TABS: { id: TabId; label: string; estatus: EstatusPedido[] }[] = [
-  { id: 'pendientes', label: 'Por entregar', estatus: ['Preparacion', 'Enviado'] },
+  { id: 'pendientes', label: 'Por entregar', estatus: ['Preparacion', 'Atendiendo', 'Enviado'] },
   { id: 'entregados', label: 'Entregados', estatus: ['Entregado'] },
   { id: 'cancelados', label: 'Cancelados', estatus: ['Cancelado'] },
 ];
@@ -377,6 +405,27 @@ function esUrgente(pedido: any) {
   return minutos > 30;
 }
 
+/* Reloj que avanza cada minuto para el aviso de cancelación automática */
+const ahora = ref(new Date());
+let reloj: ReturnType<typeof setInterval> | undefined;
+onMounted(() => { reloj = setInterval(() => (ahora.value = new Date()), 60_000); });
+onUnmounted(() => clearInterval(reloj));
+
+/** "Se cancela en 1 h 20 min si no lo atiendes" mientras la tienda no marque enviado */
+function avisoAtencion(pedido: any): string | null {
+  const ms = tiempoRestanteAtencion(pedido, idTienda, ahora.value);
+  if (ms === null) return null;
+  return ms <= 0
+    ? 'Se cancelará automáticamente por falta de atención'
+    : `Se cancela en ${formatoTiempoRestante(ms)} si no lo atiendes (límite ${HORAS_LIMITE_ATENCION} h)`;
+}
+
+/** Motivo visible de la cancelación de MI parte del pedido (propia, del cliente o automática) */
+const motivoCancelado = (pedido: any) => textoCancelacion(motivoCancelacion(pedido, idTienda), 'tienda');
+
+/** ¿Incluye artículos que elaboro bajo pedido? */
+const conBajoPedido = (pedido: any) => tieneArticulosPorPedido(pedido, idTienda);
+
 const etiqueta = (e: EstatusPedido) => ESTATUS_LABEL[e] || e;
 
 function formatFecha(iso: string) {
@@ -412,12 +461,19 @@ function suscribir() {
 async function cambiarEstatus(pedido: Pedido, nuevo: EstatusPedido) {
   const esCancel = nuevo === 'Cancelado';
   const { isConfirmed, value } = await Swal.fire({
-    title: esCancel ? '¿Cancelar este pedido?' : `¿Marcar como "${ESTATUS_LABEL[nuevo]}"?`,
+    title: esCancel
+      ? '¿Cancelar este pedido?'
+      : nuevo === 'Atendiendo'
+        ? '¿Atender este pedido?'
+        : `¿Marcar como "${ESTATUS_LABEL_TIENDA[nuevo]}"?`,
     text: esCancel
-      ? 'Se devolverá el stock de tus artículos y el cliente verá el pedido cancelado.'
-      : 'El cliente verá el cambio en su seguimiento.',
+      ? 'Escribe el motivo: el cliente lo verá en su pedido. Se devolverá el stock de tus artículos.'
+      : nuevo === 'Atendiendo'
+        ? 'El cliente verá "Atendiendo tu pedido" y ya no se cancelará automáticamente por falta de atención.'
+        : 'El cliente verá el cambio en su seguimiento.',
     input: esCancel ? 'text' : undefined,
-    inputPlaceholder: 'Motivo (opcional)',
+    inputPlaceholder: 'Motivo de la cancelación',
+    inputValidator: esCancel ? (v: string) => (v && v.trim() ? null : 'Indica el motivo para que el cliente lo conozca') : undefined,
     icon: esCancel ? 'warning' : 'question',
     showCancelButton: true,
     confirmButtonText: esCancel ? 'Sí, cancelar' : 'Confirmar',
@@ -430,7 +486,7 @@ async function cambiarEstatus(pedido: Pedido, nuevo: EstatusPedido) {
   try {
     await actualizarEstatusTienda(pedido, idTienda, nuevo, value || undefined);
     // la suscripción refresca la lista; feedback rápido:
-    Swal.fire({ toast: true, position: 'bottom', timer: 1800, showConfirmButton: false, icon: 'success', title: ESTATUS_LABEL[nuevo] });
+    Swal.fire({ toast: true, position: 'bottom', timer: 1800, showConfirmButton: false, icon: 'success', title: ESTATUS_LABEL_TIENDA[nuevo] });
   } catch (e: any) {
     Swal.fire({ icon: 'error', title: 'No se pudo actualizar', text: e?.message || String(e) });
   } finally {
@@ -457,7 +513,7 @@ const pedidosTienda = computed(() =>
         itemsFiltrados,
         totalTienda,
         estatusTienda,
-        estatusLabel: ESTATUS_LABEL[estatusTienda] || estatusTienda,
+        estatusLabel: ESTATUS_LABEL_TIENDA[estatusTienda] || estatusTienda,
         usuario: usuariosPorId.value[pedido.id_usuario] ?? null,
       };
     })
@@ -542,7 +598,7 @@ function onImgError(e: Event) {
   position: relative;
   width: 36px;
   height: 36px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -586,7 +642,7 @@ function onImgError(e: Event) {
 .tabs {
   display: flex;
   gap: 6px;
-  background: #eef1f5;
+  background: var(--surface-2);
   padding: 4px;
   border-radius: 12px;
   margin-bottom: 0.75rem;
@@ -601,15 +657,15 @@ function onImgError(e: Event) {
   border: none;
   border-radius: 9px;
   background: transparent;
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 .tab.active {
-  background: #fff;
-  color: var(--color-bg-blue-dark);
+  background: var(--surface);
+  color: var(--brand-navy-text);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 .tab-count {
@@ -617,7 +673,7 @@ function onImgError(e: Event) {
   padding: 0 6px;
   border-radius: 10px;
   background: #dfe5ee;
-  color: #444;
+  color: var(--text);
   font-size: 0.72rem;
   line-height: 20px;
 }
@@ -633,7 +689,7 @@ function onImgError(e: Event) {
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
   padding: 8px;
-  background: #f2f4f8;
+  background: var(--surface-2);
   border-radius: 10px;
 }
 .filtro-input {
@@ -641,9 +697,9 @@ function onImgError(e: Event) {
   min-width: 140px;
   padding: 8px 10px;
   font-size: 16px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   box-sizing: border-box;
 }
 .filtro-buscar {
@@ -656,7 +712,7 @@ function onImgError(e: Event) {
   flex-direction: column;
   gap: 2px;
   font-size: 0.72rem;
-  color: #666;
+  color: var(--text-muted);
 }
 .filtro-campo .filtro-input {
   width: 100%;
@@ -668,7 +724,7 @@ function onImgError(e: Event) {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.85rem;
-  color: #444;
+  color: var(--text);
   background: #e6e9ef;
 }
 .icon-btn.limpiar img {
@@ -680,17 +736,17 @@ function onImgError(e: Event) {
   margin-bottom: 0.75rem;
   font-weight: 600;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .empty {
   text-align: center;
   padding: 2rem;
-  color: #777;
+  color: var(--text-muted);
 }
 
 .pedido-card {
-  background: white;
+  background: var(--surface);
   border-radius: 14px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -718,7 +774,7 @@ function onImgError(e: Event) {
 }
 
 .hora {
-  color: gray;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -728,12 +784,60 @@ function onImgError(e: Event) {
   font-size: 12px;
 }
 
+.aviso-atencion {
+  display: block;
+  max-width: 150px;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #b45309;
+  text-align: right;
+}
+
 .status.preparacion {
   background: #fff3cd;
 }
 
+.status.atendiendo {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .status.enviado {
   background: #d4edda;
+}
+
+.bajo-pedido {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #3730a3;
+  text-align: right;
+}
+
+.tag-bajo-pedido {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.motivo-cancelacion {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fdecea;
+  color: #9b1c1c;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.acciones-estatus button.atender {
+  background: #4f46e5;
+  color: #fff;
 }
 
 .status.cancelado {
@@ -742,7 +846,7 @@ function onImgError(e: Event) {
 
 .status.entregado {
   background: #cfe8ff;
-  color: #0b4f8a;
+  color: var(--brand-blue-text);
 }
 
 /* Acciones por estatus */
@@ -770,8 +874,8 @@ function onImgError(e: Event) {
 }
 .card-footer > button {
   min-width: 110px;
-  background: #f1f3f6;
-  color: #333;
+  background: var(--surface-2);
+  color: var(--text);
 }
 .danger {
   background: #fdecea;
@@ -787,12 +891,12 @@ button:disabled {
 }
 .final-label {
   font-weight: 600;
-  color: #555;
+  color: var(--text-muted);
 }
 
 /* Historial */
 .timeline {
-  border-left: 2px solid #e3e8ef;
+  border-left: 2px solid var(--border);
   margin: 0.25rem 0 1rem 6px;
   padding-left: 14px;
   display: flex;
@@ -824,16 +928,16 @@ button:disabled {
   background: #e74c3c;
 }
 .timeline-text .quien {
-  color: #777;
+  color: var(--text-muted);
 }
 .timeline-text .cuando {
   display: block;
-  color: #999;
+  color: var(--text-muted);
   font-size: 11px;
 }
 .timeline-text .nota {
   margin: 2px 0 0;
-  color: #555;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -916,7 +1020,7 @@ button {
 }
 
 .clickable:hover {
-  color: #0165d8;
+  color: var(--brand-blue-text);
 }
 
 /* OVERLAY */
@@ -938,7 +1042,7 @@ button {
   width: 100%;
   max-width: 420px;
 
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
 
   overflow: hidden;
@@ -954,7 +1058,7 @@ button {
 
   padding: 1rem 1.2rem;
 
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 .dialog-header h3 {
@@ -1015,12 +1119,12 @@ button {
   padding: 0.8rem;
   border-radius: 12px;
 
-  background: #f7f7f7;
+  background: var(--surface-2);
 }
 
 .info-row span {
   font-size: 12px;
-  color: gray;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -1055,9 +1159,9 @@ button {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  color: #111;
+  color: var(--text);
   flex-shrink: 0;
 }
 @media (min-width: 768px) {

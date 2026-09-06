@@ -17,8 +17,8 @@ beforeEach(async () => {
   routerMock.push.mockClear();
   sessionUser.value = { id: 'cliente-1' };
   await db.Carrito.bulkAdd([
-    { id_articulo: 'a', id_usuario: 'cliente-1', sku: 's1', cantidad: 2, precio: 45, nombre: 'Chocoflan', url: '', detalle: '' } as any,
-    { id_articulo: 'b', id_usuario: 'cliente-1', sku: 's2', cantidad: 1, precio: 24, nombre: 'Cheesecake', url: '', detalle: '' } as any,
+    { id_articulo: 'a', id_usuario: 'cliente-1', sku: 's1', cantidad: 2, precio: 45, nombre: 'Chocoflan', url: '', detalle: '', id_tienda: 't-1', nombre_tienda: 'Pastelería Uno' } as any,
+    { id_articulo: 'b', id_usuario: 'cliente-1', sku: 's2', cantidad: 1, precio: 24, nombre: 'Cheesecake', url: '', detalle: '', id_tienda: 't-2', nombre_tienda: 'Café Dos' } as any,
   ]);
 });
 
@@ -32,6 +32,13 @@ describe('CartView → Continuar Compra', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findAll('.cart-item')).toHaveLength(2);
+    // Agrupado por tienda: un bloque por tienda con su nombre y subtotal
+    const grupos = wrapper.findAll('.grupo-tienda');
+    expect(grupos).toHaveLength(2);
+    expect(grupos[0].find('.grupo-tienda-nombre').text()).toContain('Pastelería Uno');
+    expect(grupos[0].find('.grupo-resumen').text()).toBe('2 artículos · $90.00');
+    expect(grupos[1].find('.grupo-tienda-nombre').text()).toContain('Café Dos');
+    expect(grupos[1].find('.grupo-resumen').text()).toBe('1 artículo · $24.00');
     await wrapper.find('.checkout-btn').trigger('click');
 
     expect(routerMock.push).toHaveBeenCalledTimes(1);

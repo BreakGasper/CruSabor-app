@@ -24,8 +24,8 @@ defineEmits(["click"]);
   align-items: center;
   justify-content: center;
   position: relative; /* se puede usar absolute donde lo llames */
-  background: white;
-  color: black;
+  background: var(--surface);
+  color: var(--text);
   border: none;
   border-radius: 50%;
   width: 40px;

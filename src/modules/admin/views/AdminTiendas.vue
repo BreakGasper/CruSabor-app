@@ -255,9 +255,9 @@ function onPagoGuardado(p: PagoRegistrado) {
 <style scoped>
 .admin-container {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--surface-2);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
-  color: #111827;
+  color: var(--text);
 }
 .admin-main {
   max-width: 1000px;
@@ -283,9 +283,9 @@ function onPagoGuardado(p: PagoRegistrado) {
   gap: 6px;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
@@ -296,7 +296,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   padding: 1px 7px;
   border-radius: 999px;
   background: #e5e7eb;
-  color: #374151;
+  color: var(--text);
 }
 .chip.active {
   border-color: #111827;
@@ -311,11 +311,11 @@ function onPagoGuardado(p: PagoRegistrado) {
   width: 100%;
   padding: 11px 14px;
   border-radius: 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   font-size: 15px;
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
 }
 .search-input:focus {
   outline: none;
@@ -324,7 +324,7 @@ function onPagoGuardado(p: PagoRegistrado) {
 }
 .empty {
   text-align: center;
-  color: #5b6472;
+  color: var(--text-muted);
   padding: 2rem 0;
 }
 
@@ -342,7 +342,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   grid-template-columns: 56px 1fr auto;
   gap: 14px;
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 0.9rem 1rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -352,7 +352,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   height: 56px;
   border-radius: 14px;
   object-fit: cover;
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 .info {
   min-width: 0;
@@ -366,7 +366,7 @@ function onPagoGuardado(p: PagoRegistrado) {
 .nombre {
   font-weight: 700;
   font-size: 1rem;
-  color: #111827;
+  color: var(--text);
   text-decoration: none;
 }
 .nombre:hover {
@@ -375,7 +375,7 @@ function onPagoGuardado(p: PagoRegistrado) {
 .meta {
   margin: 2px 0 0;
   font-size: 0.83rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .vigencia {
   font-weight: 500;
@@ -396,7 +396,7 @@ function onPagoGuardado(p: PagoRegistrado) {
 }
 .estatus-pendiente {
   background: #eaf2fc;
-  color: #0b3d7a;
+  color: var(--brand-blue-text);
 }
 .estatus-activa {
   background: #ecfdf5;
@@ -438,7 +438,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   color: #fff;
 }
 .btn-bloquear {
-  background: #fff;
+  background: var(--surface);
   color: #b91c1c;
   border-color: #fca5a5;
 }
@@ -450,9 +450,9 @@ function onPagoGuardado(p: PagoRegistrado) {
   color: #fff;
 }
 .btn-detalle {
-  background: #fff;
-  color: #111827;
-  border-color: #d1d5db;
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
 }
 .btn:hover {
   filter: brightness(1.05);

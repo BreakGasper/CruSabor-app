@@ -46,7 +46,7 @@ function onImgError(e: Event) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: white;
+  background: var(--surface);
   padding: 0.8rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -70,12 +70,12 @@ function onImgError(e: Event) {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.25rem 0;
-  color: #333;
+  color: var(--text);
 }
 
 .subcategoria {
   font-size: 0.85rem;
-  color: #777;
+  color: var(--text-muted);
   margin-bottom: 0.4rem;
 }
 
@@ -87,7 +87,7 @@ function onImgError(e: Event) {
 
 .precio {
   font-weight: bold;
-  color: #333;
+  color: var(--text);
   font-size: 0.9rem;
 }
 

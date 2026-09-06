@@ -244,7 +244,7 @@ function onImgError(e: Event) {
 .loading,
 .no-articulos {
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.95rem;
   margin-top: 1rem;
 }
@@ -259,7 +259,7 @@ function onImgError(e: Event) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: white;
+  background: var(--surface);
   border-radius: 8px;
   padding: 0.5rem;
   text-align: center;
@@ -309,13 +309,13 @@ function onImgError(e: Event) {
 .nombre {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 0.2rem;
 }
 
 .precio {
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
 
@@ -353,7 +353,7 @@ function onImgError(e: Event) {
 .btn-agregar.sin-envio,
 .btn-agregar:disabled {
   background: #ccc;
-  color: #555;
+  color: var(--text-muted);
   cursor: not-allowed;
   font-size: 0.75rem;
 }
@@ -387,7 +387,7 @@ function onImgError(e: Event) {
 }
 .cantidad {
   font-weight: 600;
-  color: #333;
+  color: var(--text);
 }
 
 /* ===== Responsive ===== */

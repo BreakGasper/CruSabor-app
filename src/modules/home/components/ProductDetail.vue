@@ -88,7 +88,10 @@
       </div>
       <p class="descripcion-title">Disponibilidad</p>
 
-      <p class="stock-badge" :class="estadoStock">
+      <p v-if="producto.porPedido" class="stock-badge por-pedido">
+        🛠️ Se elabora bajo pedido: la tienda lo prepara cuando lo pides
+      </p>
+      <p v-else class="stock-badge" :class="estadoStock">
         <span v-if="estadoStock === 'agotado'">🔴 Agotado</span>
         <span v-else-if="estadoStock === 'poco'">
           🟡 Últimas {{ stockActual }} unidades
@@ -401,6 +404,7 @@ const aumentarCantidad = async (producto: Producto) => {
       detalle: variante?.detalle || '',
       id_tienda: producto.tiendaId || '',
       nombre_tienda: producto.tiendaNombre || '',
+      porPedido: producto.porPedido === true,
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[clave] = 1;
@@ -434,6 +438,7 @@ const imagenActual = computed(() => {
 });
 
 const stockActual = computed(() => {
+  if (props.producto?.porPedido) return Infinity; // bajo pedido: sin control de stock
   const variante = varianteSeleccionada.value;
 
   if (!variante) return 0;
@@ -495,7 +500,7 @@ function onImgError(e: Event) {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #fff;
+  background: var(--surface);
 }
 
 .detalle-header {
@@ -517,13 +522,13 @@ function onImgError(e: Event) {
   object-fit: cover; /* llena todo el ancho del contenedor */
   object-position: center;
   display: block;
-  background: #f5f6fa;
+  background: var(--surface-2);
 }
 
 .btn-icon {
   position: absolute;
   top: 1rem;
-  background: white;
+  background: var(--surface);
   border: none;
   border-radius: 50%;
   padding: 0.5rem;
@@ -559,7 +564,7 @@ function onImgError(e: Event) {
   width: 50px; /* tamaño fijo */
   height: 50px;
   border-radius: 50%;
-  background: white;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -592,7 +597,7 @@ function onImgError(e: Event) {
 .precio {
   font-size: 24px;
   font-weight: bold;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   margin: 0;
   font-family: 'Poppins', sans-serif;
 }
@@ -656,7 +661,7 @@ function onImgError(e: Event) {
 }
 .rating-value {
   font-size: 14px;
-  color: #555;
+  color: var(--text-muted);
   margin-left: 4px;
 }
 
@@ -677,7 +682,7 @@ function onImgError(e: Event) {
   width: 25px;
   height: 25px;
   border-radius: 50%;
-  border: 2px solid #ddd;
+  border: 2px solid var(--border);
   cursor: pointer;
 }
 .color-dot.black {
@@ -699,7 +704,7 @@ function onImgError(e: Event) {
 }
 .descripcion {
   margin: 0;
-  color: #555;
+  color: var(--text-muted);
   line-height: 1.5;
   text-align: left;
 }
@@ -768,8 +773,8 @@ function onImgError(e: Event) {
   width: 40px; /* tamaño similar al botón circular */
   height: 40px;
   border-radius: 50%;
-  background: white;
-  color: black;
+  background: var(--surface);
+  color: var(--text);
   font-size: 18px;
   display: flex;
   align-items: center;
@@ -819,6 +824,11 @@ function onImgError(e: Event) {
 }
 
 /* estados */
+.stock-badge.por-pedido {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
 .stock-badge.agotado {
   background: #ffe5e5;
   color: #e74c3c;
@@ -836,7 +846,7 @@ function onImgError(e: Event) {
 
 .stock-badge.normal {
   background: #eef6ff;
-  color: #1f70b2;
+  color: var(--brand-blue-text);
 }
 
 .btn-carrito:disabled {

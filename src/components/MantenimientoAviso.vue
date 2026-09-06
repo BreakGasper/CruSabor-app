@@ -43,7 +43,7 @@ const reload = () => window.location.reload();
 .mant-card {
   width: 100%;
   max-width: 440px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 22px;
   padding: 2.25rem 1.75rem;
   text-align: center;
@@ -55,7 +55,7 @@ const reload = () => window.location.reload();
   margin: 0 auto 1rem;
   border-radius: 20px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #0f1c2e;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,17 +67,17 @@ const reload = () => window.location.reload();
 h1 {
   margin: 0;
   font-size: 1.4rem;
-  color: #0f1c2e;
+  color: var(--text);
 }
 .mensaje {
   margin: 0.6rem 0 0;
-  color: #374151;
+  color: var(--text);
   line-height: 1.45;
 }
 .contacto {
   margin: 0.8rem 0 0;
   font-size: 0.88rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .btn-reintentar {
   margin-top: 1.4rem;

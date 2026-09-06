@@ -174,7 +174,7 @@ function onImgError(e: Event) {
 }
 
 .carousel-item {
-  background: white;
+  background: var(--surface);
   border-radius: 8px;
   padding: 0.3rem;
   text-align: center;
@@ -214,7 +214,7 @@ function onImgError(e: Event) {
 }
 .descripcion {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--text-muted);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -232,12 +232,12 @@ function onImgError(e: Event) {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #eee;
+  background: var(--surface-2);
   font-weight: bold;
 }
 .empty {
   text-align: center;
-  color: grey;
+  color: var(--text-muted);
   margin-top: 2rem;
 }
 

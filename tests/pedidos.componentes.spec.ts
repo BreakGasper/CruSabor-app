@@ -77,12 +77,12 @@ describe('TIENDA · StorePedidos', () => {
     const w = await montar();
 
     expect(w.findAll('.pedido-card')).toHaveLength(1);
-    expect(w.find('.status').text()).toBe('En preparación');
+    expect(w.find('.status').text()).toBe('Nuevo · sin atender');
     expect(w.text()).toContain('Carlos Cliente');
     expect(w.text()).toContain(id);
     // solo su artículo y su total
     expect(w.find('.total').text()).toBe('$90');
-    expect(textos(w, '.acciones-estatus button')).toEqual(['Cancelar', '🚚 Marcar enviado']);
+    expect(textos(w, '.acciones-estatus button')).toEqual(['Cancelar', '👨‍🍳 Atender', '🚚 Marcar enviado']);
     w.unmount();
   });
 
@@ -135,7 +135,7 @@ describe('TIENDA · StorePedidos', () => {
     await flushPromises();
 
     expect(__getAt(`pedidos/${id}/estatus`)).toBe('Preparacion');
-    expect(w.find('.status').text()).toBe('En preparación');
+    expect(w.find('.status').text()).toBe('Nuevo · sin atender');
     w.unmount();
   });
 
@@ -219,7 +219,7 @@ describe('TIENDA · StorePedidos', () => {
     wA.unmount();
 
     const wB = await montar(TIENDA_B);
-    expect(wB.find('.status').text()).toBe('En preparación'); // B no se ve afectada
+    expect(wB.find('.status').text()).toBe('Nuevo · sin atender'); // B no se ve afectada
     expect(wB.find('.total').text()).toBe('$30');
     expect(__getAt(`pedidos/${id}/estatus`)).toBe('Enviado');
     wB.unmount();
@@ -228,7 +228,7 @@ describe('TIENDA · StorePedidos', () => {
   it('se actualiza en vivo cuando el pedido cambia desde otro lado', async () => {
     const id = await crearPedidoMixto();
     const w = await montar();
-    expect(w.find('.status').text()).toBe('En preparación');
+    expect(w.find('.status').text()).toBe('Nuevo · sin atender');
 
     // el cliente cancela mientras la tienda tiene la pantalla abierta
     const { cancelarPedidoCliente, getPedidoById } = await import('@/composables/usePedidos');
@@ -261,7 +261,7 @@ describe('CLIENTE · PedidoDetalle', () => {
     const w = await montar(id);
 
     expect(w.find('.badge').text()).toBe('En preparación');
-    expect(textos(w, '.step-label')).toEqual(['En preparación', 'En camino', 'Entregado']);
+    expect(textos(w, '.step-label')).toEqual(['En preparación', 'Atendiendo tu pedido', 'En camino', 'Entregado']);
     expect(w.findAll('.step.done')).toHaveLength(1);
     expect(w.findAll('.por-tienda li')).toHaveLength(2); // dos tiendas
     expect(w.find('.btn-cancelar').exists()).toBe(true);
@@ -276,7 +276,7 @@ describe('CLIENTE · PedidoDetalle', () => {
     expect(__getAt('articulos/art-1/variantes/0/stock')).toBe(5); // stock devuelto
 
     expect(w.find('.cancelado-msg').text()).toContain('cancelado');
-    expect(w.find('.cancelado-msg').text()).toContain('por ti');
+    expect(w.find('.cancelado-msg').text()).toContain('Cancelaste este pedido: Ya no lo necesito');
     expect(w.find('.btn-cancelar').exists()).toBe(false);
     w.unmount();
   });
@@ -288,7 +288,7 @@ describe('CLIENTE · PedidoDetalle', () => {
 
     const w = await montar(id);
     expect(w.find('.badge').text()).toBe('En camino');
-    expect(w.findAll('.step.done')).toHaveLength(2);
+    expect(w.findAll('.step.done')).toHaveLength(3);
     expect(w.find('.btn-cancelar').exists()).toBe(false);
     expect(w.find('.hint').text()).toMatch(/ya va en camino/);
 

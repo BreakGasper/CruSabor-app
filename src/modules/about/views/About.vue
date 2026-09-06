@@ -41,7 +41,7 @@ const { articulos, loading } = useArticulos();
 .loading {
   text-align: center;
   font-size: 1.2rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .lista-articulos {
@@ -54,7 +54,7 @@ const { articulos, loading } = useArticulos();
 }
 
 .articulo-card {
-  background-color: #fff;
+  background-color: var(--surface);
   border-radius: 10px;
   box-shadow: 0 4px 8px rgb(0 0 0 / 0.1);
   overflow: hidden;
@@ -72,7 +72,7 @@ const { articulos, loading } = useArticulos();
   width: 100%;
   height: 180px;
   object-fit: cover;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 .articulo-info {
@@ -85,7 +85,7 @@ const { articulos, loading } = useArticulos();
 
 .articulo-nombre {
   font-size: 1.25rem;
-  color: #333;
+  color: var(--text);
 }
 
 .articulo-precio {
@@ -95,7 +95,7 @@ const { articulos, loading } = useArticulos();
 }
 
 .articulo-descripcion {
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin-top: auto;
 }

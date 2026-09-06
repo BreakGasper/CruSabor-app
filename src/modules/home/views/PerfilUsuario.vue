@@ -431,7 +431,7 @@ console.log("Correo:", sessionUser.value?.email);
 
 .modal-content {
   position: relative; /* necesario para colocar la X */
-  background: white;
+  background: var(--surface);
   padding: 2rem 1.5rem 2.5rem 1.5rem;
   border-radius: 12px;
   width: 90%;
@@ -455,7 +455,7 @@ console.log("Correo:", sessionUser.value?.email);
 .modal-content input {
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   width: 100%;
 }
 
@@ -475,7 +475,7 @@ console.log("Correo:", sessionUser.value?.email);
 .ver-todos-btn {
   background: transparent;
   border: none;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;
@@ -485,13 +485,13 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .ver-todos-btn:hover {
-  color: var(--color-bg-blue-dark); /* color más oscuro al pasar el mouse */
+  color: var(--brand-navy-text); /* color más oscuro al pasar el mouse */
   text-decoration: underline;
   transform: translateX(4px); /* efecto de desplazamiento leve */
 }
 
 .profile-container {
-  background: #f8f9fb;
+  background: var(--surface-2);
   min-height: 100vh;
   position: relative;
   padding-left: 0;
@@ -518,13 +518,13 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .tab-button {
-  background: white;
+  background: var(--surface);
   padding: 0.6rem 1rem;
   border-radius: 50px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   font-weight: 600;
-  color: #333;
+  color: var(--text);
   transition: all 0.3s ease;
   white-space: nowrap;
   border: 2px solid transparent;
@@ -615,7 +615,7 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .section-card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 20px; /* cardview con bordes suaves */
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); /* sombra ligera */
   padding: 1.5rem 1rem;
@@ -629,7 +629,7 @@ console.log("Correo:", sessionUser.value?.email);
   gap: 0; /* sin espacio entre badge y círculo */
   margin-bottom: 1rem;
   margin-top: -30px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--border);
 }
 
 .section-card .header-row span {
@@ -662,7 +662,7 @@ console.log("Correo:", sessionUser.value?.email);
 .section-card .card-content {
   text-align: left;
   font-size: 0.95rem;
-  color: #333;
+  color: var(--text);
   line-height: 1.4;
 }
 
@@ -674,7 +674,7 @@ console.log("Correo:", sessionUser.value?.email);
 
 .list li {
   padding: 0.5rem 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Botones modernos */
@@ -702,7 +702,7 @@ console.log("Correo:", sessionUser.value?.email);
   top: 20px;
   left: 20px;
   z-index: 10001;
-  background: white;
+  background: var(--surface);
   border-radius: 50%;
   padding: 0.4rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -710,7 +710,7 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .back-button:hover {
-  background: #f0f0f0;
+  background: var(--surface-2);
 }
 
 .password-wrapper {
@@ -725,7 +725,7 @@ console.log("Correo:", sessionUser.value?.email);
   padding-right: 2.5rem; /* espacio para el botón del ojo */
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
 }
 
 .eye-btn {
@@ -742,7 +742,7 @@ console.log("Correo:", sessionUser.value?.email);
 .eye-icon {
   width: 1.2rem;
   height: 1.2rem;
-  color: #555;
+  color: var(--text-muted);
 }
 
 /* ===== Responsive =====

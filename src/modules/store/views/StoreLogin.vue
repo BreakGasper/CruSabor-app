@@ -251,7 +251,7 @@ async function login() {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,7 +278,7 @@ async function login() {
   margin: 0 auto 0.8rem;
   border-radius: 18px;
   background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #0f1c2e;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -317,7 +317,7 @@ async function login() {
   width: 90%;
   max-width: 420px;
   margin-top: -1.75rem;
-  background: #fff;
+  background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 20px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
@@ -329,7 +329,7 @@ async function login() {
 .login-title {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #0f1c2e;
+  color: var(--text);
   text-align: center;
   margin: 0;
 }
@@ -337,7 +337,7 @@ async function login() {
   margin: -0.4rem 0 0.4rem;
   text-align: center;
   font-size: 0.85rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 
 /* Campos */
@@ -349,17 +349,17 @@ async function login() {
 .form-group label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 6px;
 }
 .form-input {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 16px; /* evita zoom automático en iOS */
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .form-input:focus {
@@ -489,7 +489,7 @@ async function login() {
 .btn-primary {
   border: none;
   color: #fff;
-  color: #0f1c2e;
+  color: var(--text);
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35);
   margin-top: 0.3rem;
@@ -504,8 +504,8 @@ async function login() {
 }
 .btn-outline-blue {
   border: 2px solid #0f1c2e;
-  background: #fff;
-  color: #0f1c2e;
+  background: var(--surface);
+  color: var(--text);
 }
 .btn-outline-blue:hover:not(:disabled) {
   background: #0f1c2e;
@@ -529,10 +529,10 @@ async function login() {
   margin: 0.4rem 0 0;
   text-align: center;
   font-size: 0.88rem;
-  color: #555;
+  color: var(--text-muted);
 }
 .switch-link a {
-  color: #0165d8;
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
 }

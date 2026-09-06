@@ -157,7 +157,7 @@ function handleCancel() {
 }
 
 .modal-content {
-  background: white;
+  background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 12px;
   width: 90%;
@@ -187,7 +187,7 @@ function handleCancel() {
 .form-group input {
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   width: 100%;
   font-size: 0.95rem;
 }
@@ -234,7 +234,7 @@ function handleCancel() {
   width: 100%;
   padding: 0.5rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   box-sizing: border-box;
 }
 

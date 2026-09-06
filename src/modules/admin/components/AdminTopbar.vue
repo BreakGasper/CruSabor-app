@@ -145,7 +145,7 @@ function salir() {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,8 +248,8 @@ function salir() {
   top: calc(100% + 8px);
   width: 320px;
   max-width: calc(100vw - 2rem);
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text);
   border-radius: 14px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   padding: 10px 0 6px;
@@ -267,14 +267,14 @@ function salir() {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.9rem;
   padding: 4px 6px;
 }
 .notif-vacio {
   margin: 0;
   padding: 14px;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.88rem;
   text-align: center;
 }
@@ -303,7 +303,7 @@ function salir() {
 }
 .notif-meta {
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .sin-ref {
   color: #b91c1c;

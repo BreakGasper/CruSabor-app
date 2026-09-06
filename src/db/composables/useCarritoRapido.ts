@@ -34,13 +34,17 @@ export function useCarritoRapido() {
   const skuDe = (producto: Producto) =>
     varianteDefault(producto)?.sku || 'default';
 
-  /** Stock de la variante por defecto. -1 en Firebase significa ilimitado. */
+  /** Stock de la variante por defecto. -1 en Firebase significa ilimitado; bajo pedido no controla stock. */
   const stockDe = (producto: Producto): number => {
+    if (producto.porPedido === true) return Infinity;
     const v = varianteDefault(producto);
     if (!v) return 0;
     if (v.stock === -1) return Infinity;
     return v.stock ?? 0;
   };
+
+  /** Se elabora cuando el cliente lo pide */
+  const esPorPedido = (producto: Producto) => producto.porPedido === true;
 
   const sinStock = (producto: Producto) => stockDe(producto) === 0;
 
@@ -113,6 +117,7 @@ export function useCarritoRapido() {
         detalle: v?.detalle || '',
         id_tienda: producto.tiendaId || '',
         nombre_tienda: producto.tiendaNombre || '',
+        porPedido: producto.porPedido === true,
       };
       await db.Carrito.add(nuevo);
     }
@@ -142,6 +147,7 @@ export function useCarritoRapido() {
     disminuir,
     sincronizar,
     stockDe,
+    esPorPedido,
     sinStock,
     sinEnvioTienda,
     tiendaNoDisponible,

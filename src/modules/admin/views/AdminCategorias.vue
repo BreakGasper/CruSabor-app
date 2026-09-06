@@ -127,9 +127,9 @@ async function eliminar(c: CategoriaData) {
 <style scoped>
 .admin-container {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--surface-2);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
-  color: #111827;
+  color: var(--text);
 }
 .admin-main {
   max-width: 900px;
@@ -153,7 +153,7 @@ async function eliminar(c: CategoriaData) {
 }
 .page-hint {
   margin: 0.25rem 0 0;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 .btn-primary {
@@ -172,11 +172,11 @@ async function eliminar(c: CategoriaData) {
   width: 100%;
   padding: 11px 14px;
   border-radius: 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   font-size: 15px;
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
 }
 .search-input:focus {
   outline: none;
@@ -185,7 +185,7 @@ async function eliminar(c: CategoriaData) {
 }
 .empty {
   text-align: center;
-  color: #5b6472;
+  color: var(--text-muted);
   padding: 2rem 0;
   margin: 0;
 }
@@ -202,7 +202,7 @@ async function eliminar(c: CategoriaData) {
   grid-template-columns: 56px 1fr auto;
   gap: 14px;
   align-items: center;
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 0.85rem 1rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -238,12 +238,12 @@ async function eliminar(c: CategoriaData) {
 .desc {
   margin: 2px 0 0;
   font-size: 0.85rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .uso {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: #374151;
+  color: var(--text);
   font-weight: 500;
 }
 .uso .cero {
@@ -259,9 +259,9 @@ async function eliminar(c: CategoriaData) {
   font-weight: 600;
   font-size: 0.83rem;
   cursor: pointer;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111827;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   font-family: inherit;
 }
 .btn-eliminar {

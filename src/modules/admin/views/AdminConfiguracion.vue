@@ -265,9 +265,9 @@ function fechaCorta(iso?: string) {
 <style scoped>
 .admin-container {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--surface-2);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
-  color: #111827;
+  color: var(--text);
 }
 .admin-main {
   max-width: 900px;
@@ -281,7 +281,7 @@ function fechaCorta(iso?: string) {
 }
 .page-hint {
   margin: 0.25rem 0 1.25rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 .secciones {
@@ -290,7 +290,7 @@ function fechaCorta(iso?: string) {
   gap: 12px;
 }
 .card {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1.1rem 1.2rem;
   box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06);
@@ -318,18 +318,18 @@ function fechaCorta(iso?: string) {
 .form-group label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 5px;
 }
 .form-input {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 15px;
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--surface);
   resize: vertical;
 }
 .form-input:focus {
@@ -343,7 +343,7 @@ function fechaCorta(iso?: string) {
 .hint {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .error-text {
   color: #d9534f;
@@ -371,7 +371,7 @@ function fechaCorta(iso?: string) {
   align-items: flex-start;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   cursor: pointer;
 }
 .modo.activo {
@@ -389,7 +389,7 @@ function fechaCorta(iso?: string) {
 }
 .modo small {
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .switch {
   display: flex;
@@ -430,8 +430,8 @@ function fechaCorta(iso?: string) {
 }
 .btn-outline {
   border: 2px solid #111827;
-  background: #fff;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text);
 }
 .btn-primary:disabled,
 .btn-outline:disabled {

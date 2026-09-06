@@ -59,7 +59,7 @@
     <!-- Menú lateral -->
     <div class="sidebar" :class="{ open: menuAbierto }">
       <div class="sidebar-header">
-        <h1 class="logo-text">MAVI <span>Store</span></h1>
+        <h1 class="logo-text">Cru - <span>Shop</span></h1>
       </div>
 
       <ul class="sidebar-menu">
@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
   width: calc(100% - 2rem); /* ancho responsivo */
   max-width: 1200px;
   z-index: 100; /* encima de todo */
-  background-color: #fff; /* fondo blanco */
+  background-color: var(--surface); /* fondo blanco */
   padding: 0.5rem 1rem;
   display: flex;
   justify-content: space-between;
@@ -377,7 +377,7 @@ onBeforeUnmount(() => {
   margin: auto;
   width: 20px;
   height: 20px;
-  color: #000;
+  color: var(--text);
 }
 
 .user-button {
@@ -405,14 +405,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #fff;
+  background: var(--surface);
   position: relative; /* ya no fixed ni sticky */
   z-index: 10;
 }
 .search-input {
   flex: 1;
   padding: 0.5rem 1rem 0.5rem 2rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 1rem;
 }
@@ -472,7 +472,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: #000; /* texto negro por defecto */
+  color: var(--text); /* texto negro por defecto */
   font-size: 1.1rem;
   font-weight: 500;
   padding: 0.5rem 1rem;
@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
 .sidebar ul li a svg {
   width: 20px;
   height: 20px;
-  color: #000; /* negro por defecto */
+  color: var(--text); /* negro por defecto */
   transition: color 0.3s;
 }
 
@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
 }
 /* Separador gris entre Account y Settings */
 .sidebar-footer li:first-child {
-  border-top: 1px solid #ccc; /* línea gris */
+  border-top: 1px solid var(--border); /* línea gris */
   padding-top: 0.5rem; /* espacio arriba de la línea */
   margin-top: 0.5rem; /* espacio entre Account y la línea */
 }
@@ -510,11 +510,11 @@ onBeforeUnmount(() => {
 .logo-text {
   font-size: 1.3rem;
   font-weight: bold;
-  color: black;
+  color: var(--text);
 }
 
 .logo-text span {
-  color: gray;
+  color: var(--text-muted);
   font-weight: normal;
 }
 
@@ -526,7 +526,7 @@ onBeforeUnmount(() => {
   width: 220px; /* ancho del drawer */
   height: 60%; /* altura compacta */
   background: #f5f1eb; /* blanco hueso */
-  color: #000; /* texto negro */
+  color: var(--text); /* texto negro */
   z-index: 20;
   padding: 2rem 1.5rem;
   box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: #000; /* texto negro por defecto */
+  color: var(--text); /* texto negro por defecto */
   font-size: 1.1rem;
   font-weight: 500;
   padding: 0.5rem 1rem;
@@ -567,7 +567,7 @@ onBeforeUnmount(() => {
 .sidebar ul li a svg {
   width: 20px;
   height: 20px;
-  color: #000; /* negro por defecto */
+  color: var(--text); /* negro por defecto */
   transition: color 0.3s;
 }
 
@@ -597,7 +597,7 @@ onBeforeUnmount(() => {
   padding: 0.7rem 1rem 0.7rem 2.8rem; /* espacio extra para icono */
   border: none;
   border-radius: 12px;
-  background: #f5f5f5; /* gris claro */
+  background: var(--surface-2); /* gris claro */
   font-size: 0.95rem;
   outline: none;
   transition: all 0.3s ease;
@@ -611,7 +611,7 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: #888;
+  color: var(--text-muted);
   pointer-events: none;
   transition: color 0.3s ease;
 }
@@ -624,8 +624,8 @@ onBeforeUnmount(() => {
   right: 20px;
   width: 36px; /* ancho fijo */
   height: 36px; /* igual al ancho para círculo */
-  background: white;
-  color: var(--color-bg-blue-dark); /* flecha azul */
+  background: var(--surface);
+  color: var(--brand-navy-text); /* flecha azul */
   border: 2px solid var(--color-bg-blue-dark);
   border-radius: 50%; /* círculo perfecto */
   display: flex;

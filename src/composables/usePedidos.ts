@@ -14,6 +14,7 @@ import {
   type Unsubscribe,
 } from 'firebase/database';
 import { tiendasQueNoPuedenVender, TiendaNoDisponibleError } from '@/composables/useMembresia';
+import { tiendasCerradas, TiendaCerradaError } from '@/composables/useHorarioTienda';
 import { sessionUser } from '@/utils/sessionUser';
 
 /* =========================================================================
@@ -23,21 +24,32 @@ import { sessionUser } from '@/utils/sessionUser';
 /**
  * Ciclo de vida de un pedido.
  *
- *   Preparacion ──► Enviado ──► Entregado
- *        │             │
- *        └──► Cancelado ◄┘
+ *   Preparacion ──► Atendiendo ──► Enviado ──► Entregado
+ *        │              │            │
+ *        └──────────► Cancelado ◄────┘
  *
- * - El cliente solo puede cancelar mientras NINGUNA tienda haya enviado.
- * - La tienda puede avanzar (Preparacion→Enviado→Entregado) y cancelar
+ * - El cliente solo puede cancelar mientras NINGUNA tienda haya empezado a
+ *   atender (Atendiendo) ni enviado.
+ * - La tienda "atiende" el pedido (Atendiendo: lo confirma y lo está
+ *   preparando/elaborando; útil para productos bajo pedido), luego lo envía y
+ *   lo entrega. Puede saltar directo de Preparacion a Enviado. Puede cancelar
  *   mientras no esté Entregado.
  * - Un pedido puede tener items de varias tiendas: cada tienda lleva su
  *   propio estatus en `estatusPorTienda` y el `estatus` global se deriva.
  * - Cada transición queda registrada en `historial` (quién, cuándo, qué).
  * - El stock se descuenta al crear el pedido (transacción atómica por
  *   variante) y se devuelve al cancelar.
+ * - Solo se puede comprar a tiendas ABIERTAS según su horario (useHorarioTienda);
+ *   los artículos de tiendas cerradas se quedan en el carrito.
+ * - Si una tienda no atiende su parte del pedido (sigue en Preparacion) en
+ *   HORAS_LIMITE_ATENCION, el sistema la cancela y devuelve el stock
+ *   (ver expirarPedidosSinAtender). Pasar a Atendiendo detiene ese reloj.
+ * - Los artículos marcados `porPedido` (bajo pedido) no controlan stock: la
+ *   tienda los elabora cuando el cliente los pide.
  */
 export type EstatusPedido =
   | 'Preparacion'
+  | 'Atendiendo'
   | 'Enviado'
   | 'Entregado'
   | 'Cancelado';
@@ -46,27 +58,44 @@ export type ActorPedido = 'cliente' | 'tienda' | 'sistema';
 
 export const ESTATUS_LABEL: Record<EstatusPedido, string> = {
   Preparacion: 'En preparación',
+  Atendiendo: 'Atendiendo tu pedido',
   Enviado: 'En camino',
   Entregado: 'Entregado',
   Cancelado: 'Cancelado',
 };
 
+/** Etiqueta pensada para la tienda (el cliente ve ESTATUS_LABEL) */
+export const ESTATUS_LABEL_TIENDA: Record<EstatusPedido, string> = {
+  ...ESTATUS_LABEL,
+  Preparacion: 'Nuevo · sin atender',
+  Atendiendo: 'Atendiendo',
+};
+
+export const ACTOR_LABEL: Record<ActorPedido, string> = {
+  cliente: 'Cliente',
+  tienda: 'Tienda',
+  sistema: 'Sistema',
+};
+
 /** Transiciones permitidas por rol */
 const TRANSICIONES: Record<ActorPedido, Record<EstatusPedido, EstatusPedido[]>> = {
   tienda: {
-    Preparacion: ['Enviado', 'Cancelado'],
+    Preparacion: ['Atendiendo', 'Enviado', 'Cancelado'],
+    Atendiendo: ['Enviado', 'Cancelado'],
     Enviado: ['Entregado', 'Cancelado'],
     Entregado: [],
     Cancelado: [],
   },
   cliente: {
     Preparacion: ['Cancelado'],
+    Atendiendo: [],
     Enviado: [],
     Entregado: [],
     Cancelado: [],
   },
   sistema: {
-    Preparacion: ['Enviado', 'Entregado', 'Cancelado'],
+    Preparacion: ['Atendiendo', 'Enviado', 'Entregado', 'Cancelado'],
+    Atendiendo: ['Enviado', 'Entregado', 'Cancelado'],
     Enviado: ['Entregado', 'Cancelado'],
     Entregado: [],
     Cancelado: [],
@@ -104,6 +133,8 @@ export interface PedidoItem {
   almacen?: string;
   anticipo?: number | null;
   descuentoCupon?: number | null;
+  /** true si el artículo se elabora bajo pedido (sin control de stock) */
+  porPedido?: boolean;
 }
 
 export interface Pedido {
@@ -198,6 +229,7 @@ export function estatusDeTienda(p: Pedido, tiendaId: string): EstatusPedido {
  *  - todas Cancelado           -> Cancelado
  *  - todas Entregado/Cancelado -> Entregado
  *  - alguna Enviado o Entregado -> Enviado
+ *  - alguna Atendiendo         -> Atendiendo
  *  - resto                     -> Preparacion
  */
 export function derivarEstatusGlobal(
@@ -208,7 +240,71 @@ export function derivarEstatusGlobal(
   if (valores.every((v) => v === 'Cancelado')) return 'Cancelado';
   if (valores.every((v) => v === 'Entregado' || v === 'Cancelado')) return 'Entregado';
   if (valores.some((v) => v === 'Enviado' || v === 'Entregado')) return 'Enviado';
+  if (valores.some((v) => v === 'Atendiendo')) return 'Atendiendo';
   return 'Preparacion';
+}
+
+/** ¿El pedido tiene artículos que se elaboran bajo pedido? (de una tienda o de todo el pedido) */
+export function tieneArticulosPorPedido(p: Pedido, tiendaId?: string): boolean {
+  return (p.items || []).some((i) => i.porPedido === true && (!tiendaId || String(i.proveedor) === String(tiendaId)));
+}
+
+/* =========================================================================
+ *  MOTIVO DE CANCELACIÓN (para mostrarlo a cliente y tienda)
+ * ========================================================================= */
+
+export interface MotivoCancelacion {
+  por: ActorPedido;
+  nota: string;
+  fecha?: string;
+}
+
+/**
+ * Quién canceló la parte de una tienda (o el pedido completo si no se indica tienda)
+ * y con qué nota. Se toma del historial: la última entrada 'Cancelado' de esa tienda,
+ * o la global (sin tiendaId, la del cliente). Para pedidos viejos sin historial se
+ * usa `canceladoPor` / `motivoCancelacion`.
+ */
+export function motivoCancelacion(p: Pedido, tiendaId?: string): MotivoCancelacion | null {
+  const cancelada = tiendaId ? estatusDeTienda(p, tiendaId) === 'Cancelado' : p.estatus === 'Cancelado';
+  if (!cancelada) return null;
+  const hist = [...(p.historial || [])].reverse().filter((h) => h.estatus === 'Cancelado');
+  const propia = tiendaId ? hist.find((h) => String(h.tiendaId) === String(tiendaId)) : undefined;
+  const global = hist.find((h) => !h.tiendaId);
+  const h = propia || global || hist[0];
+  if (h) return { por: h.por, nota: h.nota || '', fecha: h.fecha };
+  if (p.canceladoPor) return { por: p.canceladoPor, nota: p.motivoCancelacion || '' };
+  return null;
+}
+
+/**
+ * Texto listo para mostrar, según quién lo lea:
+ *  - cliente: "Cancelado por la tienda: se acabó la harina" / "Cancelaste este pedido" /
+ *             "Cancelado automáticamente: la tienda no atendió el pedido en 2 horas"
+ *  - tienda:  "Cancelado por el cliente: ya no lo quiero" / "Cancelaste este pedido: …" / automático
+ */
+export function textoCancelacion(m: MotivoCancelacion | null, lector: 'cliente' | 'tienda'): string | null {
+  if (!m) return null;
+  const nota = m.nota.trim();
+  const conNota = (base: string) => (nota ? `${base}: ${nota}` : base);
+  switch (m.por) {
+    case 'sistema':
+      return nota || NOTA_CANCELACION_SIN_ATENDER;
+    case 'cliente':
+      return lector === 'cliente' ? conNota('Cancelaste este pedido') : conNota('Cancelado por el cliente');
+    case 'tienda':
+      return lector === 'tienda' ? conNota('Cancelaste este pedido') : nota ? `Cancelado por la tienda: ${nota}` : 'Cancelado por la tienda (sin motivo indicado)';
+    default:
+      return conNota('Cancelado');
+  }
+}
+
+/** Tiendas del pedido con su parte cancelada y el texto del motivo, para listarlas */
+export function cancelacionesPorTienda(p: Pedido, lector: 'cliente' | 'tienda'): { tiendaId: string; nombre: string; texto: string }[] {
+  const nombres = nombresTiendasDelPedido(p);
+  return tiendasDelPedido(p)
+    .filter((t) => estatusDeTienda(p, t) === 'Cancelado')
+    .map((t) => ({ tiendaId: t, nombre: nombres[t] || 'Tienda', texto: textoCancelacion(motivoCancelacion(p, t), lector) || 'Cancelado' }));
 }
 
 /* =========================================================================
@@ -304,11 +400,15 @@ export async function guardarPedidos(
     almacen: item.almacen || '',
     anticipo: item.anticipo ?? null,
     descuentoCupon: item.descuentoCupon ?? null,
+    porPedido: item.porPedido === true,
   }));
 
-  // 0) Ninguna tienda del pedido puede estar pendiente, bloqueada o vencida
+  // 0) Ninguna tienda del pedido puede estar pendiente, bloqueada o vencida…
   const noDisponibles = await tiendasQueNoPuedenVender(items.map((i) => i.proveedor || ''));
   if (noDisponibles.length) throw new TiendaNoDisponibleError(noDisponibles);
+  // …ni cerrada según su horario (sus artículos se quedan en el carrito)
+  const cerradas = await tiendasCerradas(items.map((i) => i.proveedor || ''));
+  if (cerradas.length) throw new TiendaCerradaError(cerradas);
 
   // 1) Reservar stock (atómico por variante)
   const descontados: PedidoItem[] = [];
@@ -416,7 +516,7 @@ export async function cancelarPedidoCliente(pedido: Pedido, motivo?: string): Pr
 
   const bloqueado = Object.values(porTiendaActual).some((e) => !puedeTransicionar(e, 'Cancelado', 'cliente'));
   if (bloqueado || !puedeTransicionar(pedido.estatus, 'Cancelado', 'cliente')) {
-    throw new Error('El pedido ya va en camino; contacta a la tienda para cancelarlo.');
+    throw new Error('La tienda ya está atendiendo tu pedido; contáctala para cancelarlo.');
   }
 
   const porTienda: Record<string, EstatusPedido> = {};
@@ -434,6 +534,116 @@ export async function cancelarPedidoCliente(pedido: Pedido, motivo?: string): Pr
   await Promise.all(pedido.items.map(devolverStock));
   await update(dbRef(db, `pedidos/${pedido.id_pedido}`), cambios);
   return { ...pedido, ...cambios };
+}
+
+/* =========================================================================
+ *  CANCELACIÓN AUTOMÁTICA POR FALTA DE ATENCIÓN
+ * ========================================================================= */
+
+/** Horas que tiene una tienda para atender su parte del pedido (sacarlo de Preparacion: Atendiendo o Enviado) */
+export const HORAS_LIMITE_ATENCION = 2;
+export const MS_LIMITE_ATENCION = HORAS_LIMITE_ATENCION * 60 * 60_000;
+
+export const NOTA_CANCELACION_SIN_ATENDER = `Cancelado automáticamente: la tienda no atendió el pedido en ${HORAS_LIMITE_ATENCION} horas`;
+
+/**
+ * Milisegundos que le quedan a la tienda para atender el pedido (negativo si ya venció).
+ * null si no aplica: la tienda ya lo atendió, o es un pedido anterior a esta regla
+ * (sin `fecha_creacion` ISO; su fecha en texto no es confiable para cancelar solo).
+ */
+export function tiempoRestanteAtencion(p: Pedido, tiendaId: string, ahora: Date = new Date()): number | null {
+  if (estatusDeTienda(p, tiendaId) !== 'Preparacion') return null;
+  if (!p.fecha_creacion) return null;
+  const creado = fechaPedido(p);
+  if (!creado) return null;
+  return creado + MS_LIMITE_ATENCION - ahora.getTime();
+}
+
+/** "1 h 20 min" / "35 min" para mostrar el tiempo que queda */
+export function formatoTiempoRestante(ms: number): string {
+  const min = Math.max(0, Math.ceil(ms / 60_000));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h && m) return `${h} h ${m} min`;
+  if (h) return `${h} h`;
+  return `${m} min`;
+}
+
+/** Tiendas del pedido que siguen en Preparacion y ya agotaron su tiempo para atenderlo */
+export function tiendasSinAtender(p: Pedido, ahora: Date = new Date()): string[] {
+  return tiendasDelPedido(p).filter((t) => {
+    const restante = tiempoRestanteAtencion(p, t, ahora);
+    return restante !== null && restante <= 0;
+  });
+}
+
+/**
+ * Cancela, en nombre del sistema, la parte del pedido de las tiendas que no lo atendieron.
+ * La escritura es una transacción sobre el pedido completo para que dos clientes que
+ * detecten el vencimiento al mismo tiempo no lo cancelen dos veces (ni devuelvan el
+ * stock dos veces). Devuelve las tiendas canceladas en esta llamada.
+ */
+export async function cancelarTiendasSinAtender(pedido: Pedido, ahora: Date = new Date()): Promise<string[]> {
+  if (!pedido.id_pedido) return [];
+  if (!tiendasSinAtender(pedido, ahora).length) return [];
+
+  let canceladas: string[] = [];
+  const res = await runTransaction(dbRef(db, `pedidos/${pedido.id_pedido}`), (actual: any) => {
+    canceladas = [];
+    if (!actual) return actual;
+    const p = { id_pedido: pedido.id_pedido, ...actual } as Pedido;
+    const vencidas = tiendasSinAtender(p, ahora).filter((t) => puedeTransicionar(estatusDeTienda(p, t), 'Cancelado', 'sistema'));
+    if (!vencidas.length) return; // otro cliente ya lo hizo: abortar sin cambios
+
+    const porTienda: Record<string, EstatusPedido> = { ...(p.estatusPorTienda || {}) };
+    tiendasDelPedido(p).forEach((t) => {
+      if (!porTienda[t]) porTienda[t] = p.estatus || 'Preparacion';
+    });
+    const fecha = ahora.toISOString();
+    const historial: HistorialPedido[] = [...(p.historial || [])];
+    for (const t of vencidas) {
+      porTienda[t] = 'Cancelado';
+      historial.push({ estatus: 'Cancelado', fecha, por: 'sistema', tiendaId: t, nota: NOTA_CANCELACION_SIN_ATENDER });
+    }
+    const global = derivarEstatusGlobal(porTienda);
+    const cambios: Partial<Pedido> = { estatusPorTienda: porTienda, estatus: global, historial };
+    if (global === 'Cancelado') {
+      cambios.canceladoPor = 'sistema';
+      cambios.motivoCancelacion = NOTA_CANCELACION_SIN_ATENDER;
+    }
+    canceladas = vencidas;
+    return { ...actual, ...cambios };
+  });
+
+  if (!res.committed || !canceladas.length) return [];
+  await Promise.all(
+    pedido.items.filter((i) => canceladas.includes(String(i.proveedor))).map(devolverStock),
+  );
+  return canceladas;
+}
+
+// Pedidos cuya expiración ya está en curso, para no repetirla con cada snapshot en vivo
+const expirando = new Set<string>();
+
+/**
+ * Revisa una lista de pedidos y cancela las partes vencidas. Se llama al cargar los
+ * pedidos del cliente y de la tienda; la suscripción en vivo refleja el cambio después.
+ * Devuelve los ids de los pedidos tocados.
+ */
+export async function expirarPedidosSinAtender(lista: Pedido[], ahora: Date = new Date()): Promise<string[]> {
+  const tocados: string[] = [];
+  for (const p of lista) {
+    if (!p.id_pedido || expirando.has(p.id_pedido) || !tiendasSinAtender(p, ahora).length) continue;
+    expirando.add(p.id_pedido);
+    try {
+      if ((await cancelarTiendasSinAtender(p, ahora)).length) tocados.push(p.id_pedido);
+    } catch (e) {
+      console.error('No se pudo cancelar el pedido sin atender:', p.id_pedido, e);
+    } finally {
+      expirando.delete(p.id_pedido);
+    }
+  }
+  return tocados;
 }
 
 /* =========================================================================
@@ -459,8 +669,13 @@ export async function getPedidosByUser(): Promise<Pedido[]> {
   if (!sessionUser.value?.id) return [];
   try {
     const q = query(dbRef(db, 'pedidos'), orderByChild('id_usuario'), equalTo(sessionUser.value.id));
-    const snap = await get(q);
-    return ordenarRecientes(snapshotToLista(snap.exists() ? snap.val() : null));
+    let snap = await get(q);
+    let lista = snapshotToLista(snap.exists() ? snap.val() : null);
+    if ((await expirarPedidosSinAtender(lista)).length) {
+      snap = await get(q);
+      lista = snapshotToLista(snap.exists() ? snap.val() : null);
+    }
+    return ordenarRecientes(lista);
   } catch (error) {
     console.error('Error al traer pedidos:', error);
     return [];
@@ -474,14 +689,23 @@ export function suscribirPedidosUsuario(cb: (pedidos: Pedido[]) => void): Unsubs
     return () => {};
   }
   const q = query(dbRef(db, 'pedidos'), orderByChild('id_usuario'), equalTo(sessionUser.value.id));
-  return onValue(q, (snap) => cb(ordenarRecientes(snapshotToLista(snap.exists() ? snap.val() : null))));
+  return onValue(q, (snap) => {
+    const lista = snapshotToLista(snap.exists() ? snap.val() : null);
+    cb(ordenarRecientes(lista));
+    void expirarPedidosSinAtender(lista); // si cancela algo, la suscripción vuelve a avisar
+  });
 }
 
 /** Todos los pedidos que incluyen items de la tienda (cualquier estatus) */
 export async function getPedidosByProveedor(idTienda: string): Promise<Pedido[]> {
   try {
-    const snap = await get(child(dbRef(db), 'pedidos'));
-    return filtrarPorTienda(snapshotToLista(snap.exists() ? snap.val() : null), idTienda);
+    let snap = await get(child(dbRef(db), 'pedidos'));
+    let lista = filtrarPorTienda(snapshotToLista(snap.exists() ? snap.val() : null), idTienda);
+    if ((await expirarPedidosSinAtender(lista)).length) {
+      snap = await get(child(dbRef(db), 'pedidos'));
+      lista = filtrarPorTienda(snapshotToLista(snap.exists() ? snap.val() : null), idTienda);
+    }
+    return lista;
   } catch (error) {
     console.error('Error al traer pedidos por proveedor:', error);
     return [];
@@ -490,9 +714,11 @@ export async function getPedidosByProveedor(idTienda: string): Promise<Pedido[]>
 
 /** Suscripción en vivo a los pedidos de una tienda (sustituye al polling) */
 export function suscribirPedidosProveedor(idTienda: string, cb: (pedidos: Pedido[]) => void): Unsubscribe {
-  return onValue(dbRef(db, 'pedidos'), (snap) =>
-    cb(filtrarPorTienda(snapshotToLista(snap.exists() ? snap.val() : null), idTienda)),
-  );
+  return onValue(dbRef(db, 'pedidos'), (snap) => {
+    const lista = filtrarPorTienda(snapshotToLista(snap.exists() ? snap.val() : null), idTienda);
+    cb(lista);
+    void expirarPedidosSinAtender(lista); // si cancela algo, la suscripción vuelve a avisar
+  });
 }
 
 function filtrarPorTienda(lista: Pedido[], idTienda: string) {

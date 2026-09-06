@@ -187,7 +187,7 @@ function onImgError(e: Event) {
   padding: 0.75rem 2.5rem 0.75rem 2.8rem;
   border: none;
   border-radius: 12px;
-  background: #f1f3f6;
+  background: var(--surface-2);
   font-size: 16px;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -203,7 +203,7 @@ function onImgError(e: Event) {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: #888;
+  color: var(--text-muted);
   pointer-events: none;
 }
 .clear-btn {
@@ -216,7 +216,7 @@ function onImgError(e: Event) {
   border: none;
   border-radius: 50%;
   background: #dfe3e8;
-  color: #444;
+  color: var(--text);
   cursor: pointer;
   font-size: 0.8rem;
   padding: 0;
@@ -230,7 +230,7 @@ function onImgError(e: Event) {
   gap: 10px;
   margin-bottom: 0.75rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-muted);
 }
 .counter {
   font-weight: 600;
@@ -249,7 +249,7 @@ function onImgError(e: Event) {
 }
 .empty {
   text-align: center;
-  color: #777;
+  color: var(--text-muted);
   padding: 2rem 0;
 }
 
@@ -262,7 +262,7 @@ function onImgError(e: Event) {
 
 /* Card */
 .categoria-item {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1rem 0.75rem 0.9rem;
   text-align: center;
@@ -305,7 +305,7 @@ function onImgError(e: Event) {
   margin: 0;
   font-weight: 600;
   font-size: 0.92rem;
-  color: #222;
+  color: var(--text);
   line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -319,7 +319,7 @@ function onImgError(e: Event) {
   padding: 3px 10px;
   border-radius: 999px;
   background: #e8f1fc;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
 }
 .categoria-item.vacia .badge {
   background: #ececec;

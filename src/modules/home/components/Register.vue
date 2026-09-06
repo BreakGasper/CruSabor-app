@@ -715,7 +715,7 @@ async function handleRegister() {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -787,7 +787,7 @@ async function handleRegister() {
 }
 .progress {
   height: 100%;
-  background: #fff;
+  background: var(--surface);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -797,7 +797,7 @@ async function handleRegister() {
   width: 90%;
   max-width: 460px;
   margin-top: -1.5rem;
-  background: #fff;
+  background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 20px;
   box-shadow: 0 8px 25px rgba(1, 31, 65, 0.12);
@@ -808,7 +808,7 @@ async function handleRegister() {
 .card-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
   margin: 0 0 1.2rem;
   padding-bottom: 0.6rem;
   border-bottom: 2px solid #e8f0fa;
@@ -823,19 +823,19 @@ async function handleRegister() {
 .form-group label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 6px;
 }
 .form-input {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 16px; /* evita zoom automático en iOS */
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
-  color: #222;
+  background: var(--surface);
+  color: var(--text);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -906,8 +906,8 @@ async function handleRegister() {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  background: #fff;
-  border: 2px solid #e5e7eb;
+  background: var(--surface);
+  border: 2px solid var(--border);
   font-family: inherit;
   filter: grayscale(1);
   transition: all 0.2s;
@@ -928,7 +928,7 @@ async function handleRegister() {
 .gender-label {
   font-weight: 600;
   font-size: 0.8rem;
-  color: #333;
+  color: var(--text);
 }
 
 /* Teléfono */
@@ -1019,7 +1019,7 @@ async function handleRegister() {
   cursor: pointer;
   border: 3px solid #eaf2fc;
   box-shadow: 0 4px 12px rgba(1, 31, 65, 0.15);
-  background: #eee;
+  background: var(--surface-2);
   transition: transform 0.2s;
 }
 .avatar-upload:hover {
@@ -1047,7 +1047,7 @@ async function handleRegister() {
 .avatar-hint {
   margin-top: 8px;
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 
 /* Términos */
@@ -1057,7 +1057,7 @@ async function handleRegister() {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   font-size: 0.9rem;
   font-weight: 500 !important;
   cursor: pointer;
@@ -1075,7 +1075,7 @@ async function handleRegister() {
   border-color: #d9534f;
 }
 .terms-label a {
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: underline;
 }
@@ -1115,8 +1115,8 @@ async function handleRegister() {
 }
 .btn-outline {
   border: 2px solid var(--color-bg-blue-ligth);
-  background: #fff;
-  color: var(--color-bg-blue-ligth);
+  background: var(--surface);
+  color: var(--brand-blue-text);
 }
 .btn-outline:hover {
   background: var(--color-bg-blue-ligth);
@@ -1127,10 +1127,10 @@ async function handleRegister() {
   margin: 1.2rem 0 0;
   text-align: center;
   font-size: 0.88rem;
-  color: #555;
+  color: var(--text-muted);
 }
 .switch-link a {
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
 }

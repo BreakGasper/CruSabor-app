@@ -5,7 +5,10 @@
       :mensaje="configuracion.mantenimiento.mensaje"
       :contacto="contactoSoporte"
     />
-    <router-view v-else />
+    <!-- Deslizar hacia abajo en móvil vuelve a montar la vista actual (recarga sus datos) -->
+    <PullToRefresh v-else :refrescando="refrescando" @refresh="refrescarVista">
+      <router-view :key="claveVista" />
+    </PullToRefresh>
   </div>
 
   <Toast position="bottom-center" />
@@ -13,8 +16,9 @@
 <script setup lang="ts">
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
-import { computed } from "vue";
+import { computed, ref, nextTick } from "vue";
 import { useRoute } from "vue-router";
+import PullToRefresh from "@/components/PullToRefresh.vue";
 import { cargarSesion } from "@/utils/sessionUser";
 import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
@@ -26,6 +30,19 @@ iniciarSincronizacion();
 const { configuracion, contactoSoporte } = useConfiguracion();
 const route = useRoute();
 const mantenimientoActivo = computed(() => enMantenimientoPara(configuracion.value, route.path));
+
+/* Pull to refresh: cambiar la clave del router-view desmonta y vuelve a montar la pantalla,
+ * con lo que cada vista repite sus cargas de onMounted. La sesión y el carrito local no se tocan. */
+const claveVista = ref(0);
+const refrescando = ref(false);
+async function refrescarVista() {
+  if (refrescando.value) return;
+  refrescando.value = true;
+  claveVista.value++;
+  await nextTick();
+  // Tiempo mínimo para que el indicador se vea y la vista alcance a pintar sus datos
+  setTimeout(() => (refrescando.value = false), 700);
+}
 const toast = useToast();
 </script>
 

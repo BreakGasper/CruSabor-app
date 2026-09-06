@@ -1128,7 +1128,7 @@ watch(
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1155,7 +1155,7 @@ watch(
   margin: 0 auto 0.7rem;
   border-radius: 16px;
   background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #0f1c2e;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1208,7 +1208,7 @@ watch(
   width: 90%;
   max-width: 560px;
   margin-top: -1.5rem;
-  background: #fff;
+  background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 20px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
@@ -1216,7 +1216,7 @@ watch(
 }
 .step-title {
   font-weight: 700;
-  color: #0f1c2e;
+  color: var(--text);
   font-size: 1.25rem;
   margin: 0 0 1.2rem;
   padding-bottom: 0.6rem;
@@ -1255,13 +1255,13 @@ watch(
 .address-group label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   margin-bottom: 6px;
 }
 .field-hint {
   margin: -2px 0 8px;
   font-size: 0.8rem;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 .form-input,
 textarea,
@@ -1269,12 +1269,12 @@ select {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 16px; /* evita zoom automático en iOS */
   font-family: inherit;
   box-sizing: border-box;
-  background: #fff;
-  color: #222;
+  background: var(--surface);
+  color: var(--text);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 textarea {
@@ -1289,11 +1289,11 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 .form-input:disabled {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--surface-2);
+  color: var(--text-muted);
 }
 .form-input[readonly] {
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 /* Inputs con icono */
@@ -1410,8 +1410,8 @@ select:focus {
   right: 0;
   max-height: 200px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   z-index: 10;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
@@ -1512,7 +1512,7 @@ select:focus {
   gap: 8px;
   margin-top: 10px;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
 }
 .checkbox-with-icon input[type="checkbox"],
 .check-card input[type="checkbox"],
@@ -1543,9 +1543,9 @@ select:focus {
   font-weight: 500;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   cursor: pointer;
-  background: #fff;
+  background: var(--surface);
   transition: border-color 0.2s, background 0.2s;
   margin-bottom: 0;
 }
@@ -1636,17 +1636,17 @@ select:focus {
   width: 90px;
   font-weight: 600;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
 }
 .day-schedule input[type="time"] {
   flex: 1;
   min-width: 0;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   font-size: 0.9rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--surface);
 }
 .day-schedule input[type="time"]:focus {
   outline: none;
@@ -1655,7 +1655,7 @@ select:focus {
 }
 .day-schedule span {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* ===== Botones ===== */
@@ -1682,7 +1682,7 @@ select:focus {
 }
 .btn-primary,
 .btn-success {
-  color: #0f1c2e;
+  color: var(--text);
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35);
 }
@@ -1692,8 +1692,8 @@ select:focus {
   transform: translateY(-1px);
 }
 .btn-secondary {
-  background: #fff;
-  color: #0f1c2e;
+  background: var(--surface);
+  color: var(--text);
   border: 2px solid #0f1c2e;
   padding: 11px 20px;
 }

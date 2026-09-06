@@ -2,7 +2,7 @@ import { ref as vueRef } from "vue";
 import type { Ref } from "vue";
 
 import { db } from "@/firebase";
-import { ref as dbRef, push, set, onValue, update } from "firebase/database";
+import { ref as dbRef, push, set, get, onValue, update } from "firebase/database";
 import { uploadStoreLogo, uploadStoreGallery, uploadStoreBanner } from "@/composables/useStorage";
 import type { ControlTienda } from "@/composables/useMembresia";
 
@@ -194,9 +194,34 @@ async function tiendaLogueada(telefono: string): Promise<Tienda | null> {
     for (const [k, v] of Object.entries(resto)) if (v !== undefined) limpio[k] = v;
     if (!Object.keys(limpio).length) return;
     await update(dbRef(db, `tiendas/${tiendaId}`), limpio);
+
+    // El nombre viaja copiado en cada artículo (tiendaNombre): si cambió, se actualiza en todos
+    if (typeof limpio.nombreTienda === "string") {
+      await sincronizarNombreEnArticulos(tiendaId, limpio.nombreTienda);
+    }
+  }
+
+  /**
+   * Copia el nombre actual de la tienda en `articulos/{id}/tiendaNombre` de todos sus
+   * artículos, en una sola escritura multi-ruta. Devuelve cuántos artículos cambió.
+   */
+  async function sincronizarNombreEnArticulos(tiendaId: string, nombre: string): Promise<number> {
+    const snap = await get(dbRef(db, "articulos"));
+    if (!snap.exists()) return 0;
+    const data = snap.val() as Record<string, any>;
+    const cambios: Record<string, string> = {};
+    for (const [id, a] of Object.entries(data)) {
+      if (String(a?.tiendaId) === String(tiendaId) && a?.tiendaNombre !== nombre) {
+        cambios[`${id}/tiendaNombre`] = nombre;
+      }
+    }
+    const n = Object.keys(cambios).length;
+    if (n) await update(dbRef(db, "articulos"), cambios);
+    return n;
   }
 
   return {
+    sincronizarNombreEnArticulos,
     tiendas,
     loading,
     cargarTiendas,

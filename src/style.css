@@ -1,11 +1,20 @@
+/*
+ * Estilos base de la app.
+ *
+ * Tema claro y oscuro por defecto: se sigue la preferencia del sistema
+ * (prefers-color-scheme). Los componentes usan los tokens semánticos de
+ * assets/styles/ColorsVarCss.css (--bg-page, --surface, --text, --text-muted,
+ * --border) en lugar de blancos y grises fijos, así el texto siempre contrasta
+ * con su fondo en ambos modos.
+ */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--text);
+  background-color: var(--bg-page);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,11 +24,11 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--color-bg-blue-ligth);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--color-link-hover);
 }
 
 body {
@@ -29,6 +38,8 @@ body {
   width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
+  color: var(--text);
+  background-color: var(--bg-page);
 }
 
 h1 {
@@ -43,16 +54,43 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  color: var(--text);
+  background-color: var(--surface-2);
   cursor: pointer;
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--color-bg-blue-ligth);
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Campos de formulario: el navegador en modo oscuro los pinta oscuros; les damos
+   siempre el fondo de superficie y el color de texto del tema. */
+input,
+select,
+textarea {
+  color: var(--text);
+  background-color: var(--surface);
+  border-color: var(--border);
+  font-family: inherit;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--text-muted);
+  background-color: var(--surface-2);
+}
+option {
+  color: var(--text);
+  background-color: var(--surface);
 }
 
 .card {
@@ -84,17 +122,4 @@ html {
 *::before,
 *::after {
   box-sizing: inherit;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }

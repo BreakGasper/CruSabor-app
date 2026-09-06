@@ -41,6 +41,8 @@ export interface Membresia {
 }
 
 export interface ControlTienda {
+  /** Nombre actual de la tienda (fuente de verdad; artículos y carrito solo guardan una copia) */
+  nombreTienda?: string;
   estatus?: EstadoTienda;
   motivoBloqueo?: string;
   membresia?: Membresia;
@@ -208,6 +210,7 @@ let suscrito = false;
 
 function extraerControl(t: any): ControlTienda {
   return {
+    nombreTienda: t?.nombreTienda,
     estatus: t?.estatus,
     motivoBloqueo: t?.motivoBloqueo,
     membresia: t?.membresia,
@@ -260,7 +263,11 @@ export function useEstadoTiendas() {
     return ctrl ? estadoEfectivo(ctrl) : undefined;
   };
 
-  return { controlPorTienda, cargado, puedeVender, noPuedeVender, estadoDe };
+  /** Nombre actual de la tienda (undefined si aún no cargó o no existe) */
+  const nombreDe = (tiendaId?: string | null): string | undefined =>
+    tiendaId ? controlPorTienda.value[tiendaId]?.nombreTienda || undefined : undefined;
+
+  return { controlPorTienda, cargado, puedeVender, noPuedeVender, estadoDe, nombreDe };
 }
 
 /**

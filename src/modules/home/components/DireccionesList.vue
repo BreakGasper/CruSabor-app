@@ -113,7 +113,7 @@ async function confirmarEliminar(d: Direccion) {
 }
 .empty {
   text-align: center;
-  color: #777;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin: 0.5rem 0;
 }
@@ -121,7 +121,7 @@ async function confirmarEliminar(d: Direccion) {
   margin: 0 0 0.5rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #666;
+  color: var(--text-muted);
   text-align: right;
 }
 .limite {
@@ -146,7 +146,7 @@ async function confirmarEliminar(d: Direccion) {
   align-items: center;
   gap: 10px;
   padding: 0.7rem 0.8rem;
-  background: #f7f9fc;
+  background: var(--surface-2);
   border: 1px solid transparent;
   border-radius: 12px;
 }
@@ -166,7 +166,7 @@ async function confirmarEliminar(d: Direccion) {
   margin: 0;
   font-weight: 700;
   font-size: 0.92rem;
-  color: #222;
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -182,12 +182,12 @@ async function confirmarEliminar(d: Direccion) {
 }
 .tag.suave {
   background: #e3e8ef;
-  color: #555;
+  color: var(--text-muted);
 }
 .dir-texto {
   margin: 2px 0 0;
   font-size: 0.82rem;
-  color: #555;
+  color: var(--text-muted);
   line-height: 1.3;
 }
 .dir-acciones {
@@ -200,7 +200,7 @@ async function confirmarEliminar(d: Direccion) {
   background: none;
   border: none;
   padding: 2px 4px;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -212,17 +212,17 @@ async function confirmarEliminar(d: Direccion) {
   text-decoration: underline;
 }
 .form-nueva {
-  background: #f7f9fc;
+  background: var(--surface-2);
   padding: 0.85rem;
   border-radius: 12px;
 }
 .btn-agregar {
   width: 100%;
   height: 40px;
-  border: 2px dashed #c9d3e0;
+  border: 2px dashed var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: var(--color-bg-blue-dark);
+  background: var(--surface);
+  color: var(--brand-navy-text);
   font-weight: 700;
   cursor: pointer;
 }

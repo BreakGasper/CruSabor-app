@@ -86,12 +86,12 @@ function onImgError(e: Event) {
 <style scoped>
 .tf-empty {
   text-align: center;
-  color: #777;
+  color: var(--text-muted);
   font-size: 0.9rem;
   padding: 0.5rem 0;
 }
 .tf-empty a {
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -105,7 +105,7 @@ function onImgError(e: Event) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  background: #f7f9fc;
+  background: var(--surface-2);
   border-radius: 14px;
   cursor: pointer;
   transition: background 0.2s, transform 0.2s;
@@ -121,7 +121,7 @@ function onImgError(e: Event) {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--surface);
   border: 2px solid #fff;
 }
 .tf-info {
@@ -133,7 +133,7 @@ function onImgError(e: Event) {
   margin: 0;
   font-weight: 700;
   font-size: 0.95rem;
-  color: #222;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -141,14 +141,14 @@ function onImgError(e: Event) {
 .tf-detalle {
   margin: 2px 0 0;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tf-tel {
   font-size: 0.8rem;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -157,7 +157,7 @@ function onImgError(e: Event) {
   height: 34px;
   border-radius: 50%;
   border: none;
-  background: #fff;
+  background: var(--surface);
   color: #e74c3c;
   display: flex;
   align-items: center;
@@ -175,7 +175,7 @@ function onImgError(e: Event) {
   width: 100%;
   background: transparent;
   border: none;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;

@@ -9,15 +9,40 @@
     <div class="cart-items">
       <div
         v-if="carritoItems.length === 0"
-        style="text-align: center; color: grey; margin-top: 2rem"
+        style="text-align: center; color: var(--text-muted); margin-top: 2rem"
       >
         Aún no has agregado productos al carrito
       </div>
-      <div v-else>
+      <!-- Un bloque por tienda: así el cliente sabe qué le compra a quién -->
+      <div v-else class="grupos">
+      <section
+        v-for="grupo in gruposPorTienda"
+        :key="grupo.tiendaId"
+        class="grupo-tienda"
+        :class="{ cerrada: grupo.cerrada }"
+      >
+        <header class="grupo-header">
+          <button
+            class="grupo-tienda-nombre"
+            type="button"
+            :disabled="!grupo.tiendaId"
+            :title="grupo.tiendaId ? 'Ver tienda' : ''"
+            @click="verTienda(grupo.tiendaId)"
+          >
+            🏪 {{ grupo.nombre }}
+          </button>
+          <span class="grupo-resumen">
+            {{ grupo.cantidad }} {{ grupo.cantidad === 1 ? "artículo" : "artículos" }} · ${{ grupo.subtotal.toFixed(2) }}
+          </span>
+          <span v-if="grupo.cerrada" class="grupo-estado cerrada">🕒 {{ grupo.aviso }}</span>
+          <span v-else-if="grupo.abierta" class="grupo-estado abierta">Abierta</span>
+        </header>
+
         <div
-          v-for="item in carritoItems"
-          :key="item.id_articulo"
+          v-for="item in grupo.items"
+          :key="item.id_articulo + '-' + (item.sku || '')"
           class="cart-item"
+          :class="{ 'tienda-cerrada': grupo.cerrada }"
         >
           <img
             loading="lazy"
@@ -31,6 +56,7 @@
 
             <p class="precio">${{ item.precio.toFixed(2) }}</p>
             <p class="detalle">{{ item.detalle }}</p>
+            <p v-if="item.porPedido" class="bajo-pedido">🛠️ Bajo pedido</p>
           </div>
 
           <!-- Botones de cantidad estilo detalle -->
@@ -57,11 +83,16 @@
             </button>
           </div>
         </div>
+      </section>
       </div>
     </div>
 
     <!-- Footer fijo con totales y checkout -->
     <div class="cart-summary">
+      <p v-if="itemsCerrados.length" class="nota-cerradas">
+        {{ itemsCerrados.length === 1 ? "1 artículo es" : itemsCerrados.length + " artículos son" }}
+        de tiendas cerradas: se quedan en tu carrito y podrás comprarlos en su horario.
+      </p>
       <div class="line">
         <span>Subtotal</span>
         <span>${{ subtotal.toFixed(2) }}</span>
@@ -82,17 +113,25 @@
       </div>
       <button
         class="checkout-btn"
-        :disabled="carritoItems.length === 0"
+        :disabled="itemsDisponibles.length === 0"
         @click="ContinuarCompra"
       >
-        Continuar Compra
+        {{
+          itemsDisponibles.length === 0 && carritoItems.length > 0
+            ? "Tiendas cerradas"
+            : itemsCerrados.length
+              ? `Comprar ${itemsDisponibles.length} disponible${itemsDisponibles.length === 1 ? "" : "s"}`
+              : "Continuar Compra"
+        }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from "vue";
+import { reactive, ref, computed, onMounted, onUnmounted } from "vue";
+import { useHorarioTiendas } from "@/composables/useHorarioTienda";
+import { useEstadoTiendas } from "@/composables/useMembresia";
 import { db } from "@/db";
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import defaultImg from "@/assets/icons/default_articulo.png";
@@ -155,13 +194,77 @@ const disminuirCantidad = async (item: any) => {
   }
 };
 
+/* ---------- Horario de las tiendas ----------
+ * Los artículos de una tienda cerrada se quedan en el carrito pero no se compran:
+ * no cuentan para el total y no viajan al checkout. El reloj avanza cada minuto
+ * para que la tienda "abra" sola mientras la pantalla está visible. */
+const { estaCerrada, estaAbierta, aperturaDe } = useHorarioTiendas();
+const ahora = ref(new Date());
+let reloj: ReturnType<typeof setInterval> | undefined;
+onMounted(() => { reloj = setInterval(() => (ahora.value = new Date()), 60_000); });
+onUnmounted(() => clearInterval(reloj));
+
+const tiendaCerrada = (item: any) => estaCerrada(item.id_tienda, ahora.value);
+const avisoCerrada = (item: any) => {
+  const abre = aperturaDe(item.id_tienda, ahora.value);
+  return abre ? `Tienda cerrada · ${abre}` : "Tienda cerrada";
+};
+
+const itemsDisponibles = computed(() => carritoItems.filter((i) => !tiendaCerrada(i)));
+const itemsCerrados = computed(() => carritoItems.filter((i) => tiendaCerrada(i)));
+
+/* ---------- Agrupación por tienda ----------
+ * El nombre guardado en el artículo del carrito (nombre_tienda) es una copia de cuando se
+ * agregó; si la tienda cambió de nombre se muestra el actual, que llega en vivo desde `tiendas`. */
+const { nombreDe } = useEstadoTiendas();
+
+interface GrupoTienda {
+  tiendaId: string;
+  nombre: string;
+  items: any[];
+  cantidad: number;
+  subtotal: number;
+  abierta: boolean | undefined;
+  cerrada: boolean;
+  aviso: string;
+}
+
+/** Artículos agrupados por tienda, en el orden en que aparecen en el carrito */
+const gruposPorTienda = computed<GrupoTienda[]>(() => {
+  const grupos = new Map<string, GrupoTienda>();
+  for (const item of carritoItems) {
+    const id = String(item.id_tienda || "");
+    if (!grupos.has(id)) {
+      grupos.set(id, {
+        tiendaId: id,
+        nombre: nombreDe(id) || item.nombre_tienda || (id ? "Tienda" : "Sin tienda"),
+        items: [],
+        cantidad: 0,
+        subtotal: 0,
+        abierta: estaAbierta(id, ahora.value),
+        cerrada: estaCerrada(id, ahora.value),
+        aviso: avisoCerrada(item),
+      });
+    }
+    const g = grupos.get(id)!;
+    g.items.push(item);
+    g.cantidad += item.cantidad;
+    g.subtotal += item.precio * item.cantidad;
+  }
+  return [...grupos.values()];
+});
+
+const verTienda = (tiendaId: string) => {
+  if (tiendaId) router.push(`/store/profile/${tiendaId}`);
+};
+
 const subtotal = computed(() =>
-  carritoItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0),
+  itemsDisponibles.value.reduce((sum, item) => sum + item.precio * item.cantidad, 0),
 );
 const shippingFee = computed(() => (subtotal.value < 200 ? 15.0 : 0.0));
 
 const totalArticulos = computed(() =>
-  carritoItems.reduce((sum, item) => sum + item.cantidad, 0),
+  itemsDisponibles.value.reduce((sum, item) => sum + item.cantidad, 0),
 );
 const ContinuarCompra = () => {
   router.push({
@@ -173,7 +276,8 @@ const ContinuarCompra = () => {
       totalArticulos: totalArticulos.value,
       // history.pushState no puede clonar un Proxy reactivo (DataCloneError) y
       // Vue Router recurre a una recarga completa: pasamos una copia plana.
-      carritoItems: JSON.parse(JSON.stringify(carritoItems)),
+      // Solo viajan los artículos de tiendas abiertas.
+      carritoItems: JSON.parse(JSON.stringify(itemsDisponibles.value)),
     },
   });
 };
@@ -195,7 +299,7 @@ function onImgError(e: Event) {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f8f9fb;
+  background: var(--surface-2);
 }
 
 .cart-header {
@@ -218,12 +322,72 @@ function onImgError(e: Event) {
   gap: 1rem;
 }
 
+/* Bloque por tienda */
+.grupos {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.grupo-tienda {
+  background: var(--surface-2);
+  border-radius: 28px;
+  padding: 6px 4px 8px;
+}
+.grupo-tienda.cerrada {
+  background: #fff7ed;
+}
+.grupo-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 14px 4px;
+}
+.grupo-tienda-nombre {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.grupo-tienda-nombre:disabled {
+  cursor: default;
+}
+.grupo-resumen {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.grupo-estado {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.grupo-estado.abierta {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.grupo-estado.cerrada {
+  background: #fdecea;
+  color: #b45309;
+}
+.bajo-pedido {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #3730a3;
+}
+
 .cart-item {
   display: flex;
   align-items: center;
   gap: 1rem;
   margin: 8px;
-  background: white;
+  background: var(--surface);
   padding: 0.8rem;
   border-radius: 25px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
@@ -256,14 +420,14 @@ function onImgError(e: Event) {
 }
 .detalle {
   font-size: 12px;
-  color: grey;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .precio {
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: bold;
   font-size: 14px;
   white-space: nowrap;
@@ -281,7 +445,7 @@ function onImgError(e: Event) {
   height: 40px;
   border-radius: 25px;
   flex-shrink: 0; /* evita que se reduzca demasiado */
-  background: #f0f0f0;
+  background: var(--surface-2);
   padding: 0 4px;
   box-sizing: border-box;
 }
@@ -315,14 +479,14 @@ function onImgError(e: Event) {
 
 .cantidad {
   font-weight: bold;
-  color: black;
+  color: var(--text);
   width: 24px;
   text-align: center;
   flex-shrink: 0;
 }
 
 .cart-summary {
-  background: white;
+  background: var(--surface);
   padding: 1rem;
   border-radius: 30px 30px 0 0;
   display: flex;
@@ -356,6 +520,29 @@ function onImgError(e: Event) {
   font-weight: bold;
   cursor: pointer;
 }
+.cart-item.tienda-cerrada img,
+.cart-item.tienda-cerrada .nombre,
+.cart-item.tienda-cerrada .precio {
+  opacity: 0.55;
+}
+
+.aviso-cerrada {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.nota-cerradas {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .checkout-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -369,8 +556,8 @@ function onImgError(e: Event) {
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  background: white;
-  color: black;
+  background: var(--surface);
+  color: var(--text);
   border: none;
   border-radius: 12px; /* esquinas redondeadas (no círculo perfecto) */
   width: 40px; /* ancho fijo */

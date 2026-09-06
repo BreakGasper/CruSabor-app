@@ -57,10 +57,12 @@
         </div>
         <p v-else class="cancelado-msg">
           ✖ Pedido cancelado
-          <span v-if="pedido.canceladoPor">
-            por {{ pedido.canceladoPor === 'cliente' ? 'ti' : 'la tienda' }}
-          </span>
-          <span v-if="pedido.motivoCancelacion">· {{ pedido.motivoCancelacion }}</span>
+          <span v-if="motivoDe()" class="motivo">· {{ motivoDe() }}</span>
+        </p>
+
+        <p v-if="pedido.estatus === 'Atendiendo'" class="atendiendo-msg">
+          👨‍🍳 La tienda ya está atendiendo tu pedido{{ tieneArticulosPorPedido(pedido) ? ': tus artículos bajo pedido se están elaborando' : '' }}.
+          Te avisaremos cuando vaya en camino.
         </p>
 
         <!-- Estatus por tienda cuando hay varias -->
@@ -70,8 +72,16 @@
             <span :class="['badge', getEstatusClass(estatusDeTienda(pedido, t))]">
               {{ ESTATUS_LABEL[estatusDeTienda(pedido, t)] }}
             </span>
+            <em v-if="estatusDeTienda(pedido, t) === 'Cancelado' && motivoDe(t)" class="motivo-tienda">{{ motivoDe(t) }}</em>
           </li>
         </ul>
+        <!-- Una sola tienda cancelada dentro de un pedido que sigue vivo -->
+        <p
+          v-else-if="pedido.estatus !== 'Cancelado' && tiendas.length === 1 && estatusDeTienda(pedido, tiendas[0]) === 'Cancelado'"
+          class="cancelado-msg"
+        >
+          ✖ {{ motivoDe(tiendas[0]) }}
+        </p>
 
         <!-- Historial -->
         <details v-if="pedido.historial?.length" class="historial">
@@ -80,7 +90,7 @@
             <li v-for="(h, i) in [...pedido.historial].reverse()" :key="i">
               <strong>{{ ESTATUS_LABEL[h.estatus] }}</strong>
               <span class="hist-meta">
-                {{ h.por === 'cliente' ? 'Tú' : h.por === 'tienda' ? 'Tienda' : 'Sistema' }}
+                {{ h.por === 'cliente' ? 'Tú' : ACTOR_LABEL[h.por] || 'Sistema' }}
                 · {{ formatFechaISO(h.fecha) }}
               </span>
               <em v-if="h.nota">{{ h.nota }}</em>
@@ -98,6 +108,9 @@
         </button>
         <p v-else-if="pedido.estatus === 'Enviado'" class="hint">
           Tu pedido ya va en camino. Para cancelarlo contacta a la tienda.
+        </p>
+        <p v-else-if="pedido.estatus === 'Atendiendo'" class="hint">
+          La tienda ya está preparando tu pedido. Para cancelarlo contacta a la tienda.
         </p>
       </div>
 
@@ -124,7 +137,10 @@
             class="producto-img"
           />
           <div>
-            <p class="nombre">{{ item.nombreProducto }}</p>
+            <p class="nombre">
+              {{ item.nombreProducto }}
+              <span v-if="item.porPedido" class="tag-bajo-pedido">bajo pedido</span>
+            </p>
             <p class="cantidad">Cantidad: {{ item.cantidad }}</p>
             <p class="precio">Precio: ${{ item.precio }}</p>
           </div>
@@ -146,7 +162,11 @@ import {
   tiendasDelPedido,
   estatusDeTienda,
   puedeTransicionar,
+  motivoCancelacion,
+  textoCancelacion,
+  tieneArticulosPorPedido,
   ESTATUS_LABEL,
+  ACTOR_LABEL,
   type EstatusPedido,
 } from "@/composables/usePedidos";
 import type { Pedido } from "@/composables/usePedidos";
@@ -161,10 +181,14 @@ const route = useRoute();
 const pedido = ref<Pedido | null>(null);
 const defaultImage = userDefaultImage;
 
-const PASOS: EstatusPedido[] = ["Preparacion", "Enviado", "Entregado"];
+const PASOS: EstatusPedido[] = ["Preparacion", "Atendiendo", "Enviado", "Entregado"];
 const pasoActual = computed(() =>
   pedido.value ? Math.max(0, PASOS.indexOf(pedido.value.estatus)) : 0
 );
+
+/** Motivo de cancelación, del pedido completo o de la parte de una tienda, en palabras para el cliente */
+const motivoDe = (tiendaId?: string) =>
+  pedido.value ? textoCancelacion(motivoCancelacion(pedido.value, tiendaId), "cliente") : null;
 
 const tiendas = computed(() => (pedido.value ? tiendasDelPedido(pedido.value) : []));
 const nombresTienda = ref<Record<string, string>>({});
@@ -233,6 +257,8 @@ function getEstatusClass(estatus: string) {
   switch (estatus.toLowerCase()) {
     case "preparacion":
       return "estatus-preparacion";
+    case "atendiendo":
+      return "estatus-atendiendo";
     case "enviado":
       return "estatus-enviado";
     case "entregado":
@@ -280,7 +306,7 @@ function onImgError(e: Event) {
   display: flex;
   justify-content: space-between; /* mantiene el total a la derecha */
   align-items: center; /* centra verticalmente todo el contenido */
-  background: #ffffff;
+  background: var(--surface);
   padding: 1rem;
   border-radius: 12px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
@@ -297,7 +323,7 @@ function onImgError(e: Event) {
 .info-left p {
   margin: 0.25rem 0;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   display: flex; /* para que iconos y texto estén alineados */
   align-items: center; /* centra verticalmente icono y texto */
   gap: 0.4rem;
@@ -317,7 +343,7 @@ function onImgError(e: Event) {
 
 .fecha {
   font-size: 0.8rem;
-  color: #777;
+  color: var(--text-muted);
 }
 
 .metodo-pago {
@@ -335,7 +361,7 @@ function onImgError(e: Event) {
 .total-label {
   font-size: 0.85rem;
   font-weight: bold;
-  color: #555;
+  color: var(--text-muted);
   text-align: center;
   margin-bottom: 0.2rem;
 }
@@ -357,12 +383,47 @@ function onImgError(e: Event) {
 
 .estatus-preparacion {
   background: #e3f2fd;
-  color: #1976d2;
+  color: var(--brand-blue-text);
+}
+
+.estatus-atendiendo {
+  background: #e0e7ff;
+  color: #3730a3;
 }
 
 .estatus-enviado {
   background: #fff4e5;
   color: #b9770e;
+}
+
+.atendiendo-msg {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.cancelado-msg .motivo,
+.motivo-tienda {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: #9b1c1c;
+}
+
+.tag-bajo-pedido {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.65rem;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
 .estatus-entregado {
@@ -377,7 +438,7 @@ function onImgError(e: Event) {
 
 /* Seguimiento */
 .seguimiento-card {
-  background: #fff;
+  background: var(--surface);
   padding: 1rem;
   border-radius: 12px;
   margin-bottom: 1rem;
@@ -386,7 +447,7 @@ function onImgError(e: Event) {
 .seguimiento-card h3 {
   margin: 0 0 0.75rem;
   font-size: 1rem;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
 }
 .steps {
   display: flex;
@@ -419,9 +480,9 @@ function onImgError(e: Event) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   border: 2px solid #cfd6df;
-  color: #888;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -438,10 +499,10 @@ function onImgError(e: Event) {
 }
 .step-label {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--text-muted);
 }
 .step.done .step-label {
-  color: #222;
+  color: var(--text);
   font-weight: 600;
 }
 .cancelado-msg {
@@ -462,7 +523,7 @@ function onImgError(e: Event) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f7f9fc;
+  background: var(--surface-2);
   padding: 6px 10px;
   border-radius: 8px;
 }
@@ -472,7 +533,7 @@ function onImgError(e: Event) {
 }
 .historial summary {
   cursor: pointer;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
 }
 .historial ul {
@@ -487,21 +548,21 @@ function onImgError(e: Event) {
   display: flex;
   flex-direction: column;
   padding-left: 10px;
-  border-left: 2px solid #e3e8ef;
+  border-left: 2px solid var(--border);
 }
 .hist-meta {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.78rem;
 }
 .historial em {
-  color: #555;
+  color: var(--text-muted);
 }
 .btn-cancelar {
   width: 100%;
   padding: 0.7rem;
   border: 2px solid #e74c3c;
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   color: #e74c3c;
   font-weight: 700;
   cursor: pointer;
@@ -518,11 +579,11 @@ function onImgError(e: Event) {
 .hint {
   margin: 0;
   font-size: 0.85rem;
-  color: #777;
+  color: var(--text-muted);
 }
 
 .domicilio-card {
-  background: #f7f9fc;
+  background: var(--surface-2);
   padding: 1rem;
   border-radius: 12px;
   margin-bottom: 1rem;
@@ -532,7 +593,7 @@ function onImgError(e: Event) {
 .domicilio-card h3 {
   margin: 0 0 0.5rem;
   font-size: 1rem;
-  color: var(--color-bg-blue-dark);
+  color: var(--brand-navy-text);
 }
 
 .pedido-items {
@@ -546,7 +607,7 @@ function onImgError(e: Event) {
   gap: 1rem;
   padding: 0.75rem;
   border-radius: 12px;
-  background: white;
+  background: var(--surface);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
 }
@@ -570,6 +631,6 @@ function onImgError(e: Event) {
 .precio {
   margin: 0;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text-muted);
 }
 </style>

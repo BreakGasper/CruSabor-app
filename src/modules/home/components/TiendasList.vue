@@ -226,7 +226,7 @@ function onImgError(e: Event) {
   padding: 0.75rem 2.5rem 0.75rem 2.8rem;
   border: none;
   border-radius: 12px;
-  background: #f1f3f6;
+  background: var(--surface-2);
   font-size: 16px;
   outline: none;
   box-sizing: border-box;
@@ -243,7 +243,7 @@ function onImgError(e: Event) {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: #888;
+  color: var(--text-muted);
   pointer-events: none;
 }
 .clear-btn {
@@ -256,7 +256,7 @@ function onImgError(e: Event) {
   border: none;
   border-radius: 50%;
   background: #dfe3e8;
-  color: #444;
+  color: var(--text);
   cursor: pointer;
   font-size: 0.8rem;
   padding: 0;
@@ -278,9 +278,9 @@ function onImgError(e: Event) {
   flex-shrink: 0;
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid #d5dbe3;
-  background: #fff;
-  color: #333;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -308,13 +308,13 @@ function onImgError(e: Event) {
 
 .counter {
   margin: 0 0 0.75rem;
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: 600;
 }
 .empty {
   text-align: center;
-  color: #777;
+  color: var(--text-muted);
   padding: 2rem 0;
 }
 
@@ -337,7 +337,7 @@ function onImgError(e: Event) {
   align-items: center;
   gap: 0.9rem;
   padding: 0.85rem 1rem;
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
   cursor: pointer;
@@ -354,7 +354,7 @@ function onImgError(e: Event) {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  background: #f1f3f6;
+  background: var(--surface-2);
   border: 2px solid #eef2f7;
 }
 .info {
@@ -386,7 +386,7 @@ function onImgError(e: Event) {
   padding: 2px 8px;
   border-radius: 999px;
   background: #e8f1fc;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   white-space: nowrap;
 }
 .detalle-row {
@@ -395,7 +395,7 @@ function onImgError(e: Event) {
   justify-content: space-between;
   gap: 10px;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text-muted);
   min-width: 0;
 }
 .ubicacion {
@@ -406,7 +406,7 @@ function onImgError(e: Event) {
 }
 .telefono {
   flex-shrink: 0;
-  color: var(--color-bg-blue-ligth);
+  color: var(--brand-blue-text);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;

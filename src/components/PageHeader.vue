@@ -64,8 +64,8 @@ function volver() {
   height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #fff;
-  color: #111;
+  background: var(--surface);
+  color: var(--text);
 }
 .page-header__title {
   flex: 1;

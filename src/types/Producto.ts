@@ -19,6 +19,12 @@ export interface Producto {
   puntuacion?: number;
   tiendaId: string;
   tiendaNombre?: string;
+  /**
+   * Producto bajo pedido: la tienda lo elabora cuando el cliente lo pide.
+   * No controla stock (siempre se puede agregar al carrito) y el pedido se
+   * muestra como "Atendiendo tu pedido" mientras la tienda lo prepara.
+   */
+  porPedido?: boolean;
   variantes: Array<{
     color: string;
     colorCodigo: string; // Nuevo campo para el código del color
