@@ -45,6 +45,10 @@
           <span>Hasta</span>
           <input type="date" v-model="fechaHasta" class="filtro-input" aria-label="Hasta" />
         </label>
+        <select v-if="tiendasDisponibles.length" v-model="filtroTienda" class="filtro-input" aria-label="Tienda">
+          <option value="">Todas las tiendas</option>
+          <option v-for="t in tiendasDisponibles" :key="t.id" :value="t.id">{{ t.nombre }}</option>
+        </select>
         <select v-model="filtroPago" class="filtro-input" aria-label="Método de pago">
           <option value="">Cualquier pago</option>
           <option v-for="mp in metodosPago" :key="mp" :value="mp">{{ mp }}</option>
@@ -105,7 +109,8 @@
             <p class="item-nombre">{{ item.nombreProducto }}</p>
             <p class="item-detalle">
               {{ item.cantidad }} × ${{ Number(item.precio).toFixed(2) }}
-              <span v-if="item.categoria" class="item-cat">· {{ item.categoria }}</span>
+              <span v-if="item.nombreTienda" class="item-tienda">· 🏪 {{ item.nombreTienda }}</span>
+              <span v-else-if="item.categoria" class="item-cat">· {{ item.categoria }}</span>
             </p>
           </div>
           <span class="item-total">${{ (item.cantidad * item.precio).toFixed(2) }}</span>
@@ -149,6 +154,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   suscribirPedidosUsuario,
+  nombresTiendasDelPedido,
   fechaPedido,
   ESTATUS_LABEL,
   type Pedido,
@@ -219,15 +225,24 @@ const filtroArticulo = ref("");
 const fechaDesde = ref("");
 const fechaHasta = ref("");
 const filtroPago = ref("");
+const filtroTienda = ref("");
 type Orden = "recientes" | "antiguos" | "mayor" | "menor";
 const orden = ref<Orden>("recientes");
 const showFiltros = ref(false);
 
 const filtrosActivos = computed(
   () =>
-    [filtroArticulo.value, fechaDesde.value, fechaHasta.value, filtroPago.value].filter(Boolean).length +
+    [filtroArticulo.value, fechaDesde.value, fechaHasta.value, filtroPago.value, filtroTienda.value].filter(Boolean).length +
     (orden.value !== "recientes" ? 1 : 0)
 );
+
+/** Tiendas presentes en los pedidos del usuario (id + nombre), para el filtro */
+const tiendasDisponibles = computed(() => {
+  const m = new Map<string, string>();
+  for (const p of pedidos.value)
+    for (const [id, nombre] of Object.entries(nombresTiendasDelPedido(p))) if (nombre && !m.has(id)) m.set(id, nombre);
+  return [...m.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+});
 
 const metodosPago = computed(() =>
   [...new Set(pedidos.value.map((p) => p.metodo_pago).filter(Boolean))].sort()
@@ -243,7 +258,7 @@ const inicioDia = (yyyyMmDd: string) => {
 const finDia = (yyyyMmDd: string) => inicioDia(yyyyMmDd) + 24 * 60 * 60 * 1000 - 1;
 
 const coincideBusqueda = (p: Pedido, q: string) =>
-  p.items.some((i) => i.nombreProducto?.toLowerCase().includes(q)) ||
+  p.items.some((i) => i.nombreProducto?.toLowerCase().includes(q) || i.nombreTienda?.toLowerCase().includes(q)) ||
   (p.id_pedido || "").toLowerCase().includes(q.replace(/^#/, ""));
 
 const pedidosFiltrados = computed(() => {
@@ -271,6 +286,7 @@ const pedidosFiltrados = computed(() => {
       return t >= desde && t <= hasta;
     })
     .filter((p) => !filtroPago.value || p.metodo_pago === filtroPago.value)
+    .filter((p) => !filtroTienda.value || p.items.some((i) => i.proveedor === filtroTienda.value))
     .filter((p) => !q || coincideBusqueda(p, q))
     .sort(comparar[props.showHeader ? orden.value : "recientes"]);
 });
@@ -299,7 +315,7 @@ const pedidosPaginados = computed(() => {
   return pedidosFiltrados.value.slice(start, start + itemsPorPagina);
 });
 
-watch([filtroArticulo, fechaDesde, fechaHasta, filtroPago, orden], () => (paginaActual.value = 1));
+watch([filtroArticulo, fechaDesde, fechaHasta, filtroPago, filtroTienda, orden], () => (paginaActual.value = 1));
 
 /* ---------- Helpers ---------- */
 function itemsVisibles(p: Pedido) {
@@ -324,6 +340,7 @@ function limpiarFiltros() {
   fechaDesde.value = "";
   fechaHasta.value = "";
   filtroPago.value = "";
+  filtroTienda.value = "";
   orden.value = "recientes";
 }
 function abrirDetallePedido(pedido: Pedido) {
@@ -670,8 +687,9 @@ function onImageError(event: Event) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.item-cat {
-  color: #999;
+.item-cat,
+.item-tienda {
+  color: #767676;
 }
 .item-total {
   flex-shrink: 0;

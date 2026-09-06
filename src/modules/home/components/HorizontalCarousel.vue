@@ -223,6 +223,7 @@ const aumentarCantidad = async (producto: Producto) => {
       sku: producto.variantes[0]?.sku || '',
       detalle: producto.variantes[0]?.detalle || '',
       id_tienda: producto.tiendaId || '',
+      nombre_tienda: producto.tiendaNombre || '',
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;

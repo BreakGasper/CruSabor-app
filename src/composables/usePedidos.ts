@@ -13,6 +13,7 @@ import {
   runTransaction,
   type Unsubscribe,
 } from 'firebase/database';
+import { tiendasQueNoPuedenVender, TiendaNoDisponibleError } from '@/composables/useMembresia';
 import { sessionUser } from '@/utils/sessionUser';
 
 /* =========================================================================
@@ -96,6 +97,8 @@ export interface PedidoItem {
   categoria?: string;
   /** id de la tienda dueña del artículo */
   proveedor?: string;
+  /** nombre de la tienda al momento del pedido (para mostrar y filtrar) */
+  nombreTienda?: string;
   sku_code?: string;
   url_image?: string;
   almacen?: string;
@@ -172,6 +175,13 @@ export function fechaPedido(p: Pedido): number {
 
 const ordenarRecientes = (lista: Pedido[]) =>
   [...lista].sort((a, b) => fechaPedido(b) - fechaPedido(a));
+
+/** Nombres de tienda presentes en un pedido: id -> nombre (vacío si el pedido es viejo) */
+export function nombresTiendasDelPedido(p: Pedido): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const i of p.items || []) if (i.proveedor) r[i.proveedor] = i.nombreTienda || r[i.proveedor] || '';
+  return r;
+}
 
 /** Tiendas que participan en un pedido */
 export function tiendasDelPedido(p: Pedido): string[] {
@@ -264,6 +274,23 @@ export async function guardarPedidos(
   if (!sessionUser.value?.id) throw new Error('Usuario no autenticado');
   if (!carrito?.length) throw new Error('El carrito está vacío');
 
+  // Nombre de tienda: viene en el ítem del carrito; para ítems viejos se consulta una vez por tienda
+  const nombresTienda = new Map<string, string>();
+  for (const item of carrito) {
+    const tid = item.id_tienda || item.proveedor;
+    if (item.nombre_tienda) nombresTienda.set(tid, item.nombre_tienda);
+  }
+  for (const item of carrito) {
+    const tid = item.id_tienda || item.proveedor;
+    if (!tid || nombresTienda.has(tid)) continue;
+    try {
+      const snap = await get(dbRef(db, `tiendas/${tid}/nombreTienda`));
+      nombresTienda.set(tid, snap.exists() ? String(snap.val()) : '');
+    } catch {
+      nombresTienda.set(tid, '');
+    }
+  }
+
   const items: PedidoItem[] = carrito.map((item) => ({
     id_articulo: item.id_articulo,
     nombreProducto: item.nombre,
@@ -271,12 +298,17 @@ export async function guardarPedidos(
     cantidad: item.cantidad,
     categoria: item.categoria || '',
     proveedor: item.id_tienda || item.proveedor || '',
+    nombreTienda: nombresTienda.get(item.id_tienda || item.proveedor) || '',
     sku_code: item.sku || item.sku_code || '',
     url_image: item.url || '',
     almacen: item.almacen || '',
     anticipo: item.anticipo ?? null,
     descuentoCupon: item.descuentoCupon ?? null,
   }));
+
+  // 0) Ninguna tienda del pedido puede estar pendiente, bloqueada o vencida
+  const noDisponibles = await tiendasQueNoPuedenVender(items.map((i) => i.proveedor || ''));
+  if (noDisponibles.length) throw new TiendaNoDisponibleError(noDisponibles);
 
   // 1) Reservar stock (atómico por variante)
   const descontados: PedidoItem[] = [];

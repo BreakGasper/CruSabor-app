@@ -22,6 +22,8 @@ export interface CarritoItem {
   url: string;
   detalle: string;
   id_tienda?: string;
+  /** nombre de la tienda, para mostrar y filtrar sin consultas extra */
+  nombre_tienda?: string;
 }
 
 // Interfaz del favorito

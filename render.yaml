@@ -1,0 +1,38 @@
+# Blueprint de Render para publicar el servidor Express (src/services/main.ts) en el plan gratuito.
+# En render.com: New › Blueprint › conecta este repositorio y Render crea el servicio con esta configuración.
+# Después, en el servicio › Environment, pega los valores marcados como sync: false (secretos).
+services:
+  - type: web
+    name: mavi-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm run server
+    healthCheckPath: /salud
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PORT
+        value: "3000"
+      - key: FRONTEND_URL
+        value: https://mrapp-b8d1e.web.app
+      # Pública de este mismo servicio (Render te la da al crearlo, p. ej. https://mavi-api.onrender.com)
+      - key: API_PUBLIC_URL
+        sync: false
+      # Base de datos (la misma URL que usa la app) y credenciales del servidor
+      - key: VITE_FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      # Mercado Pago
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
+      # Correo de recuperación de contraseña
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

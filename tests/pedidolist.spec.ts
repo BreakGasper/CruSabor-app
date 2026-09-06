@@ -17,6 +17,7 @@ const item = (nombre: string, precio: number, cantidad = 1) => ({
   cantidad,
   categoria: 'Alimentos y Bebidas',
   proveedor: 'tienda-A',
+  nombreTienda: 'Postres Lola',
   url_image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
 });
 const base = {
@@ -61,7 +62,7 @@ beforeEach(() => {
         fecha_creacion: '2026-04-20T10:00:00.000Z',
         fecha_hora: '20/4/2026, 5:00:00 a.m.',
         total_compra: 30,
-        items: [item('Café', 30)],
+        items: [{ ...item('Café', 30), proveedor: 'tienda-B', nombreTienda: 'Café Store' }],
       },
       ajeno: { ...base, id_usuario: 'otro', estatus: 'Preparacion', fecha_hora: '1/1/2026, 1:00:00 a.m.', total_compra: 1, items: [item('Ajeno', 1)] },
     },
@@ -133,7 +134,9 @@ describe('Mis Pedidos', () => {
     const w = await montar();
     const buscar = w.find('input[type=search]');
     const [desde, hasta] = w.findAll('input[type=date]');
-    const [pago, orden] = w.findAll('select');
+    const porLabel = (l: string) => w.findAll('select').find((x: any) => x.attributes('aria-label') === l)!;
+    const pago = porLabel('Método de pago');
+    const orden = porLabel('Ordenar');
 
     // por artículo
     await buscar.setValue('jerica');
@@ -175,6 +178,22 @@ describe('Mis Pedidos', () => {
     await w.find('.icon-btn.limpiar').trigger('click');
     expect(w.find('.filter-badge').exists()).toBe(false);
     expect(w.findAll('.pedido-card')).toHaveLength(2);
+    w.unmount();
+  });
+
+  it('muestra la tienda de cada artículo y permite filtrar por tienda', async () => {
+    const w = await montar();
+    expect(w.find('.item-tienda').text()).toContain('Postres Lola');
+    const selects = w.findAll('select');
+    const tienda = selects.find((s: any) => s.attributes('aria-label') === 'Tienda')!;
+    expect(tienda.findAll('option').map((o: any) => o.text())).toEqual(['Todas las tiendas', 'Café Store', 'Postres Lola']);
+    await tienda.setValue('tienda-B');
+    expect(w.findAll('.pedido-card')).toHaveLength(0); // el de Café está cancelado, no en "Por entregar"
+    await w.findAll('.tab')[2].trigger('click');
+    expect(w.findAll('.pedido-card')).toHaveLength(1);
+    expect(w.find('.item-tienda').text()).toContain('Café Store');
+    await w.find('input[type=search]').setValue('café store'); // también por buscador
+    expect(w.findAll('.pedido-card')).toHaveLength(1);
     w.unmount();
   });
 

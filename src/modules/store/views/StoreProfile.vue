@@ -34,6 +34,30 @@
           ✏️ Editar mi tienda
         </button>
       </div>
+
+      <!-- Estado de la tienda (solo lo ve la dueña o dueño), debajo del logo -->
+      <div
+        v-if="esDuenoTienda && avisoEstado"
+        class="aviso-estado"
+        :class="'aviso-' + avisoEstado.tipo"
+        role="status"
+      >
+        <strong>{{ avisoEstado.titulo }}</strong>
+        <span>{{ avisoEstado.detalle }}</span>
+        <span v-if="avisoEstado.tipo !== 'info' && contactoSoporte" class="aviso-contacto">
+          Contacto: {{ contactoSoporte }}
+        </span>
+        <p v-if="solicitudPendiente" class="aviso-solicitud">
+          ✅ Avisaste tu pago el {{ fechaCorta(solicitudPendiente.fecha) }}<span v-if="solicitudPendiente.referencia"> (ref. {{ solicitudPendiente.referencia }})</span>.
+          El administrador lo está revisando; tu membresía se activará al confirmarlo.
+        </p>
+        <div v-else-if="pagoEnLineaDisponible && !membresiaVigente(store)" class="aviso-acciones">
+          <button type="button" class="btn-pagar-membresia" :disabled="iniciandoPago" @click="pagarMembresia">
+            {{ iniciandoPago ? 'Abriendo Mercado Pago...' : '💳 Pagar membresía' }}
+          </button>
+          <button type="button" class="btn-ya-pague" @click="avisarPago()">Ya pagué</button>
+        </div>
+      </div>
       <!-- Sección: Otros datos -->
       <div class="card-section">
         <div v-if="store.descripcion" class="info-row vertical">
@@ -224,11 +248,17 @@
         <p v-if="store.productos" class="productos-desc">
           {{ store.productos }}
         </p>
-        <p v-if="!esDuenoTienda && !store.envioDomicilio" class="aviso-envio">
+        <p v-if="!esDuenoTienda && tiendaNoDisponible" class="aviso-envio">
+          🚫 Esta tienda no está disponible por el momento: sus productos no se pueden agregar al carrito.
+        </p>
+        <p v-else-if="!esDuenoTienda && !store.envioDomicilio" class="aviso-envio">
           🚫 Esta tienda no hace envíos a domicilio: sus productos no se pueden agregar al carrito.
         </p>
 
-        <p v-if="cargandoArticulos" class="productos-empty">
+        <p v-if="!esDuenoTienda && tiendaNoDisponible" class="productos-empty">
+          Los productos de esta tienda no están disponibles por el momento.
+        </p>
+        <p v-else-if="cargandoArticulos" class="productos-empty">
           Cargando productos...
         </p>
         <p v-else-if="articulosTienda.length === 0" class="productos-empty">
@@ -394,6 +424,11 @@ import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
 import defaultArticulo from '@/assets/icons/default_articulo.png';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
+import { avisoEstadoTienda, tiendaPuedeVender, membresiaVigente, MENSAJE_SIN_MEMBRESIA } from '@/composables/useMembresia';
+import { useConfiguracion } from '@/composables/useConfiguracion';
+import { reportarPago, useSolicitudesPago } from '@/composables/useSolicitudesPago';
+import { iniciarPagoMembresia, resultadoPagoDesdeQuery, MENSAJE_RESULTADO_PAGO } from '@/composables/useMercadoPago';
+import type { PlanMembresia } from '@/composables/useAdminTiendas';
 import type { Producto } from '@/types/Producto';
 
 const router = useRouter();
@@ -403,8 +438,167 @@ const store = ref<Tienda | null>(null);
 
 // Productos de la tienda + carrito rápido.
 // useArticulos carga todos los artículos; filtramos por tienda para no depender
-// de qué suscripción de Firebase responde primero.
-const { articulos, loading: cargandoArticulos } = useArticulos();
+// de qué suscripción de Firebase responde primero. Se incluyen los de tiendas
+// inactivas porque la dueña o dueño debe ver su catálogo aunque no pueda vender.
+const { articulos, loading: cargandoArticulos } = useArticulos({ incluirTiendasInactivas: true });
+
+/** Estado de autorización / membresía */
+const tiendaNoDisponible = computed(() => !!store.value && !tiendaPuedeVender(store.value));
+const avisoEstado = computed(() => avisoEstadoTienda(store.value));
+const { configuracion, contactoSoporte, pagoEnLineaDisponible, pagoAutomatico } = useConfiguracion();
+
+/** Pago de membresía con links de Mercado Pago + aviso "Ya pagué" (sin servidor) */
+const formatoMXN = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { solicitudes: solicitudesTienda } = useSolicitudesPago({
+  soloPendientes: true,
+  tiendaId: () => store.value?.tiendaId,
+});
+const solicitudPendiente = computed(() => solicitudesTienda.value[0] ?? null);
+
+function fechaCorta(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Planes con link de pago configurado, con su etiqueta y precio */
+function planesDisponibles(): Record<string, string> {
+  const { linkMensual, linkAnual } = configuracion.value.pagos;
+  const { precioMensual, precioAnual } = configuracion.value.membresia;
+  const op: Record<string, string> = {};
+  if (pagoAutomatico.value) {
+    // Modo automático: los planes con precio configurado
+    if (precioMensual > 0) op.mensual = `Mensual · ${formatoMXN(precioMensual)}`;
+    if (precioAnual > 0) op.anual = `Anual · ${formatoMXN(precioAnual)}`;
+    return op;
+  }
+  if (linkMensual) op.mensual = precioMensual > 0 ? `Mensual · ${formatoMXN(precioMensual)}` : 'Mensual';
+  if (linkAnual) op.anual = precioAnual > 0 ? `Anual · ${formatoMXN(precioAnual)}` : 'Anual';
+  return op;
+}
+
+async function elegirPlan(titulo: string, confirmar: string): Promise<PlanMembresia | null> {
+  const opciones = planesDisponibles();
+  const planes = Object.keys(opciones) as PlanMembresia[];
+  if (!planes.length) return null;
+  if (planes.length === 1) return planes[0];
+  const r = await Swal.fire({
+    title: titulo,
+    input: 'radio',
+    inputOptions: opciones,
+    inputValue: planes[0],
+    showCancelButton: true,
+    confirmButtonText: confirmar,
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#0165d8',
+  });
+  return r.isConfirmed && r.value ? (r.value as PlanMembresia) : null;
+}
+
+/**
+ * Modo automático: el servidor crea el pago en Mercado Pago y redirige a la tienda.
+ * Al volver (?pago=exito|pendiente|error) se avisa; la membresía la activa el webhook.
+ */
+const iniciandoPago = ref(false);
+async function pagarAutomatico(plan: PlanMembresia) {
+  if (!store.value?.tiendaId || iniciandoPago.value) return;
+  iniciandoPago.value = true;
+  try {
+    const inicio = await iniciarPagoMembresia({ tiendaId: store.value.tiendaId, plan });
+    window.location.assign(inicio.url);
+  } catch (e: any) {
+    iniciandoPago.value = false;
+    const r = await Swal.fire({
+      icon: 'error',
+      title: 'No se pudo iniciar el pago',
+      text: `${e?.message || 'Intenta de nuevo en unos minutos.'} Si ya pagaste por otro medio, puedes avisarnos.`,
+      showCancelButton: true,
+      confirmButtonText: 'Ya pagué',
+      cancelButtonText: 'Cerrar',
+      confirmButtonColor: '#0165d8',
+    });
+    if (r.isConfirmed) await avisarPago(plan);
+  }
+}
+
+function avisarResultadoPago() {
+  const resultado = resultadoPagoDesdeQuery(route.query as Record<string, unknown>);
+  if (!resultado) return;
+  const m = MENSAJE_RESULTADO_PAGO[resultado];
+  Swal.fire({ icon: m.icon, title: m.titulo, text: m.texto, confirmButtonColor: '#0165d8' });
+  const { pago: _pago, ...resto } = route.query;
+  router.replace({ query: resto });
+}
+
+/** Abre el link de pago del plan elegido y luego ofrece avisar (o, en modo automático, redirige a Mercado Pago) */
+async function pagarMembresia() {
+  if (!store.value?.tiendaId) return;
+  const plan = await elegirPlan('Elige tu plan', 'Ir a pagar');
+  if (!plan) return;
+  if (pagoAutomatico.value) {
+    await pagarAutomatico(plan);
+    return;
+  }
+  const link = plan === 'anual' ? configuracion.value.pagos.linkAnual : configuracion.value.pagos.linkMensual;
+  const precio = plan === 'anual' ? configuracion.value.membresia.precioAnual : configuracion.value.membresia.precioMensual;
+  const escapar = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+  // El link se abre con un enlace real dentro del diálogo: así el navegador no lo bloquea
+  // como ventana emergente (window.open después de un diálogo suele bloquearse).
+  const r = await Swal.fire({
+    icon: 'info',
+    title: 'Paga tu membresía en Mercado Pago',
+    html: `
+      <p style="margin:0 0 10px;color:#374151;font-size:0.95rem">
+        Plan <strong>${plan === 'anual' ? 'anual' : 'mensual'}</strong>${precio > 0 ? ` · <strong>${escapar(formatoMXN(precio))}</strong>` : ''}
+      </p>
+      <a href="${escapar(link)}" target="_blank" rel="noopener"
+         style="display:inline-block;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#0165d8,#011f41);color:#fff;font-weight:700;text-decoration:none">
+        Abrir Mercado Pago
+      </a>
+      <p style="margin:14px 0 0;color:#5b6472;font-size:0.85rem;line-height:1.4">${escapar(configuracion.value.pagos.instrucciones)}</p>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Ya pagué',
+    cancelButtonText: 'Después',
+    confirmButtonColor: '#0165d8',
+  });
+  if (r.isConfirmed) await avisarPago(plan);
+}
+
+/** La tienda avisa que ya pagó: se crea una solicitud que el administrador atiende */
+async function avisarPago(planElegido?: PlanMembresia) {
+  if (!store.value?.tiendaId) return;
+  const plan = planElegido ?? (await elegirPlan('¿Qué plan pagaste?', 'Continuar'));
+  if (!plan) return;
+  const r = await Swal.fire({
+    title: 'Avisar de mi pago',
+    text: 'Escribe el número de operación o referencia de Mercado Pago (opcional) para que el administrador lo ubique.',
+    input: 'text',
+    inputPlaceholder: 'Ej. 1234567890',
+    showCancelButton: true,
+    confirmButtonText: 'Enviar aviso',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#0165d8',
+  });
+  if (!r.isConfirmed) return;
+  try {
+    await reportarPago({
+      tiendaId: store.value.tiendaId,
+      nombreTienda: store.value.nombreTienda,
+      plan,
+      referencia: r.value,
+    });
+    Swal.fire({
+      icon: 'success',
+      title: 'Aviso enviado',
+      text: 'El administrador confirmará tu pago y activará tu membresía. Te avisaremos en tu perfil.',
+      confirmButtonColor: '#0165d8',
+    });
+  } catch (e: any) {
+    Swal.fire({ icon: 'error', title: 'No se pudo enviar el aviso', text: e?.message || 'Intenta de nuevo.', confirmButtonColor: '#0165d8' });
+  }
+}
 const articulosTienda = computed<Producto[]>(() =>
   store.value?.tiendaId
     ? articulos.value.filter((a) => a.tiendaId === store.value?.tiendaId)
@@ -540,6 +734,16 @@ function closeSesionTienda() {
 }
 
 function artsTienda() {
+  // Registrar productos exige membresía vigente
+  if (store.value && !membresiaVigente(store.value)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Activa tu membresía para publicar',
+      text: MENSAJE_SIN_MEMBRESIA,
+      confirmButtonColor: '#0165d8',
+    });
+    return;
+  }
   const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
   router.push({
@@ -596,7 +800,10 @@ function linkifyShort(text: string) {
   });
 }
 
-onMounted(() => loadStore());
+onMounted(() => {
+  loadStore();
+  avisarResultadoPago();
+});
 </script>
 
 <style scoped>
@@ -1063,6 +1270,9 @@ body {
   align-items: flex-start;
 
   z-index: 999;
+  /* El contenedor no atrapa toques: solo el botón ☰ y los íconos visibles los reciben.
+     Sin esto, en móvil tapaba los botones del aviso de membresía que quedan debajo. */
+  pointer-events: none;
 }
 
 /* BOTÓN PRINCIPAL */
@@ -1078,6 +1288,7 @@ body {
   justify-content: center;
   cursor: pointer;
   margin-bottom: 10px;
+  pointer-events: auto;
 }
 
 /* CONTENEDOR DE BOTONES */
@@ -1086,14 +1297,16 @@ body {
   flex-direction: column;
   gap: 12px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transform: translateX(-20px);
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
 }
 
 /* CUANDO ESTÁ ABIERTO */
 .side-menu.open .menu-items {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   transform: translateX(0);
 }
@@ -1176,6 +1389,94 @@ body {
   color: #8a5a00;
   font-size: 0.85rem;
   text-align: center;
+}
+
+/* ===== Aviso de estado de la tienda (dueña/o) ===== */
+.aviso-estado {
+  margin: 14px 16px 0;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border-left: 4px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.aviso-estado strong {
+  font-size: 0.95rem;
+}
+.aviso-contacto {
+  font-size: 0.83rem;
+  opacity: 0.9;
+}
+.aviso-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 480px) {
+  .aviso-acciones {
+    flex-direction: column;
+  }
+  .aviso-acciones button {
+    width: 100%;
+    padding: 13px 16px;
+    font-size: 0.95rem;
+  }
+}
+.aviso-solicitud {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+}
+.btn-ya-pague {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid #0165d8;
+  background: #fff;
+  color: #0165d8;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-pagar-membresia {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0165d8, #011f41);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(1, 101, 216, 0.3);
+}
+.btn-pagar-membresia:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.aviso-info {
+  background: #eaf2fc;
+  border-color: #0165d8;
+  color: #0b3d7a;
+}
+.aviso-warning {
+  background: #fff4e5;
+  border-color: #f59e0b;
+  color: #7a4a00;
+}
+.aviso-error {
+  background: #fdecea;
+  border-color: #d9534f;
+  color: #8a1f1b;
 }
 
 /* ===== Editar tienda ===== */

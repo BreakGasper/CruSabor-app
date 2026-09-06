@@ -166,7 +166,7 @@ const enviarCodigo = async () => {
     codigoCorrecto.value = codigo.trim();
 
     // Enviar correo con el código
-    await fetch("http://localhost:3000/recuperar-password", {
+    await fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "")}/recuperar-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

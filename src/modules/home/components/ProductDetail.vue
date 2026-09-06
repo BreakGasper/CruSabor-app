@@ -97,7 +97,10 @@
         <span v-else> 🟢 {{ stockActual }} disponibles </span>
       </p>
 
-      <p v-if="sinEnvioTienda" class="aviso-envio">
+      <p v-if="tiendaNoDisponible" class="aviso-envio">
+        🚫 Esta tienda no está disponible por el momento, por eso no puedes agregar este producto al carrito.
+      </p>
+      <p v-else-if="sinEnvioTienda" class="aviso-envio">
         🚫 Esta tienda no hace envíos a domicilio, por eso no puedes agregar este producto al carrito.
       </p>
 
@@ -169,12 +172,12 @@
         </div>
 
         <button
-          :disabled="stockActual === 0 || sinEnvioTienda"
+          :disabled="stockActual === 0 || sinEnvioTienda || tiendaNoDisponible"
           v-else
           class="btn-agregar"
           @click="aumentarCantidad(producto)"
         >
-          {{ sinEnvioTienda ? 'Sin envío a domicilio' : stockActual === 0 ? 'Sin stock' : '+ Agregar al carrito' }}
+          {{ etiquetaBotonAgregar }}
         </button>
       </div>
       <button
@@ -204,6 +207,7 @@ import { useRouter, useRoute } from 'vue-router';
 
 import { useTiendas } from '@/composables/useTiendas';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
+import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
 import Swal from 'sweetalert2';
 
 const props = defineProps<{ producto: Producto }>();
@@ -218,6 +222,17 @@ const tiendaUrl = ref('');
 // Solo se puede comprar a tiendas con envío a domicilio
 const { sinEnvio } = useEnvioTienda();
 const sinEnvioTienda = computed(() => sinEnvio(props.producto?.tiendaId));
+
+// ...y que estén aprobadas con membresía vigente
+const { noPuedeVender } = useEstadoTiendas();
+const tiendaNoDisponible = computed(() => noPuedeVender(props.producto?.tiendaId));
+
+const etiquetaBotonAgregar = computed(() => {
+  if (tiendaNoDisponible.value) return 'Tienda no disponible';
+  if (sinEnvioTienda.value) return 'Sin envío a domicilio';
+  if (stockActual.value === 0) return 'Sin stock';
+  return '+ Agregar al carrito';
+});
 
 // Detectar si viene desde la vista de artículos de una tienda
 const viewendesdeStore = computed(() => {
@@ -325,6 +340,10 @@ if (props.producto) sincronizarCarrito();
 
 // Función para agregar / aumentar
 const aumentarCantidad = async (producto: Producto) => {
+  if (tiendaNoDisponible.value) {
+    Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: '#0165d8' });
+    return;
+  }
   if (sinEnvioTienda.value) {
     Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
     return;
@@ -381,6 +400,7 @@ const aumentarCantidad = async (producto: Producto) => {
       cantidad: 1,
       detalle: variante?.detalle || '',
       id_tienda: producto.tiendaId || '',
+      nombre_tienda: producto.tiendaNombre || '',
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[clave] = 1;

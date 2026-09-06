@@ -1,19 +1,44 @@
 <template>
   <div class="register-container">
+    <!-- Volver -->
+    <ArrowBack class="btn-icon back" @click="$router.back()" />
+
+    <!-- Encabezado -->
     <div class="register-header">
-      <h1 class="title">Registrarme</h1>
-      <p class="subtitle">Crea tu cuenta en segundos ✨</p>
-      <p class="step-indicator">Paso {{ step }} / 4</p>
+      <div class="user-emblem" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+          <path d="M19 3v4M17 5h4" />
+        </svg>
+      </div>
+      <span class="badge">Clientes</span>
+      <h1 class="title">Crea tu cuenta</h1>
+      <p class="step-indicator">Paso {{ step }} de 4 · {{ stepTitles[step - 1] }}</p>
+      <div
+        class="progress-bar"
+        role="progressbar"
+        :aria-valuenow="step"
+        aria-valuemin="1"
+        aria-valuemax="4"
+      >
+        <div class="progress" :style="{ width: `${(step / 4) * 100}%` }"></div>
+      </div>
     </div>
 
-    <div class="register-card">
-      <!-- Botón volver  con SVG -->
-      <ArrowBack class="btn-icon back" @click="$router.back()" />
+    <!-- Tarjeta -->
+    <form class="register-card" novalidate @submit.prevent="onSubmit">
       <!-- Paso 1: Datos personales -->
-      <div v-if="step === 1">
+      <div v-if="step === 1" class="step">
         <h2 class="card-title">Datos personales</h2>
 
-        <!-- Nombre -->
         <div class="form-group">
           <label for="nombre">Nombre completo</label>
           <input
@@ -23,6 +48,7 @@
             class="form-input"
             :class="{ 'input-error': errors.nombre }"
             maxlength="50"
+            autocomplete="name"
             placeholder="Ej. Daniela Buenrostro"
           />
           <small v-if="errors.nombre" class="error-text">{{
@@ -30,24 +56,26 @@
           }}</small>
         </div>
 
-        <!-- Email -->
         <div class="form-group">
           <label for="email">Correo electrónico</label>
-          <input
-            v-model="email"
-            id="email"
-            type="email"
-            class="form-input"
-            :class="{ 'input-error': errors.email }"
-            maxlength="100"
-            placeholder="ejemplo@correo.com"
-          />
+          <div class="input-with-icon">
+            <img src="@/assets/icons/email.png" alt="" class="input-icon" />
+            <input
+              v-model="email"
+              id="email"
+              type="email"
+              class="form-input with-icon"
+              :class="{ 'input-error': errors.email }"
+              maxlength="100"
+              autocomplete="email"
+              placeholder="ejemplo@correo.com"
+            />
+          </div>
           <small v-if="errors.email" class="error-text">{{
             errors.email
           }}</small>
         </div>
 
-        <!-- Fecha de nacimiento -->
         <div class="form-group">
           <label for="fechaNacimiento">Fecha de nacimiento</label>
           <input
@@ -63,13 +91,13 @@
           }}</small>
         </div>
 
-        <!-- Género -->
         <div class="form-group">
           <label>Género</label>
           <div class="gender-options">
-            <div
+            <button
               v-for="option in genderOptions"
               :key="option.value"
+              type="button"
               class="gender-option"
               :class="{
                 selected: genero === option.value,
@@ -83,129 +111,157 @@
                 :alt="option.label"
                 class="gender-icon"
               />
-              <div class="gender-letter">{{ option.value }}</div>
-            </div>
+              <span class="gender-label">{{ option.label }}</span>
+            </button>
           </div>
           <small v-if="errors.genero" class="error-text">{{
             errors.genero
           }}</small>
         </div>
 
-        <Button
-          label="Siguiente"
-          class="modern-button"
-          style="margin-top: 20px"
-          @click="nextStep"
-        />
+        <div class="button-row">
+          <button type="submit" class="btn-primary">Siguiente</button>
+        </div>
       </div>
 
       <!-- Paso 2: Domicilio -->
-      <div v-if="step === 2">
+      <div v-if="step === 2" class="step">
         <h2 class="card-title">Domicilio</h2>
 
-        <!-- Calle y Número en la misma fila -->
-        <div class="form-group row-calle-numero">
-          <label style="position: absolute; top: 0px; left: 20">Calle</label>
-          <input
-            v-model="calle"
-            id="calle"
-            type="text"
-            class="form-input input-calle"
-            :class="{ 'input-error': errors.calle }"
-            maxlength="50"
-            placeholder="Calle"
-          />
-          <label style="position: absolute; top: 0px; right: 0px">Número</label>
-          <input
-            v-model="numero"
-            id="numero"
-            type="text"
-            class="form-input input-numero"
-            :class="{ 'input-error': errors.numero }"
-            maxlength="50"
-            placeholder="Num."
-            inputmode="numeric"
-            @input="onNumeroInput"
-          />
-        </div>
-        <!-- Colonia y Código Postal en la misma fila -->
-        <div class="form-group row-colonia-cp">
-          <label style="position: absolute; top: 0; left: 0">Colonia</label>
-          <input
-            v-model="lugar"
-            id="lugar"
-            type="text"
-            class="form-input input-colonia"
-            :class="{ 'input-error': errors.lugar }"
-            maxlength="50"
-            placeholder="Ej. Camajapita"
-          />
-          <label style="position: absolute; top: 0; right: 0px">C.P.</label>
-          <input
-            v-model="codigoPostal"
-            id="codigoPostal"
-            type="text"
-            class="form-input input-cp"
-            :class="{ 'input-error': errors.codigoPostal }"
-            maxlength="5"
-            placeholder="45100"
-            inputmode="numeric"
-            @input="onCodigoPostalInput"
-          />
-        </div>
-        <small v-if="errors.lugar || errors.codigoPostal" class="error-text">
-          {{ errors.lugar || errors.codigoPostal }}
-        </small>
+        <div class="address-grid">
+          <div class="form-group col-large">
+            <label for="calle">Calle</label>
+            <div class="input-with-icon">
+              <img src="@/assets/icons/street.png" alt="" class="input-icon" />
+              <input
+                v-model="calle"
+                id="calle"
+                type="text"
+                class="form-input with-icon"
+                :class="{ 'input-error': errors.calle }"
+                maxlength="50"
+                autocomplete="address-line1"
+                placeholder="Calle"
+              />
+            </div>
+            <small v-if="errors.calle" class="error-text">{{
+              errors.calle
+            }}</small>
+          </div>
 
-        <!-- Municipio -->
-        <div class="form-group">
-          <label for="municipio">Municipio</label>
-          <input
-            v-model="municipio"
-            id="municipio"
-            type="text"
-            class="form-input"
-            :class="{ 'input-error': errors.municipio }"
-            maxlength="30"
-            placeholder="Ej. Zapopan"
-          />
-          <small v-if="errors.municipio" class="error-text">{{
-            errors.municipio
-          }}</small>
-        </div>
+          <div class="form-group col-small">
+            <label for="numero">Número</label>
+            <input
+              v-model="numero"
+              id="numero"
+              type="text"
+              class="form-input"
+              :class="{ 'input-error': errors.numero }"
+              maxlength="50"
+              placeholder="Núm."
+              inputmode="numeric"
+              @input="onNumeroInput"
+            />
+            <small v-if="errors.numero" class="error-text">{{
+              errors.numero
+            }}</small>
+          </div>
 
-        <!-- Estado -->
-        <div class="form-group">
-          <label for="estado">Estado</label>
-          <input
-            v-model="estado"
-            id="estado"
-            type="text"
-            class="form-input"
-            :class="{ 'input-error': errors.estado }"
-            maxlength="20"
-            placeholder="Ej. Jalisco"
-          />
-          <small v-if="errors.estado" class="error-text">{{
-            errors.estado
-          }}</small>
+          <div class="form-group col-large">
+            <label for="lugar">Colonia</label>
+            <div class="input-with-icon">
+              <img src="@/assets/icons/colonia.png" alt="" class="input-icon" />
+              <input
+                v-model="lugar"
+                id="lugar"
+                type="text"
+                class="form-input with-icon"
+                :class="{ 'input-error': errors.lugar }"
+                maxlength="50"
+                placeholder="Ej. Camajapita"
+              />
+            </div>
+            <small v-if="errors.lugar" class="error-text">{{
+              errors.lugar
+            }}</small>
+          </div>
+
+          <div class="form-group col-small">
+            <label for="codigoPostal">C.P.</label>
+            <input
+              v-model="codigoPostal"
+              id="codigoPostal"
+              type="text"
+              class="form-input"
+              :class="{ 'input-error': errors.codigoPostal }"
+              maxlength="5"
+              placeholder="45100"
+              inputmode="numeric"
+              autocomplete="postal-code"
+              @input="onCodigoPostalInput"
+            />
+            <small v-if="errors.codigoPostal" class="error-text">{{
+              errors.codigoPostal
+            }}</small>
+          </div>
+
+          <div class="form-group col-full">
+            <label for="municipio">Municipio</label>
+            <div class="input-with-icon">
+              <img
+                src="@/assets/icons/municipio.png"
+                alt=""
+                class="input-icon"
+              />
+              <input
+                v-model="municipio"
+                id="municipio"
+                type="text"
+                class="form-input with-icon"
+                :class="{ 'input-error': errors.municipio }"
+                maxlength="30"
+                autocomplete="address-level2"
+                placeholder="Ej. Zapopan"
+              />
+            </div>
+            <small v-if="errors.municipio" class="error-text">{{
+              errors.municipio
+            }}</small>
+          </div>
+
+          <div class="form-group col-full">
+            <label for="estado">Estado</label>
+            <div class="input-with-icon">
+              <img src="@/assets/icons/estado.png" alt="" class="input-icon" />
+              <input
+                v-model="estado"
+                id="estado"
+                type="text"
+                class="form-input with-icon"
+                :class="{ 'input-error': errors.estado }"
+                maxlength="20"
+                autocomplete="address-level1"
+                placeholder="Ej. Jalisco"
+              />
+            </div>
+            <small v-if="errors.estado" class="error-text">{{
+              errors.estado
+            }}</small>
+          </div>
         </div>
 
         <div class="button-row">
-          <Button
-            label="Anterior"
-            class="modern-button secondary"
-            @click="prevStep"
-          />
-          <Button label="Siguiente" class="modern-button" @click="nextStep" />
+          <button type="button" class="btn-outline" @click="prevStep">
+            Anterior
+          </button>
+          <button type="submit" class="btn-primary">Siguiente</button>
         </div>
       </div>
 
       <!-- Paso 3: Contacto y contraseña -->
-      <div v-if="step === 3">
+      <div v-if="step === 3" class="step">
         <h2 class="card-title">Contacto y contraseña</h2>
 
-        <!-- Teléfono -->
         <div class="form-group">
           <label for="telefono">Número de teléfono</label>
           <div class="telefono-input">
@@ -219,7 +275,13 @@
               maxlength="10"
               placeholder="10 dígitos"
               inputmode="numeric"
+              autocomplete="tel-national"
               @input="onTelefonoInput"
+            />
+            <img
+              src="@/assets/icons/smartphone.png"
+              alt=""
+              class="input-icon-right"
             />
           </div>
           <small v-if="errors.telefono" class="error-text">{{
@@ -227,39 +289,49 @@
           }}</small>
         </div>
 
-        <!-- Contraseña -->
-        <div class="form-group" style="margin-top: 10px">
+        <div class="form-group">
           <label for="password">Contraseña</label>
-          <input
-            v-model="password"
-            id="password"
-            type="password"
-            class="form-input"
-            :class="{ 'input-error': errors.password }"
-            maxlength="10"
-            placeholder="Máx. 10 caracteres"
-          />
+          <div class="password-input">
+            <img src="@/assets/icons/lock.png" alt="" class="input-icon" />
+            <input
+              v-model="password"
+              id="password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input password-field"
+              :class="{ 'input-error': errors.password }"
+              maxlength="10"
+              autocomplete="new-password"
+              placeholder="Máx. 10 caracteres"
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              :aria-label="
+                showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+              "
+              @click="showPassword = !showPassword"
+            >
+              <img :src="showPassword ? eyeOffIcon : eyeIcon" alt="" />
+            </button>
+          </div>
           <small v-if="errors.password" class="error-text">{{
             errors.password
           }}</small>
         </div>
 
         <div class="button-row">
-          <Button
-            label="Anterior"
-            class="modern-button secondary"
-            @click="prevStep"
-          />
-          <Button label="Siguiente" class="modern-button" @click="nextStep" />
+          <button type="button" class="btn-outline" @click="prevStep">
+            Anterior
+          </button>
+          <button type="submit" class="btn-primary">Siguiente</button>
         </div>
       </div>
 
       <!-- Paso 4: Foto de perfil y términos -->
-      <div v-if="step === 4">
+      <div v-if="step === 4" class="step">
         <h2 class="card-title">Foto de perfil y términos</h2>
 
-        <!-- Avatar circular con click para seleccionar archivo -->
-        <div class="form-group" style="align-items: center">
+        <div class="form-group avatar-group">
           <label>Foto de perfil (opcional)</label>
           <div class="avatar-upload" @click="triggerFileInput">
             <img
@@ -272,44 +344,45 @@
               <span>📷</span>
             </div>
           </div>
+          <span class="avatar-hint">Toca para elegir una imagen</span>
           <input
             type="file"
             ref="fileInput"
             @change="handleFileChange"
             accept="image/*"
-            style="display: none"
+            class="hidden-input"
           />
         </div>
 
-        <!-- Checkbox de términos -->
         <div class="form-group">
-          <label class="terms-label">
+          <label class="terms-label" :class="{ 'terms-error': termsError }">
             <input type="checkbox" v-model="aceptaTerminos" />
-            Acepto los <a href="#" target="_blank">Términos y Privacidad</a>
+            <span>
+              Acepto los
+              <a href="#" target="_blank">Términos y Privacidad</a>
+            </span>
           </label>
+          <small v-if="termsError" class="error-text">{{ termsError }}</small>
         </div>
 
-        <!-- Botones -->
         <div class="button-row">
-          <Button
-            label="Anterior"
-            class="modern-button secondary"
-            @click="prevStep"
-          />
-          <Button
-            label="Crear cuenta"
-            class="modern-button"
-            @click="handleRegister"
-          />
+          <button type="button" class="btn-outline" @click="prevStep">
+            Anterior
+          </button>
+          <button type="submit" class="btn-primary">Crear cuenta</button>
         </div>
       </div>
-    </div>
+
+      <p class="switch-link">
+        ¿Ya tienes cuenta?
+        <a href="#" @click.prevent="$router.replace('/login')">Inicia sesión</a>
+      </p>
+    </form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
-import Button from "primevue/button";
 import { saveUser, findUserByPhone, type Usuario } from "@/composables/useAuth";
 import { useRouter } from "vue-router";
 import GFemale from "@/assets/icons/g-female.png";
@@ -319,8 +392,13 @@ import AvatarIcon from "@/assets/icons/user_back_profile.png";
 import { uploadUserImage } from "@/composables/useStorage";
 import ArrowBack from "@/components/ArrowBack.vue";
 import { hashPassword } from "@/composables/usePassword";
+import eyeIcon from "@/assets/icons/eye.png";
+import eyeOffIcon from "@/assets/icons/eye-off.png";
 const router = useRouter();
 const step = ref(1);
+const stepTitles = ["Datos personales", "Domicilio", "Contacto", "Perfil"];
+const showPassword = ref(false);
+const termsError = ref("");
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const fotoPreview = ref<string | null>(null);
@@ -549,6 +627,12 @@ function prevStep() {
   step.value = Math.max(step.value - 1, 1);
 }
 
+// Enter / botón principal: avanza o registra según el paso
+async function onSubmit() {
+  if (step.value < 4) await nextStep();
+  else await handleRegister();
+}
+
 // Foto
 function handleFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
@@ -568,9 +652,10 @@ function handleFileChange(event: Event) {
 // Registro
 async function handleRegister() {
   if (!aceptaTerminos.value) {
-    alert("⚠️ Debes aceptar los términos y privacidad");
+    termsError.value = "Debes aceptar los términos y privacidad";
     return;
   }
+  termsError.value = "";
 
   const existente = await findUserByPhone(telefono.value);
   if (existente) {
@@ -608,308 +693,488 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-.btn-icon {
-  position: absolute;
-  top: 1rem;
-  background: white;
-  border: none;
-  border-radius: 50%;
-  padding: 0.5rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-.btn-icon.back {
-  border-radius: 30%;
-  width: 40px;
-  height: 40px;
-  left: 1rem;
-  top: 1rem;
-  width: 40px; /* tamaño del botón */
-  height: 40px;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.btn-icon.back svg {
-  width: 50%; /* escala el SVG respecto al botón */
-  height: 50%;
-}
-
-/* Estilos generales */
 .register-container {
-  background: #f8f9fb;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  background: #eef4fb;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(1, 101, 216, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 85%, rgba(1, 31, 65, 0.1), transparent 50%);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  position: relative;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
 }
+
+.btn-icon.back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* Encabezado */
 .register-header {
   width: 100%;
+  padding: 3.5rem 1rem 2rem;
   text-align: center;
-  padding: 2rem 1rem;
+  color: #fff;
   background: linear-gradient(
-    135deg,
+    150deg,
     var(--color-bg-blue-ligth),
     var(--color-bg-blue-dark)
   );
-  color: white;
   border-radius: 0 0 40px 40px;
-  margin-bottom: 2rem;
+  box-shadow: 0 6px 20px rgba(1, 31, 65, 0.25);
+  box-sizing: border-box;
+}
+.user-emblem {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.7rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-emblem svg {
+  width: 30px;
+  height: 30px;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
 }
 .title {
   font-size: 1.6rem;
-  font-weight: bold;
-}
-.subtitle {
-  font-size: 1rem;
-  margin-top: 0.3rem;
+  font-weight: 700;
+  margin: 0;
 }
 .step-indicator {
+  margin: 0.3rem 0 0;
   font-size: 0.9rem;
-  margin-top: 0.5rem;
-  color: #fff;
+  opacity: 0.9;
+}
+.progress-bar {
+  height: 6px;
+  max-width: 320px;
+  margin: 1rem auto 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress {
+  height: 100%;
+  background: #fff;
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
+/* Tarjeta */
 .register-card {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   width: 90%;
-  max-width: 420px;
+  max-width: 460px;
+  margin-top: -1.5rem;
+  background: #fff;
+  padding: 2rem 1.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(1, 31, 65, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  box-sizing: border-box;
+}
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-bg-blue-dark);
+  margin: 0 0 1.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #e8f0fa;
 }
 
-.card-title {
-  text-align: center;
-  margin-bottom: 1rem;
-  font-weight: bold;
-  font-size: 1.2rem;
-  color: var(--color-bg-blue-ligth);
-  padding-bottom: 0.5rem;
-}
-.card-title::after {
-  content: "";
-  display: block;
-  width: 100%; /* línea de ancho completo */
-  height: 1px; /* grosor de la línea */
-  background-color: #ccc; /* color gris */
-  margin-top: 0.5rem; /* separación entre texto y línea */
-  border-radius: 1px;
-}
+/* Campos */
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  margin-bottom: 1.1rem;
 }
-.row {
-  display: flex;
-  gap: 0.5rem;
+.form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 6px;
 }
-.row .col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-size: 16px; /* evita zoom automático en iOS */
+  font-family: inherit;
+  box-sizing: border-box;
+  background: #fff;
+  color: #222;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-
+.form-input:focus {
+  border-color: var(--color-bg-blue-ligth);
+  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.15);
+}
 .input-error {
-  border-color: red !important;
+  border-color: #d9534f !important;
 }
 .error-text {
-  color: red;
-  font-size: 0.8rem;
-  margin-top: 2px;
+  color: #d9534f;
+  font-size: 0.82rem;
+  margin-top: 5px;
 }
 
+/* Inputs con icono */
+.input-with-icon,
+.password-input {
+  position: relative;
+  display: flex;
+}
+.input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  opacity: 0.7;
+  z-index: 2;
+}
+.with-icon {
+  padding-left: 42px;
+}
+
+/* Domicilio */
+.address-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: 12px;
+}
+.address-grid .form-group {
+  min-width: 0;
+}
+.col-large {
+  grid-column: span 8;
+}
+.col-small {
+  grid-column: span 4;
+}
+.col-full {
+  grid-column: span 12;
+}
+
+/* Género */
 .gender-options {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
+  gap: 10px;
 }
 .gender-option {
+  flex: 1;
   cursor: pointer;
   border-radius: 12px;
-  padding: 0.3rem;
+  padding: 10px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  font-family: inherit;
   filter: grayscale(1);
-  border: 2px solid transparent;
   transition: all 0.2s;
+}
+.gender-option:hover {
+  border-color: var(--color-bg-blue-ligth);
 }
 .gender-option.selected {
   filter: none;
-  border-color: var(--color-bg-blue-dark);
-  background-color: rgba(0, 0, 0, 0.05);
+  border-color: var(--color-bg-blue-ligth);
+  background: #eaf2fc;
 }
 .gender-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
-  margin-bottom: 4px;
 }
-.gender-letter {
-  font-weight: bold;
-  font-size: 0.9rem;
+.gender-label {
+  font-weight: 600;
+  font-size: 0.8rem;
   color: #333;
 }
 
+/* Teléfono */
 .telefono-input {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: stretch;
+  gap: 8px;
 }
 .lada {
-  background: gray;
-  padding: 0.6rem 0.8rem;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
   border-radius: 12px;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  color: white;
+  background: var(--color-bg-blue-dark);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
 }
 .telefono-field {
   flex: 1;
+  padding-right: 40px;
+  letter-spacing: 0.5px;
 }
-
-.form-input {
-  padding: 0.8rem;
-  border-radius: 12px;
-  border: 1px solid #ddd;
-  font-size: 1rem;
-  outline: none;
-  transition: border 0.3s ease;
-}
-.form-input:focus {
-  border-color: var(--color-bg-blue-dark);
-}
-
-.button-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-.modern-button {
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-blue-ligth),
-    var(--color-bg-blue-dark)
-  );
-  color: white;
-  font-weight: bold;
-  font-size: 1.1rem;
-  padding: 0.8rem 2rem;
-  border-radius: 16px;
-  width: 100%;
-  transition: all 0.3s ease;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-.modern-button.secondary {
-  background: #ddd;
-  color: #333;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-.modern-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-.modern-button:active {
-  transform: translateY(0);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-.row-calle-numero {
-  position: relative;
-  height: 60px; /* Ajusta según el alto de tus inputs */
-  margin-bottom: 1rem;
-}
-
-.input-calle {
+.input-icon-right {
   position: absolute;
-  left: 0;
-  width: 70%; /* Calle ocupa más espacio */
-  top: 25px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  opacity: 0.7;
 }
 
-.input-numero {
+/* Contraseña */
+.password-field {
+  flex: 1;
+  padding-left: 42px;
+  padding-right: 46px;
+}
+.toggle-password {
   position: absolute;
-  right: 0;
-  width: 25%; /* Número ocupa menos */
-  top: 25px;
-}
-
-.avatar-upload {
-  position: relative;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  overflow: hidden;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
   cursor: pointer;
-  border: 2px solid #ddd;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #eee; /* fondo gris */
+}
+.toggle-password:hover {
+  background: #eaf2fc;
+}
+.toggle-password img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  opacity: 0.75;
+}
+/* Oculta el ojo nativo de Edge/IE para no duplicar el botón propio */
+.form-input::-ms-reveal,
+.form-input::-ms-clear {
+  display: none;
+}
+
+/* Avatar */
+.avatar-group {
+  align-items: center;
+  text-align: center;
+}
+.hidden-input {
+  display: none;
+}
+.avatar-upload {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 3px solid #eaf2fc;
+  box-shadow: 0 4px 12px rgba(1, 31, 65, 0.15);
+  background: #eee;
   transition: transform 0.2s;
 }
 .avatar-upload:hover {
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
-
 .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .avatar-overlay {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(1, 31, 65, 0.35);
   opacity: 0;
   transition: opacity 0.2s;
-  font-size: 1.5rem;
-  border-radius: 50%;
+  font-size: 1.6rem;
 }
 .avatar-upload:hover .avatar-overlay {
   opacity: 1;
 }
+.avatar-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #5b6472;
+}
 
+/* Términos */
 .terms-label {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
   font-size: 0.9rem;
+  font-weight: 500 !important;
+  cursor: pointer;
+  margin-bottom: 0 !important;
+}
+.terms-label input[type="checkbox"] {
+  accent-color: var(--color-bg-blue-ligth);
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.terms-label.terms-error {
+  border-color: #d9534f;
 }
 .terms-label a {
-  color: var(--color-bg-blue-dark);
+  color: var(--color-bg-blue-ligth);
+  font-weight: 600;
   text-decoration: underline;
 }
 
-.row-colonia-cp {
-  position: relative;
-  height: 60px; /* Ajusta según el alto de tus inputs */
-  margin-bottom: 1rem;
+/* Botones */
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 0.5rem;
+}
+.button-row button {
+  flex: 1;
+}
+.btn-primary,
+.btn-outline {
+  padding: 13px 0;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.btn-primary {
+  border: none;
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--color-bg-blue-ligth),
+    var(--color-bg-blue-dark)
+  );
+  box-shadow: 0 6px 14px rgba(1, 101, 216, 0.3);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-outline {
+  border: 2px solid var(--color-bg-blue-ligth);
+  background: #fff;
+  color: var(--color-bg-blue-ligth);
+}
+.btn-outline:hover {
+  background: var(--color-bg-blue-ligth);
+  color: #fff;
 }
 
-.input-colonia {
-  position: absolute;
-  left: 0;
-  width: 70%; /* Colonia ocupa más espacio */
-  top: 25px;
+.switch-link {
+  margin: 1.2rem 0 0;
+  text-align: center;
+  font-size: 0.88rem;
+  color: #555;
+}
+.switch-link a {
+  color: var(--color-bg-blue-ligth);
+  font-weight: 600;
+  text-decoration: none;
+}
+.switch-link a:hover {
+  text-decoration: underline;
 }
 
-.input-cp {
-  position: absolute;
-  right: 0;
-  width: 25%; /* Código Postal ocupa menos */
-  top: 25px;
+/* Responsive */
+@media (max-width: 480px) {
+  .register-header {
+    padding: 3.25rem 1rem 1.75rem;
+    border-radius: 0 0 28px 28px;
+  }
+  .register-card {
+    width: calc(100% - 1.5rem);
+    padding: 1.5rem 1rem;
+    margin-top: -1.25rem;
+  }
+  .col-large {
+    grid-column: span 7;
+  }
+  .col-small {
+    grid-column: span 5;
+  }
+}
+@media (min-width: 900px) {
+  .register-container {
+    padding: 2rem 1rem;
+  }
+  .register-header {
+    max-width: 520px;
+    border-radius: 24px 24px 0 0;
+    padding-top: 2.5rem;
+  }
+  .register-card {
+    max-width: 520px;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0 0 24px 24px;
+    padding: 2.25rem 2rem;
+  }
+  .btn-icon.back {
+    top: 1.5rem;
+    left: 1.5rem;
+  }
 }
 </style>

@@ -1,19 +1,44 @@
 <template>
   <div class="wizard-container">
     <!-- ENCABEZADO -->
+    <ArrowBack class="btn-icon back" @click="$router.back()" />
+
     <div class="wizard-header">
-      <ArrowBack class="btn-icon back" @click="$router.back()" />
-      <h2 class="header-title">Registro de Tienda</h2>
-      <p class="step-indicator">Paso {{ step }} de 5</p>
-      <div class="progress-bar">
-        <div class="progress" :style="{ width: `${(step - 1) * 25}%` }"></div>
+      <div class="store-emblem" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 9l1.5-5h15L21 9" />
+          <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+          <path d="M5 11v9h14v-9" />
+          <path d="M9 20v-5h6v5" />
+        </svg>
+      </div>
+      <span class="badge">Panel de tiendas</span>
+      <h2 class="header-title">Registra tu tienda</h2>
+      <p class="step-indicator">
+        Paso {{ step }} de 5 · {{ stepTitles[step - 1] }}
+      </p>
+      <div class="progress-bar" role="progressbar" :aria-valuenow="step" aria-valuemin="1" aria-valuemax="5">
+        <div class="progress" :style="{ width: `${(step / 5) * 100}%` }"></div>
       </div>
     </div>
 
     <!-- CARD -->
     <div class="wizard-card">
+      <div v-if="!registroTiendasAbierto" class="registro-cerrado" role="status">
+        <strong>Registro cerrado</strong>
+        <span>{{ configuracion.registro.mensajeCerrado }}</span>
+        <span v-if="contactoSoporte" class="registro-contacto">Contacto: {{ contactoSoporte }}</span>
+      </div>
+
       <!-- PASO 1 -->
-      <div v-if="step === 1" class="wizard-step">
+      <div v-if="step === 1" class="wizard-step" :class="{ deshabilitado: !registroTiendasAbierto }">
         <h3 class="step-title">Información básica</h3>
 
         <div class="form-group">
@@ -76,12 +101,20 @@
               v-model="form.password"
               placeholder="Crea tu contraseña"
               class="form-input"
+              autocomplete="new-password"
               maxlength="8"
               minlength="6"
             />
-            <span class="toggle-password" @click="showPassword = !showPassword">
-              {{ showPassword ? "🙈" : "👁️" }}
-            </span>
+            <button
+              type="button"
+              class="toggle-password"
+              :aria-label="
+                showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+              "
+              @click="showPassword = !showPassword"
+            >
+              <img :src="showPassword ? eyeOffIcon : eyeIcon" alt="" />
+            </button>
           </div>
           <span v-if="errors.password" class="error-msg">{{
             errors.password
@@ -101,15 +134,20 @@
               v-model="form.confirmPassword"
               placeholder="Confirma tu contraseña"
               class="form-input"
+              autocomplete="new-password"
               maxlength="8"
               minlength="6"
             />
-            <span
+            <button
+              type="button"
               class="toggle-password"
+              :aria-label="
+                showPasswordConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'
+              "
               @click="showPasswordConfirm = !showPasswordConfirm"
             >
-              {{ showPasswordConfirm ? "🙈" : "👁️" }}
-            </span>
+              <img :src="showPasswordConfirm ? eyeOffIcon : eyeIcon" alt="" />
+            </button>
           </div>
           <span v-if="errors.confirmPassword" class="error-msg">{{
             errors.confirmPassword
@@ -119,9 +157,11 @@
         <!-- BANNER -->
         <div class="form-group">
           <label>Portada | Banner</label>
+          <p class="field-hint">Imagen ancha que se muestra arriba de tu tienda</p>
           <div class="banner-upload" @click="triggerBanner">
             <template v-if="!bannerPreview">
               <span class="add-banner">+</span>
+              <span class="upload-hint">Subir portada</span>
             </template>
             <img
               v-else
@@ -149,6 +189,7 @@
             <!-- Si no hay logo, mostrar + -->
             <template v-if="!logoPreview">
               <span class="add-logo">+</span>
+              <span class="upload-hint">Subir logo</span>
             </template>
 
             <!-- Si hay logo, mostrar la preview -->
@@ -170,7 +211,7 @@
         </div>
 
         <div class="buttons">
-          <button class="btn-primary" @click="nextStep">Siguiente</button>
+          <button type="button" class="btn-primary" @click="nextStep">Siguiente</button>
         </div>
       </div>
 
@@ -346,8 +387,8 @@
 
         <!-- BOTONES -->
         <div class="buttons">
-          <button class="btn-secondary" @click="prevStep">Atrás</button>
-          <button class="btn-primary" @click="nextStep">Siguiente</button>
+          <button type="button" class="btn-secondary" @click="prevStep">Atrás</button>
+          <button type="button" class="btn-primary" @click="nextStep">Siguiente</button>
         </div>
       </div>
 
@@ -435,8 +476,8 @@
         </div>
 
         <div class="buttons">
-          <button class="btn-secondary" @click="prevStep">Atrás</button>
-          <button class="btn-primary" @click="nextStep">Siguiente</button>
+          <button type="button" class="btn-secondary" @click="prevStep">Atrás</button>
+          <button type="button" class="btn-primary" @click="nextStep">Siguiente</button>
         </div>
       </div>
 
@@ -495,9 +536,9 @@
 
         <!-- ENVÍOS A DOMICILIO -->
         <div class="form-group">
-          <label>
+          <label class="check-card">
             <input type="checkbox" v-model="form.envioDomicilio" />
-            Ofrezco envíos a domicilio
+            <span>🛵 Ofrezco envíos a domicilio</span>
           </label>
         </div>
 
@@ -579,8 +620,8 @@
         </div>
 
         <div class="buttons">
-          <button class="btn-secondary" @click="prevStep">Atrás</button>
-          <button class="btn-primary" @click="nextStep">Siguiente</button>
+          <button type="button" class="btn-secondary" @click="prevStep">Atrás</button>
+          <button type="button" class="btn-primary" @click="nextStep">Siguiente</button>
         </div>
       </div>
 
@@ -625,8 +666,8 @@
         </div>
 
         <div class="buttons">
-          <button class="btn-secondary" @click="prevStep">Atrás</button>
-          <button class="btn-success" @click="submitStore">Finalizar</button>
+          <button type="button" class="btn-secondary" @click="prevStep">Atrás</button>
+          <button type="button" class="btn-success" @click="submitStore">Finalizar</button>
         </div>
       </div>
     </div>
@@ -649,7 +690,18 @@ import {
   obtenerCategorias,
   type CategoriaData,
 } from "@/composables/useCategorias";
+import eyeIcon from "@/assets/icons/eye.png";
+import eyeOffIcon from "@/assets/icons/eye-off.png";
+import { useConfiguracion } from "@/composables/useConfiguracion";
+const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
+const stepTitles = [
+  "Información básica",
+  "Domicilio",
+  "Contacto",
+  "Ventas y horario",
+  "Extras",
+];
 const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
 
@@ -924,6 +976,10 @@ function prevStep() {
 
 // ------------------- ENVÍO -------------------
 async function submitStore() {
+  if (!registroTiendasAbierto.value) {
+    alert(configuracion.value.registro.mensajeCerrado);
+    return;
+  }
   if (!(await validateStep())) return;
 
   try {
@@ -1049,169 +1105,292 @@ watch(
 </script>
 
 <style scoped>
-/* CONTENEDOR PRINCIPAL */
+/* ===== Contenedor ===== */
 .wizard-container {
-  background: #f7f9fc;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0f1c2e;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(245, 158, 11, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(1, 101, 216, 0.25), transparent 50%);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  position: relative;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
 }
 
-/* HEADER */
+.btn-icon.back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* ===== Encabezado ===== */
 .wizard-header {
-  background: linear-gradient(135deg, #87cefa, #1f70b2, #00509e);
-  padding: 24px 16px;
+  width: 100%;
+  padding: 3.5rem 1rem 2rem;
   text-align: center;
-  border-radius: 0 0 60px 60px;
-  color: white;
-  position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  background: linear-gradient(160deg, #1b2f4b, #0f1c2e 70%);
+  border-bottom: 3px solid #f59e0b;
+  border-radius: 0 0 40px 40px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+.store-emblem {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.7rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0f1c2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+}
+.store-emblem svg {
+  width: 32px;
+  height: 32px;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
 }
 .header-title {
   font-size: 1.6rem;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin: 0;
 }
 .step-indicator {
-  font-size: 0.95rem;
-  opacity: 0.85;
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
-.btn-icon.back {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  font-size: 28px;
-  color: var(--color-bg-blue-dark);
+.progress-bar {
+  height: 6px;
+  max-width: 320px;
+  margin: 1rem auto 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress {
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
-/* CARD */
+/* ===== Tarjeta ===== */
 .wizard-card {
+  width: 90%;
+  max-width: 560px;
+  margin-top: -1.5rem;
   background: #fff;
-  padding: 30px 25px;
-  border-radius: 0 0 16px 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s;
+  padding: 2rem 1.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
 }
 .step-title {
   font-weight: 700;
-  color: #222;
-  font-size: 1.2rem;
-  margin-bottom: 18px;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 8px;
+  color: #0f1c2e;
+  font-size: 1.25rem;
+  margin: 0 0 1.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #fef3c7;
 }
 
-/* FORM GROUP */
+/* ===== Registro cerrado ===== */
+.registro-cerrado {
+  margin: 0 0 1rem;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border-left: 4px solid #d9534f;
+  background: #fdecea;
+  color: #8a1f1b;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.registro-contacto {
+  font-size: 0.83rem;
+  opacity: 0.9;
+}
+.wizard-step.deshabilitado {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ===== Campos ===== */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1.1rem;
   display: flex;
   flex-direction: column;
 }
-.form-group label {
+.form-group label,
+.address-group label {
   font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
   margin-bottom: 6px;
+}
+.field-hint {
+  margin: -2px 0 8px;
+  font-size: 0.8rem;
+  color: #5b6472;
 }
 .form-input,
 textarea,
 select {
-  padding: 12px 14px 12px 36px; /* espacio para icono */
+  width: 100%;
+  padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid #ccc;
-  font-size: 0.95rem;
-  width: 100%;
+  font-size: 16px; /* evita zoom automático en iOS */
+  font-family: inherit;
   box-sizing: border-box;
-  transition: all 0.2s;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(6px);
+  background: #fff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 textarea {
-  min-height: 80px;
+  min-height: 90px;
   resize: vertical;
 }
 .form-input:focus,
 textarea:focus,
 select:focus {
-  border-color: #1f70b2;
   outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+.form-input:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+.form-input[readonly] {
+  background: #f9fafb;
 }
 
-/* BOTONES */
-.buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 16px;
-}
-.btn-primary,
-.btn-secondary,
-.btn-success {
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.2s;
-}
-.btn-primary {
-  background: #1f70b2;
-  color: #fff;
-}
-.btn-primary:hover {
-  background: #105a8b;
-}
-.btn-secondary {
-  background: #f0f0f0;
-  color: #333;
-}
-.btn-secondary:hover {
-  background: #e0e0e0;
-}
-.btn-success {
-  background: #28a745;
-  color: #fff;
-}
-.btn-success:hover {
-  background: #1f7a30;
-}
-
-/* MENSAJES DE ERROR */
-.error-msg {
-  color: #d9534f;
-  font-size: 0.85rem;
-  margin-top: 4px;
-}
-
-/* INPUTS CON ICONO */
+/* Inputs con icono */
 .input-with-icon {
   position: relative;
-  margin-top: 10px;
 }
-.input-icon {
-  width: 24px;
-  height: 24px;
+.input-with-icon + .input-with-icon {
+  margin-top: 10px;
 }
 .input-with-icon .input-icon {
   position: absolute;
-  left: 10px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
   height: 20px;
   z-index: 2;
   pointer-events: none;
+  opacity: 0.7;
 }
 .input-with-icon input,
 .input-with-icon select,
 .input-with-icon textarea {
-  padding-left: 44px;
+  padding-left: 42px;
 }
 
-/* GRID DOMICILIO */
+/* Contraseña */
+.password-input input {
+  padding-right: 46px;
+}
+.toggle-password {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.toggle-password:hover {
+  background: #fef3c7;
+}
+.toggle-password img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  opacity: 0.75;
+}
+/* Oculta el ojo nativo de Edge/IE para no duplicar el botón propio */
+.form-input::-ms-reveal,
+.form-input::-ms-clear {
+  display: none;
+}
+
+/* Select de categoría con icono */
+.select-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.icono-select {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 6px;
+  position: absolute;
+  left: 10px;
+  z-index: 2;
+  pointer-events: none;
+}
+.select-with-icon {
+  padding-left: 48px;
+}
+
+/* Errores */
+.error-msg {
+  color: #d9534f;
+  font-size: 0.82rem;
+  margin-top: 5px;
+}
+
+/* ===== Domicilio (grid) ===== */
 .address-group {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 12px;
+}
+.address-group > div {
+  display: flex;
+  flex-direction: column;
 }
 .col-large {
   grid-column: span 8;
@@ -1223,329 +1402,347 @@ select:focus {
   grid-column: span 12;
 }
 
-/* LOGO */
-.logo-upload {
-  width: 120px;
-  height: 120px;
-  border: 2px dashed #1f70b2;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Autocompletado */
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  z-index: 10;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  list-style: none;
+  padding: 4px 0;
+  margin: 4px 0 0;
+}
+.autocomplete-list li {
+  padding: 10px 14px;
   cursor: pointer;
-  margin: 0 auto;
-  font-size: 2.5rem;
-  color: #1f70b2;
+  font-size: 0.95rem;
+}
+.autocomplete-list li:hover {
+  background: #fef3c7;
 }
 
-.add-logo {
-  font-weight: bold;
-}
-.default-logo,
-.logo-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
+/* ===== Subida de imágenes ===== */
 .hidden-input {
   display: none;
 }
+.banner-upload,
+.logo-upload,
+.gallery-item {
+  border: 2px dashed #f59e0b;
+  border-radius: 14px;
+  background: #fffbeb;
+  color: #b45309;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s, border-color 0.2s;
+}
+.banner-upload:hover,
+.logo-upload:hover,
+.gallery-item.add-image:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+.banner-upload {
+  width: 100%;
+  height: 150px;
+}
+.logo-upload {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+.add-banner,
+.add-logo {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.upload-hint {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.banner-preview,
+.logo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.logo-preview {
+  object-fit: contain;
+}
 
-/* CHECKBOX CON ICONO */
+/* Galería */
+.gallery-upload {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.gallery-item {
+  width: 110px;
+  height: 110px;
+}
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gallery-item.add-image {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+/* ===== Contacto ===== */
 .checkbox-with-icon {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #333;
 }
-.checkbox-with-icon input[type="checkbox"] {
-  accent-color: #1f70b2;
+.checkbox-with-icon input[type="checkbox"],
+.check-card input[type="checkbox"],
+.payment-option input[type="checkbox"] {
+  accent-color: #f59e0b;
   width: 18px;
   height: 18px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .wa-icon {
   width: 20px;
   height: 20px;
 }
 
-/* GALERÍA */
-.gallery-preview {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-.gallery-preview img {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid #ccc;
-}
-.gallery-upload {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.gallery-item {
-  width: 120px;
-  height: 120px;
-  border: 2px dashed #1f70b2;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.gallery-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.gallery-item.add-image {
-  font-size: 2rem;
-  color: #1f70b2;
-  font-weight: bold;
-  justify-content: center;
-}
-
-/* MÉTODOS DE PAGO */
+/* ===== Ventas ===== */
 .payment-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 10px;
+  gap: 10px;
 }
-.payment-option {
+.form-group .payment-option,
+.form-group .check-card {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 0.95rem;
-  padding: 8px 12px;
+  font-weight: 500;
+  padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(4px);
-  transition: 0.2s;
-  flex: 1 1 120px;
-  max-width: 200px;
+  background: #fff;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 0;
 }
-.payment-option:hover {
-  border-color: #1f70b2;
-  background: rgba(238, 246, 253, 0.8);
+.payment-option {
+  flex: 1 1 140px;
 }
-.payment-option input[type="checkbox"] {
-  accent-color: #1f70b2;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+.payment-option:hover,
+.check-card:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+.payment-option:has(input:checked),
+.check-card:has(input:checked) {
+  border-color: #f59e0b;
+  background: #fef3c7;
 }
 .payment-icon {
   width: 24px;
   height: 24px;
   object-fit: contain;
 }
-/* --- HORARIO DIARIO --- */
-.day-schedule {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.day-schedule strong {
-  width: 80px;
-  font-weight: 600;
-}
-.day-schedule input[type="time"] {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  font-size: 0.9rem;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(4px);
-  transition: all 0.2s;
-  width: 100px;
-}
-.day-schedule input[type="time"]:focus {
-  border-color: #1f70b2;
-  outline: none;
-}
-.day-schedule span {
-  margin: 0 4px;
-  font-weight: 500;
-}
 
-/* Password toggle */
-.password-input {
-  position: relative;
-}
-.toggle-password {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  user-select: none;
-  font-size: 1rem;
-}
-
+/* Zonas de entrega */
 .input-with-button {
   display: flex;
-  gap: 8px; /* espacio entre input y botón */
+  gap: 8px;
   align-items: center;
-  position: relative; /* necesario para la lista de autocomplete */
+  position: relative;
 }
 .btn-add {
   flex-shrink: 0;
-  background: #1f70b2;
-  color: white;
+  background: #0f1c2e;
+  color: #fff;
   border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
+  font-family: inherit;
 }
-.btn-add:hover {
-  background: #105a8b;
+.btn-add:hover:not(:disabled) {
+  background: #1b2f4b;
 }
-
+.btn-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .zona-list {
   list-style: none;
   padding: 0;
-  margin-top: 10px;
+  margin: 10px 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 .zona-item {
-  background: #eef6fd;
+  background: #fef3c7;
+  color: #78350f;
   padding: 6px 12px;
-  border-radius: 12px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 .remove-zona {
   background: transparent;
   border: none;
-  color: #d9534f;
+  color: #b45309;
   cursor: pointer;
   font-size: 14px;
+  padding: 0 2px;
 }
 
-.autocomplete-list {
-  position: absolute;
-  top: 100%; /* justo debajo del input */
-  left: 0;
-  right: 0;
-  max-height: 200px; /* altura máxima */
-  overflow-y: auto;
-  background: white;
+/* Horario */
+.day-schedule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.day-schedule:last-of-type {
+  border-bottom: none;
+}
+.day-schedule strong {
+  width: 90px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+}
+.day-schedule input[type="time"] {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid #ccc;
-  z-index: 10; /* encima de otros elementos, pero debajo del input */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fff;
+}
+.day-schedule input[type="time"]:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+.day-schedule span {
+  font-size: 0.85rem;
+  color: #6b7280;
 }
 
-.autocomplete-list li {
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.autocomplete-list li:hover {
-  background-color: #f0f0f0;
-}
-
-.progress-bar {
-  height: 6px;
-  background: #eee;
-  border-radius: 4px;
-  overflow: hidden;
-  margin: 16px 0;
-}
-.progress {
-  height: 100%;
-  background: #1f70b2;
-  transition: width 0.3s ease;
-}
-
-.select-container {
-  position: relative;
+/* ===== Botones ===== */
+.buttons {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 1.5rem;
 }
-
-.icono-select {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 4px;
-  position: absolute;
-  left: 8px;
-  z-index: 2;
-  pointer-events: none; /* para que no interfiera con el select */
+.buttons button {
+  flex: 1;
 }
-
-.select-with-icon {
-  padding-left: 50px; /* deja espacio para el icono */
-}
-
-/**Banner */
-
-.banner-upload {
-  width: 100%;
-  max-height: 200px;
-  border: 2px dashed #1f70b2;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.btn-primary,
+.btn-secondary,
+.btn-success {
+  border: none;
+  padding: 13px 20px;
+  border-radius: 12px;
   cursor: pointer;
-  margin: 0 auto;
-  font-size: 2.5rem;
-  color: #1f70b2;
-  overflow: hidden;
+  font-weight: 700;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s;
 }
-
-.add-banner {
-  font-weight: bold;
+.btn-primary,
+.btn-success {
+  color: #0f1c2e;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35);
 }
-
-.banner-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.btn-primary:hover,
+.btn-success:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: #fff;
+  color: #0f1c2e;
+  border: 2px solid #0f1c2e;
+  padding: 11px 20px;
+}
+.btn-secondary:hover {
+  background: #0f1c2e;
+  color: #fff;
 }
 
 /* ===== Responsive ===== */
-.wizard-container {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
 @media (max-width: 480px) {
-  .wizard-container {
-    padding: 12px;
+  .wizard-header {
+    padding: 3.25rem 1rem 1.75rem;
+    border-radius: 0 0 28px 28px;
   }
   .wizard-card {
-    padding: 22px 16px;
+    width: calc(100% - 1.5rem);
+    padding: 1.5rem 1rem;
+    margin-top: -1.25rem;
   }
-  .buttons {
-    gap: 10px;
+  .col-large {
+    grid-column: span 7;
   }
-  .buttons button {
-    flex: 1;
+  .col-small {
+    grid-column: span 5;
+  }
+  .day-schedule strong {
+    width: 78px;
+    font-size: 0.85rem;
+  }
+}
+@media (min-width: 900px) {
+  .wizard-container {
+    padding: 2rem 1rem;
+  }
+  .wizard-header {
+    max-width: 640px;
+    border-radius: 24px 24px 0 0;
+    padding-top: 2.5rem;
+  }
+  .wizard-card {
+    max-width: 640px;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0 0 24px 24px;
+    padding: 2.25rem 2rem;
+  }
+  .btn-icon.back {
+    top: 1.5rem;
+    left: 1.5rem;
   }
 }
 </style>

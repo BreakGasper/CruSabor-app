@@ -52,6 +52,7 @@ const domicilio = {
 };
 
 const itemCarrito = (id: string, sku: string, cantidad: number, tienda: string, precio: number) => ({
+  nombre_tienda: tienda === TIENDA_A ? 'Tienda A' : '',
   id_articulo: id,
   sku,
   cantidad,
@@ -63,7 +64,7 @@ const itemCarrito = (id: string, sku: string, cantidad: number, tienda: string, 
 });
 
 beforeEach(() => {
-  __reset({ articulos: articulos(), pedidos: {} });
+  __reset({ articulos: articulos(), pedidos: {}, tiendas: { [TIENDA_B]: { nombreTienda: 'Café Store' } } });
   sessionUser.value = { id: CLIENTE, nombre: 'Cliente Prueba' };
 });
 
@@ -83,7 +84,8 @@ describe('Cliente: confirmar pedido', () => {
     expect(guardado.historial).toHaveLength(1);
     expect(guardado.historial![0]).toMatchObject({ estatus: 'Preparacion', por: 'cliente' });
     expect(guardado.total_compra).toBe(2 * 45 + 30);
-    expect(guardado.items[0]).toMatchObject({ proveedor: TIENDA_A, sku_code: 'CHO-1', cantidad: 2 });
+    expect(guardado.items[0]).toMatchObject({ proveedor: TIENDA_A, sku_code: 'CHO-1', cantidad: 2, nombreTienda: 'Tienda A' });
+    expect(guardado.items[1].nombreTienda).toBe('Café Store'); // sin nombre en el carrito: se consulta a la tienda
     expect(guardado.domicilio.calleNumero).toBe('Av. Siempre Viva #742');
     expect(guardado.fecha_creacion).toBeTruthy();
   });

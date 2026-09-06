@@ -5,14 +5,30 @@
 
     <!-- Encabezado -->
     <div class="login-header">
+      <div class="store-emblem" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 9l1.5-5h15L21 9" />
+          <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+          <path d="M5 11v9h14v-9" />
+          <path d="M9 20v-5h6v5" />
+        </svg>
+      </div>
       <span class="badge">Panel de tiendas</span>
       <h1 class="title">MAVI - Store</h1>
-      <p class="subtitle">Administra tus productos y pedidos 🛍️</p>
+      <p class="subtitle">Administra tus productos y pedidos</p>
     </div>
 
     <!-- Tarjeta -->
     <form class="login-card" novalidate @submit.prevent="login">
-      <h2 class="login-title">Iniciar sesión</h2>
+      <h2 class="login-title">Acceso para tiendas</h2>
+      <p class="login-hint">Ingresa con el celular registrado de tu negocio</p>
 
       <!-- Celular -->
       <div class="form-group">
@@ -82,6 +98,7 @@
       </button>
 
       <button
+        v-if="registroTiendasAbierto"
         type="button"
         class="btn-outline-blue"
         :disabled="loading"
@@ -107,8 +124,10 @@ import { validatePasswordHash } from '@/composables/usePassword';
 import { cerrarSesion } from '@/utils/sessionUser';
 import eyeIcon from '@/assets/icons/eye.png';
 import eyeOffIcon from '@/assets/icons/eye-off.png';
+import { useConfiguracion } from '@/composables/useConfiguracion';
 
 const router = useRouter();
+const { registroTiendasAbierto } = useConfiguracion();
 
 const form = reactive({ username: '', password: '' });
 const errors = reactive<{
@@ -215,7 +234,10 @@ async function login() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f5f7fa;
+  background: #0f1c2e;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(245, 158, 11, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(1, 101, 216, 0.25), transparent 50%);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   position: relative;
   padding-bottom: 2rem;
@@ -244,19 +266,39 @@ async function login() {
   padding: 3.5rem 1rem 2.5rem;
   text-align: center;
   color: #fff;
-  background: linear-gradient(135deg, #87cefa, #1f70b2 55%, #00509e);
+  background: linear-gradient(160deg, #1b2f4b, #0f1c2e 70%);
+  border-bottom: 3px solid #f59e0b;
   border-radius: 0 0 40px 40px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
+}
+.store-emblem {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.8rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0f1c2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+}
+.store-emblem svg {
+  width: 36px;
+  height: 36px;
 }
 .badge {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
   font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   margin-bottom: 0.6rem;
 }
 .title {
@@ -287,9 +329,15 @@ async function login() {
 .login-title {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #1f70b2;
+  color: #0f1c2e;
   text-align: center;
-  margin: 0 0 0.4rem;
+  margin: 0;
+}
+.login-hint {
+  margin: -0.4rem 0 0.4rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #5b6472;
 }
 
 /* Campos */
@@ -316,8 +364,8 @@ async function login() {
 }
 .form-input:focus {
   outline: none;
-  border-color: #1f70b2;
-  box-shadow: 0 0 0 3px rgba(31, 112, 178, 0.15);
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 /* Teléfono con lada */
@@ -332,8 +380,8 @@ async function login() {
   align-items: center;
   padding: 0 12px;
   border-radius: 12px;
-  background: #1f8a3b;
-  color: #fff;
+  background: #0f1c2e;
+  color: #fbbf24;
   font-weight: 700;
   font-size: 0.95rem;
   flex-shrink: 0;
@@ -389,7 +437,12 @@ async function login() {
   justify-content: center;
 }
 .toggle-password:hover {
-  background: #f0f3f8;
+  background: #fef3c7;
+}
+/* Oculta el ojo nativo de Edge/IE para no duplicar el botón propio */
+.form-input::-ms-reveal,
+.form-input::-ms-clear {
+  display: none;
 }
 .toggle-password img {
   width: 20px;
@@ -436,7 +489,9 @@ async function login() {
 .btn-primary {
   border: none;
   color: #fff;
-  background: linear-gradient(135deg, #1f70b2, #00509e);
+  color: #0f1c2e;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35);
   margin-top: 0.3rem;
 }
 .btn-primary:hover:not(:disabled) {
@@ -448,19 +503,19 @@ async function login() {
   cursor: not-allowed;
 }
 .btn-outline-blue {
-  border: 2px solid #1f70b2;
+  border: 2px solid #0f1c2e;
   background: #fff;
-  color: #1f70b2;
+  color: #0f1c2e;
 }
 .btn-outline-blue:hover:not(:disabled) {
-  background: #1f70b2;
+  background: #0f1c2e;
   color: #fff;
 }
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-top-color: #fff;
+  border: 2px solid rgba(15, 28, 46, 0.3);
+  border-top-color: #0f1c2e;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -477,7 +532,7 @@ async function login() {
   color: #555;
 }
 .switch-link a {
-  color: #1f70b2;
+  color: #0165d8;
   font-weight: 600;
   text-decoration: none;
 }

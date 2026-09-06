@@ -131,6 +131,7 @@ import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
+import { tiendaPuedeVender } from '@/composables/useMembresia';
 
 const router = useRouter();
 const { tiendas, loading, cargarTiendas } = useTiendas();
@@ -150,13 +151,16 @@ const normalizar = (s: string) =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '');
 
+/** Al público solo se muestran tiendas aprobadas y con membresía vigente */
+const tiendasVisibles = computed(() => tiendas.value.filter((t) => tiendaPuedeVender(t)));
+
 const categorias = computed(() =>
-  Array.from(new Set(tiendas.value.map((t) => t.categoria).filter(Boolean))).sort(),
+  Array.from(new Set(tiendasVisibles.value.map((t) => t.categoria).filter(Boolean))).sort(),
 );
 
 const tiendasFiltradas = computed(() => {
   const q = normalizar(busqueda.value.trim());
-  return tiendas.value
+  return tiendasVisibles.value
     .filter((t) => !soloFavoritas.value || esFavorita(t.tiendaId))
     .filter((t) => !categoriaSel.value || t.categoria === categoriaSel.value)
     .filter(

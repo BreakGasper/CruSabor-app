@@ -48,7 +48,9 @@ function setAt(path: string, value: any) {
   notify(path);
 }
 
-function notify(changedPath: string) {
+function notify(changedPathRaw: string) {
+  // update(ref(db), { 'tiendas/x/y': v }) produce rutas con "/" inicial; se normalizan
+  const changedPath = segs(changedPathRaw).join('/');
   for (const [path, set] of listeners) {
     if (changedPath.startsWith(path) || path.startsWith(changedPath)) {
       set.forEach((cb) => cb(snapshot(path)));

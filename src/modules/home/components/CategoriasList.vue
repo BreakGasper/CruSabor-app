@@ -110,15 +110,11 @@ onMounted(async () => {
 });
 
 // Conteo de productos por categoría
-// Los artículos antiguos solo guardan el nombre (sin categoriaId): contamos por id o por nombre
+// Conteo por categoriaId (ver scripts/migrar-categoriaId.mjs para los artículos antiguos)
 const conteo = computed<Record<string, number>>(() => {
   const acc: Record<string, number> = {};
-  for (const c of categorias.value) {
-    acc[c.id] = articulos.value.filter(
-      (a) =>
-        a.categoriaId === c.id ||
-        normalizar(a.categoria || "") === normalizar(c.nombre)
-    ).length;
+  for (const a of articulos.value) {
+    if (a.categoriaId) acc[a.categoriaId] = (acc[a.categoriaId] || 0) + 1;
   }
   return acc;
 });

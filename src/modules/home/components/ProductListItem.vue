@@ -3,7 +3,7 @@
     <div class="image-content">
       <img
         loading="lazy"
-        :src="imagenUrl(producto.url) || defaultImg"
+        :src="FIREBASE_STORAGE_BASE_URL + imagenUrl(producto.url) || defaultImg"
         @error="onImgError"
         :alt="producto.nombre"
       />

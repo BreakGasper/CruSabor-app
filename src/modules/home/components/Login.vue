@@ -1,44 +1,55 @@
 <template>
   <div class="login-container">
-    <!-- Botón volver  con SVG -->
+    <!-- Volver -->
     <ArrowBack class="btn-icon back" @click="$router.back()" />
+
     <!-- Encabezado -->
     <div class="login-header">
-      <h1 class="title">MAVI - Store</h1>
+      <div class="user-emblem" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+      </div>
+      <span class="badge">Clientes</span>
+      <h1 class="title">MAVI</h1>
       <p class="subtitle">Bienvenido de nuevo 👋</p>
     </div>
 
-    <!-- Tarjeta de login -->
-    <div class="login-card">
+    <!-- Tarjeta -->
+    <form class="login-card" novalidate @submit.prevent="handleLogin">
       <h2 class="card-title">Iniciar sesión</h2>
+      <p class="card-hint">Ingresa con tu número de celular</p>
 
       <!-- Teléfono -->
       <div class="form-group">
         <label for="telefono">Número de teléfono</label>
-        <div class="telefono-input">
-          <!-- Prefijo visual +52 -->
+        <div class="telefono-input" :class="{ 'has-error': telefonoError }">
           <span class="lada">+52</span>
-
-          <!-- Input del teléfono -->
           <input
             v-model="telefono"
             id="telefono"
             type="tel"
+            inputmode="numeric"
+            autocomplete="tel-national"
             placeholder="10 dígitos"
             class="form-input telefono-field"
-            :class="{ 'input-error': telefonoError }"
+            maxlength="12"
             @input="formatTelefono"
-            maxlength="10"
           />
-
-          <!-- Icono PNG a la derecha -->
           <img
             src="@/assets/icons/smartphone.png"
-            alt="Teléfono"
-            class="icono-telefono"
+            alt=""
+            class="input-icon-right"
           />
         </div>
-
         <small v-if="telefonoError" class="error-text">{{
           telefonoError
         }}</small>
@@ -47,40 +58,55 @@
       <!-- Contraseña -->
       <div class="form-group">
         <label for="password">Contraseña</label>
-        <input
-          v-model="password"
-          id="password"
-          type="password"
-          placeholder="••••••••"
-          class="form-input"
-          :class="{ 'input-error': passwordError }"
-          @input="validatePassword"
-        />
+        <div class="password-input" :class="{ 'has-error': passwordError }">
+          <img src="@/assets/icons/lock.png" alt="" class="input-icon-left" />
+          <input
+            v-model="password"
+            id="password"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="form-input password-field"
+            @input="validatePassword"
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            :aria-label="
+              showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+            "
+            @click="showPassword = !showPassword"
+          >
+            <img :src="showPassword ? eyeOffIcon : eyeIcon" alt="" />
+          </button>
+        </div>
         <small v-if="passwordError" class="error-text">{{
           passwordError
         }}</small>
       </div>
 
-      <!-- Botón login -->
-      <Button
-        label="Entrar"
-        class="modern-button p-button-info mb-3"
-        @click="handleLogin"
-      />
+      <a href="#" class="forgot-link" @click.prevent="forgotPassword"
+        >¿Olvidaste tu contraseña?</a
+      >
 
-      <!-- Opciones -->
-      <div class="extra-options">
-        <a href="#" @click.prevent="forgotPassword"
-          >¿Olvidaste tu contraseña?</a
+      <!-- Acciones -->
+      <button type="submit" class="btn-primary">Entrar</button>
+
+      <button
+        type="button"
+        class="btn-outline"
+        @click="$router.replace('/register')"
+      >
+        Crear cuenta
+      </button>
+
+      <p class="switch-link">
+        ¿Tienes una tienda?
+        <a href="#" @click.prevent="$router.push('/store/login')"
+          >Ingresa aquí</a
         >
-        <p>
-          ¿No tienes cuenta?
-          <a href="#" @click.prevent="$router.replace('/register')"
-            >Regístrate aquí</a
-          >
-        </p>
-      </div>
-    </div>
+      </p>
+    </form>
 
     <!-- Modal ForgotPassword -->
     <div
@@ -114,26 +140,36 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import Button from "primevue/button";
 import { findUserByPhone } from "@/composables/useAuth";
 import ArrowBack from "@/components/ArrowBack.vue";
 import router from "@/router";
 import { validatePasswordHash } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
-import { faL } from "@fortawesome/free-solid-svg-icons";
 import CustomToast from "@/components/CustomToast.vue";
 import { guardarSesion, cerrarSesion } from "@/utils/sessionUser";
+import eyeIcon from "@/assets/icons/eye.png";
+import eyeOffIcon from "@/assets/icons/eye-off.png";
 const telefono = ref("");
 const password = ref("");
 const telefonoError = ref("");
 const passwordError = ref("");
 const mostrarForgotPassword = ref(false);
+const showPassword = ref(false);
 const showToast = ref(false);
 
+/** Solo los dígitos del teléfono (sin guiones) */
+const soloDigitos = () => telefono.value.replace(/\D/g, "");
+
+/** Formatea como 123-456-7890 mientras se escribe */
 function formatTelefono() {
-  // quitar caracteres que no son dígitos y limitar a 10
-  telefono.value = telefono.value.replace(/\D/g, "").slice(0, 10);
-  validateTelefono();
+  const d = soloDigitos().slice(0, 10);
+  telefono.value =
+    d.length > 6
+      ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+      : d.length > 3
+        ? `${d.slice(0, 3)}-${d.slice(3)}`
+        : d;
+  if (telefonoError.value) validateTelefono();
 }
 const handleCambioContrasena = () => {
   // Cierra ForgotPassword
@@ -147,7 +183,7 @@ const handleCambioContrasena = () => {
 
 // 🔹 Validar teléfono (solo números y 10 dígitos)
 function validateTelefono() {
-  if (!/^\d{10}$/.test(telefono.value)) {
+  if (soloDigitos().length !== 10) {
     telefonoError.value = "El número debe tener exactamente 10 dígitos";
   } else {
     telefonoError.value = "";
@@ -171,7 +207,7 @@ async function handleLogin() {
     return; // no sigue si hay errores
   }
 
-  const user = await findUserByPhone(telefono.value);
+  const user = await findUserByPhone(soloDigitos());
 
   if (!user) {
     passwordError.value = "❌ Usuario no encontrado";
@@ -209,186 +245,326 @@ function forgotPassword() {
 </script>
 
 <style scoped>
-.btn-icon {
-  position: absolute;
-  top: 1rem;
-  background: white;
-  border: none;
-  border-radius: 50%;
-  padding: 0.5rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-.btn-icon.back {
-  border-radius: 30%;
-  width: 40px;
-  height: 40px;
-  left: 1rem;
-  top: 1rem;
-  width: 40px; /* tamaño del botón */
-  height: 40px;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.btn-icon.back svg {
-  width: 50%; /* escala el SVG respecto al botón */
-  height: 50%;
-}
-
 .login-container {
-  background: #f8f9fb;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  background: #eef4fb;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(1, 101, 216, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 85%, rgba(1, 31, 65, 0.1), transparent 50%);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  position: relative;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
 }
 
+.btn-icon.back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* Encabezado */
 .login-header {
   width: 100%;
+  padding: 3.5rem 1rem 2.5rem;
   text-align: center;
-  padding: 2rem 1rem;
+  color: #fff;
+  background: linear-gradient(
+    150deg,
+    var(--color-bg-blue-ligth),
+    var(--color-bg-blue-dark)
+  );
+  border-radius: 0 0 40px 40px;
+  box-shadow: 0 6px 20px rgba(1, 31, 65, 0.25);
+  box-sizing: border-box;
+}
+.user-emblem {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.8rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-emblem svg {
+  width: 34px;
+  height: 34px;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+.title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 1px;
+}
+.subtitle {
+  margin: 0.3rem 0 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+/* Tarjeta */
+.login-card {
+  width: 90%;
+  max-width: 420px;
+  margin-top: -1.75rem;
+  background: #fff;
+  padding: 2rem 1.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(1, 31, 65, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-sizing: border-box;
+}
+.card-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-bg-blue-dark);
+  text-align: center;
+  margin: 0;
+}
+.card-hint {
+  margin: -0.4rem 0 0.4rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #5b6472;
+}
+
+/* Campos */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-size: 16px; /* evita zoom automático en iOS */
+  box-sizing: border-box;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-input:focus {
+  border-color: var(--color-bg-blue-ligth);
+  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.15);
+}
+
+/* Teléfono con lada */
+.telefono-input {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.lada {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--color-bg-blue-dark);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+.telefono-field {
+  flex: 1;
+  padding-right: 40px;
+  letter-spacing: 0.5px;
+}
+.input-icon-right {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Contraseña */
+.password-input {
+  position: relative;
+  display: flex;
+}
+.input-icon-left {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.password-field {
+  flex: 1;
+  padding-left: 40px;
+  padding-right: 44px;
+}
+.toggle-password {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.toggle-password:hover {
+  background: #eaf2fc;
+}
+.toggle-password img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  opacity: 0.75;
+}
+/* Oculta el ojo nativo de Edge/IE para no duplicar el botón propio */
+.form-input::-ms-reveal,
+.form-input::-ms-clear {
+  display: none;
+}
+
+/* Errores */
+.has-error .form-input {
+  border-color: #d9534f;
+}
+.error-text {
+  color: #d9534f;
+  font-size: 0.82rem;
+  margin-top: 5px;
+}
+
+/* Enlaces */
+.forgot-link {
+  align-self: flex-end;
+  margin-top: -0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-bg-blue-ligth);
+  text-decoration: none;
+}
+.forgot-link:hover,
+.switch-link a:hover {
+  text-decoration: underline;
+}
+.switch-link {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 0.88rem;
+  color: #555;
+}
+.switch-link a {
+  color: var(--color-bg-blue-ligth);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Botones */
+.btn-primary,
+.btn-outline {
+  width: 100%;
+  padding: 13px 0;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-primary {
+  border: none;
+  color: #fff;
   background: linear-gradient(
     135deg,
     var(--color-bg-blue-ligth),
     var(--color-bg-blue-dark)
   );
-  color: white;
-  border-radius: 0 0 40px 40px;
-  margin-bottom: 2rem;
+  box-shadow: 0 6px 14px rgba(1, 101, 216, 0.3);
 }
-
-.title {
-  font-size: 1.6rem;
-  font-weight: bold;
+.btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
-
-.subtitle {
-  font-size: 1rem;
-  margin-top: 0.3rem;
+.btn-primary:active {
+  transform: translateY(0);
 }
-
-.login-card {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  width: 90%;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.card-title {
-  text-align: center;
-  margin-bottom: 1rem;
-  font-weight: bold;
-  font-size: 1.6rem;
+.btn-outline {
+  border: 2px solid var(--color-bg-blue-ligth);
+  background: #fff;
   color: var(--color-bg-blue-ligth);
 }
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+.btn-outline:hover {
+  background: var(--color-bg-blue-ligth);
+  color: #fff;
 }
 
-.lada {
-  background: green;
-  padding: 0.6rem 0.8rem;
-  border-radius: 12px;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  color: white;
-}
-
-.telefono-field {
-  flex: 1;
-}
-
-.form-input {
-  padding: 0.8rem;
-  border-radius: 12px;
-  border: 1px solid #ddd;
-  font-size: 1rem;
-  outline: none;
-  transition: border 0.3s ease;
-}
-
-.form-input:focus {
-  border-color: var(--color-bg-blue-dark);
-}
-
-.extra-options {
-  text-align: center;
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
-}
-
-.extra-options a {
-  color: var(--color-bg-blue-dark);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.extra-options a:hover {
-  text-decoration: underline;
-}
-
-.modern-button {
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-blue-ligth),
-    var(--color-bg-blue-dark)
-  ); /* degradado azul */
-  color: white;
-  font-weight: bold;
-  font-size: 1.1rem;
-  padding: 0.8rem 2rem;
-  border-radius: 16px;
-  width: 100%; /* ocupa todo el ancho de la tarjeta */
-  transition: all 0.3s ease;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-.modern-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.modern-button:active {
-  transform: translateY(0);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-.input-error {
-  border: 1px solid red !important;
-}
-
-.error-text {
-  color: red;
-  font-size: 0.8rem;
-  margin-top: 0.2rem;
-}
-
-/* Modal overlay */
+/* Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
-
-/* Botón X cerrar modal */
+.modal-content {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
 .modal-close {
   position: absolute;
   top: 12px;
@@ -404,57 +580,38 @@ function forgotPassword() {
   z-index: 10;
 }
 
-.modal-content {
-  position: relative; /* necesario para que la X se posicione correctamente */
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+/* Responsive */
+@media (max-width: 480px) {
+  .login-header {
+    padding: 3.25rem 1rem 2rem;
+    border-radius: 0 0 28px 28px;
+  }
+  .login-card {
+    width: calc(100% - 1.5rem);
+    padding: 1.5rem 1rem;
+    margin-top: -1.25rem;
+  }
 }
-
-.telefono-input {
-  display: flex;
-  align-items: center;
-  position: relative;
-  gap: 0.5rem;
-}
-
-/* +52 separado del input */
-.telefono-input .lada {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: green;
-  color: white;
-  font-weight: bold;
-  padding: 0 0.8rem;
-  height: 2.6rem; /* igual altura que el input */
-  border-radius: 3px 16px 16px 3px; /* solo redondea las esquinas derechas */
-  border: 1px solid #ddd;
-  font-size: 1rem;
-}
-
-/* Input del teléfono */
-.telefono-input input {
-  flex: 1;
-  border-radius: 12px 0 0 12px; /* solo esquinas izquierdas redondeadas */
-  border: 1px solid #ddd;
-  padding-left: 0.8rem;
-  height: 2.6rem;
-  font-size: 1rem;
-}
-
-/* Icono a la derecha dentro del input */
-.telefono-input .icono-telefono {
-  position: absolute;
-  right: 10px;
-  width: 24px;
-  height: 24px;
-}
-
-.telefono-input input:focus {
-  border-color: var(--color-bg-blue-dark);
+@media (min-width: 900px) {
+  .login-container {
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  .login-header {
+    max-width: 480px;
+    border-radius: 24px 24px 0 0;
+    padding-top: 2.5rem;
+  }
+  .login-card {
+    max-width: 480px;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0 0 24px 24px;
+    padding: 2.25rem 2rem;
+  }
+  .btn-icon.back {
+    top: 1.5rem;
+    left: 1.5rem;
+  }
 }
 </style>

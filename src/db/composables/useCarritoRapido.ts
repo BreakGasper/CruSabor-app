@@ -6,6 +6,7 @@ import { sessionUser, sessionUsuarioValidation } from '@/utils/sessionUser';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 import Swal from 'sweetalert2';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
+import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
 
 /**
  * Carrito "rápido" para listas de productos (tienda, categorías, perfil de tienda).
@@ -19,9 +20,13 @@ export function useCarritoRapido() {
   const router = useRouter();
   const cantidadEnCarrito = reactive<Record<string, number>>({});
   const { sinEnvio } = useEnvioTienda();
+  const { noPuedeVender } = useEstadoTiendas();
 
   /** true si la tienda del producto NO hace envíos a domicilio */
   const sinEnvioTienda = (producto: Producto) => sinEnvio(producto.tiendaId);
+
+  /** true si la tienda está pendiente, bloqueada o con membresía vencida */
+  const tiendaNoDisponible = (producto: Producto) => noPuedeVender(producto.tiendaId);
 
   const varianteDefault = (producto: Producto) =>
     producto.variantes?.find((v) => v.isDefault) || producto.variantes?.[0];
@@ -69,6 +74,10 @@ export function useCarritoRapido() {
 
   const aumentar = async (producto: Producto) => {
     if (!requiereSesion()) return;
+    if (tiendaNoDisponible(producto)) {
+      Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: '#0165d8' });
+      return;
+    }
     if (sinEnvioTienda(producto)) {
       Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
       return;
@@ -103,6 +112,7 @@ export function useCarritoRapido() {
         cantidad: 1,
         detalle: v?.detalle || '',
         id_tienda: producto.tiendaId || '',
+        nombre_tienda: producto.tiendaNombre || '',
       };
       await db.Carrito.add(nuevo);
     }
@@ -134,5 +144,6 @@ export function useCarritoRapido() {
     stockDe,
     sinStock,
     sinEnvioTienda,
+    tiendaNoDisponible,
   };
 }

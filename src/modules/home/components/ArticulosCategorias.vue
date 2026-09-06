@@ -129,19 +129,9 @@ watch(
   }
 );
 
-const norm = (v?: string) =>
-  (v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-
-// Filtrado por categoría.
-// Los artículos antiguos solo guardan el nombre (sin categoriaId),
-// así que aceptamos coincidencia por id o por nombre.
+// Filtrado por categoría (los artículos ya traen categoriaId; ver scripts/migrar-categoriaId.mjs)
 const articulosFiltrados = computed<Producto[]>(() =>
-  articulos.value.filter(
-    (art) =>
-      art.categoriaId === props.id ||
-      (!!categoriaNombre.value &&
-        norm(art.categoria) === norm(categoriaNombre.value))
-  )
+  articulos.value.filter((art) => art.categoriaId === props.id)
 );
 
 // --- CARRITO ---
@@ -194,6 +184,8 @@ const aumentarCantidad = async (producto: Producto) => {
       url: producto.url,
       sku: producto.variantes[0]?.sku || "",
       detalle: producto.variantes[0]?.detalle || "",
+      id_tienda: producto.tiendaId || "",
+      nombre_tienda: producto.tiendaNombre || "",
     };
     await db.Carrito.add(newItem);
     cantidadEnCarrito[producto.articuloId] = 1;

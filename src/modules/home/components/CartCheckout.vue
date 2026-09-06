@@ -297,7 +297,12 @@ const siguientePaso = async () => {
     } catch (e: any) {
       // Stock insuficiente u otro error: el carrito se conserva para que el usuario ajuste
       Swal.fire({
-        title: e?.name === "StockInsuficienteError" ? "Sin stock suficiente" : "No se pudo confirmar",
+        title:
+          e?.name === "StockInsuficienteError"
+            ? "Sin stock suficiente"
+            : e?.name === "TiendaNoDisponibleError"
+              ? "Tienda no disponible"
+              : "No se pudo confirmar",
         text: e?.message || String(e),
         icon: "error",
         confirmButtonColor: "#0165d8",

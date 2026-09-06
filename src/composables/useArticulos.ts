@@ -1,5 +1,6 @@
-import { ref as vueRef, onMounted } from "vue";
+import { ref as vueRef, computed, onMounted } from "vue";
 import type { Ref } from "vue";
+import { useEstadoTiendas } from "@/composables/useMembresia";
 import { db } from "@/firebase";
 import { ref as dbRef, onValue } from "firebase/database";
 import type { Producto } from "@/types/Producto";
@@ -24,9 +25,27 @@ export function fechaArticulo(a: Pick<Producto, "fecha_hora"> | null | undefined
   return new Date(anio, mes - 1, dia, m ? +m[1] : 0, m ? +m[2] : 0).getTime();
 }
 
-export function useArticulos() {
-  const articulos: Ref<Producto[]> = vueRef([]);
+export interface UseArticulosOpciones {
+  /**
+   * Por defecto el catálogo público oculta los artículos de tiendas que no pueden
+   * vender (pendientes, bloqueadas o con membresía vencida). La dueña o dueño de la
+   * tienda necesita verlos todos: pasa true en esas pantallas.
+   */
+  incluirTiendasInactivas?: boolean;
+}
+
+export function useArticulos(opciones: UseArticulosOpciones = {}) {
+  const crudos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);
+  const { noPuedeVender } = useEstadoTiendas();
+  // Cuando se cargan los artículos de una sola tienda (panel de la tienda) no se filtra
+  const filtrarPorTienda = vueRef(!opciones.incluirTiendasInactivas);
+
+  const articulos = computed<Producto[]>(() =>
+    filtrarPorTienda.value
+      ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId))
+      : crudos.value,
+  );
 
   onMounted(() => {
     const articulosRef = dbRef(db, "articulos");
@@ -36,7 +55,7 @@ export function useArticulos() {
       (snapshot) => {
         const data = snapshot.val();
         if (!data) {
-          articulos.value = [];
+          crudos.value = [];
           loading.value = false;
           return;
         }
@@ -49,7 +68,7 @@ export function useArticulos() {
           });
         }
 
-        articulos.value = result;
+        crudos.value = result;
         loading.value = false;
       },
       (error) => {
@@ -83,6 +102,7 @@ export function useArticulos() {
 
   function cargarArticulosPorTienda(tiendaId: string) {
     loading.value = true;
+    filtrarPorTienda.value = false; // la tienda ve sus artículos aunque no pueda vender
     const articulosRef = dbRef(db, "articulos");
 
     onValue(
@@ -90,7 +110,7 @@ export function useArticulos() {
       (snapshot) => {
         const data = snapshot.val();
         if (!data) {
-          articulos.value = [];
+          crudos.value = [];
           loading.value = false;
           return;
         }
@@ -106,7 +126,7 @@ export function useArticulos() {
           }
         }
 
-        articulos.value = result;
+        crudos.value = result;
         loading.value = false;
       },
       (error) => {

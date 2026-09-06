@@ -458,6 +458,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
+import { tiendasSinMembresiaVigente, MOTIVO_SIN_MEMBRESIA_LABEL } from '@/composables/useMembresia';
 import { Html5Qrcode } from 'html5-qrcode';
 import ArrowBack from '@/components/ArrowBack.vue';
 
@@ -742,8 +743,33 @@ function selectCategoria(cat: CategoriaData) {
   showDropdown.value = false;
 }
 
+/**
+ * Para publicar productos la tienda debe estar aprobada y con membresía vigente.
+ * Si no cumple, avisa y manda al perfil de tienda (donde puede pagar). Devuelve true si puede seguir.
+ */
+async function verificarMembresia(idTienda: string): Promise<boolean> {
+  if (!idTienda) return true;
+  const bloqueo = (await tiendasSinMembresiaVigente([idTienda]))[0];
+  if (!bloqueo) return true;
+  const sinMembresia = bloqueo.motivo === 'sin-membresia';
+  await Swal.fire({
+    icon: 'warning',
+    title: sinMembresia ? 'Activa tu membresía para publicar' : 'Tu tienda no puede publicar por ahora',
+    text: sinMembresia
+      ? 'Tu tienda está aprobada, pero para registrar productos necesitas una membresía vigente. Actívala desde tu perfil de tienda.'
+      : `Estado: ${MOTIVO_SIN_MEMBRESIA_LABEL[bloqueo.motivo]}. Revisa el aviso en tu perfil de tienda o contacta al administrador.`,
+    confirmButtonText: 'Ir a mi perfil',
+    confirmButtonColor: '#0165d8',
+  });
+  router.replace('/store/profile');
+  return false;
+}
+
 onMounted(async () => {
   categorias.value = await obtenerCategorias();
+
+  // Alta de producto: se revisa la membresía antes de mostrar el formulario
+  if (!isEdit.value && props.tiendaId && !(await verificarMembresia(String(props.tiendaId)))) return;
 
   if (isEdit.value && articuloId) {
     const snapshot = await get(dbRef(db, `articulos/${articuloId}`));
@@ -901,6 +927,10 @@ function prevStep() {
 async function submitForm() {
   guardando.value = true;
   try {
+    // La tienda debe estar aprobada y con membresía vigente para publicar
+    const idTiendaActual = String(form.value.tiendaId || props.tiendaId || '');
+    if (!(await verificarMembresia(idTiendaActual))) return;
+
     form.value.fecha_hora = new Date().toISOString();
     form.value.precio = precioValue.value;
 

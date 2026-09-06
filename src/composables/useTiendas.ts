@@ -4,8 +4,9 @@ import type { Ref } from "vue";
 import { db } from "@/firebase";
 import { ref as dbRef, push, set, onValue, update } from "firebase/database";
 import { uploadStoreLogo, uploadStoreGallery, uploadStoreBanner } from "@/composables/useStorage";
+import type { ControlTienda } from "@/composables/useMembresia";
 
-export interface Tienda {
+export interface Tienda extends ControlTienda {
   tiendaId?: string;
   nombreTienda: string;
   categoria: string;
@@ -90,8 +91,15 @@ export function useTiendas() {
       const nuevaTiendaRef = push(tiendasRef);
       const tiendaId = nuevaTiendaRef.key!;
       
-      // Guardar inicialmente sin logoUrl ni galleryUrls
-      await set(nuevaTiendaRef, { ...tienda, logoUrl: "", galleryUrls: [] });
+      // Guardar inicialmente sin logoUrl ni galleryUrls.
+      // Toda tienda nueva nace 'pendiente': no vende hasta que un administrador la apruebe.
+      await set(nuevaTiendaRef, {
+        ...tienda,
+        logoUrl: "",
+        galleryUrls: [],
+        estatus: "pendiente",
+        creadaEn: new Date().toISOString(),
+      });
 
       // 2️⃣ Subir logo si existe
       let logoUrl = "";
@@ -171,8 +179,17 @@ async function tiendaLogueada(telefono: string): Promise<Tienda | null> {
   /** Actualiza solo los campos indicados de una tienda (la dueña o dueño edita su perfil). */
   async function actualizarTienda(tiendaId: string, cambios: Partial<Tienda>) {
     if (!tiendaId) throw new Error("Tienda sin id");
-    // Nunca se tocan desde aquí: contraseña, id ni los campos vacíos/undefined
-    const { password, tiendaId: _id, ...resto } = cambios as any;
+    // Nunca se tocan desde aquí: contraseña, id, control de admin (estado/membresía) ni campos undefined
+    const {
+      password,
+      tiendaId: _id,
+      estatus: _estatus,
+      motivoBloqueo: _motivo,
+      membresia: _membresia,
+      aprobadaEn: _aprobadaEn,
+      aprobadaPor: _aprobadaPor,
+      ...resto
+    } = cambios as any;
     const limpio: Record<string, any> = {};
     for (const [k, v] of Object.entries(resto)) if (v !== undefined) limpio[k] = v;
     if (!Object.keys(limpio).length) return;

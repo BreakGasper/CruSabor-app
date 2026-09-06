@@ -1,6 +1,11 @@
 <template>
   <div id="app-layout">
-    <router-view />
+    <MantenimientoAviso
+      v-if="mantenimientoActivo"
+      :mensaje="configuracion.mantenimiento.mensaje"
+      :contacto="contactoSoporte"
+    />
+    <router-view v-else />
   </div>
 
   <Toast position="bottom-center" />
@@ -8,8 +13,19 @@
 <script setup lang="ts">
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
+import { computed } from "vue";
+import { useRoute } from "vue-router";
 import { cargarSesion } from "@/utils/sessionUser";
+import { iniciarSincronizacion } from "@/db/sync";
+import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
+import MantenimientoAviso from "@/components/MantenimientoAviso.vue";
 cargarSesion();
+// Carrito, favoritos y tiendas favoritas se respaldan en Firebase por usuario
+iniciarSincronizacion();
+// Configuración del sistema (membresías, mantenimiento, registro) en vivo
+const { configuracion, contactoSoporte } = useConfiguracion();
+const route = useRoute();
+const mantenimientoActivo = computed(() => enMantenimientoPara(configuracion.value, route.path));
 const toast = useToast();
 </script>
 
