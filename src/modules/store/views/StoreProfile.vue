@@ -6,6 +6,8 @@
         <div class="back-btn" v-if="!esDuenoTienda">
           <arrow-back @click="$router.back()" />
         </div>
+        <!-- Dueña o dueño: campana con pedidos por atender y alertas de stock -->
+        <CampanaTienda v-if="esDuenoTienda && store.tiendaId" class="campana-tienda" :tienda-id="store.tiendaId" />
         <button
           v-if="!esDuenoTienda"
           class="fav-store-btn"
@@ -38,6 +40,7 @@
           :mi-voto="miVotoTienda(store.tiendaId)"
           @rate="calificarTienda"
         />
+        <p></p>
         <button v-if="esDuenoTienda" class="btn-editar-tienda" @click="abrirEdicion">
           ✏️ Editar mi tienda
         </button>
@@ -440,6 +443,7 @@ import type { PlanMembresia } from '@/composables/useAdminTiendas';
 import type { Producto } from '@/types/Producto';
 import StarRating from '@/components/StarRating.vue';
 import { useCalificaciones } from '@/composables/useCalificaciones';
+import CampanaTienda from '@/modules/store/components/CampanaTienda.vue';
 
 const router = useRouter();
 
@@ -897,9 +901,10 @@ body {
 }
 .back-btn {
   margin-left: 5px;
-  position: absolute;
-  top: 12px;
+  position: fixed; /* el visitante no pierde el regreso al bajar por el perfil */
+  top: max(12px, env(safe-area-inset-top));
   left: 12px;
+  z-index: 1000;
   width: 40px;
   height: 40px;
   display: flex;
@@ -908,7 +913,6 @@ body {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  z-index: 12;
   cursor: pointer;
 }
 .back-btn:hover {
@@ -941,6 +945,13 @@ body {
 .store-rating {
   margin: 4px auto 8px;
   justify-content: center;
+}
+
+.campana-tienda {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 12;
 }
 
 .store-category {
@@ -1284,13 +1295,7 @@ body {
   font-weight: 500;
   font-size: 0.9rem;
 }
-.back-btn {
-  position: absolute;
-  left: 0;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
+/* (la regla de .back-btn vive arriba, junto al banner: botón fijo de regresar) */
 
 /* Contenedor tipo tarjeta flotante */
 /* 🔥 Fondo oscuro tipo modal */ /* CONTENEDOR */

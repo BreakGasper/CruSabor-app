@@ -103,6 +103,9 @@
       <p v-if="tiendaNoDisponible" class="aviso-envio">
         🚫 Esta tienda no está disponible por el momento, por eso no puedes agregar este producto al carrito.
       </p>
+      <p v-else-if="ventaPausadaProducto" class="aviso-envio">
+        ⏸ {{ MENSAJE_VENTA_PAUSADA }}
+      </p>
       <p v-else-if="sinEnvioTienda" class="aviso-envio">
         🚫 Esta tienda no hace envíos a domicilio, por eso no puedes agregar este producto al carrito.
       </p>
@@ -175,7 +178,7 @@
         </div>
 
         <button
-          :disabled="stockActual === 0 || sinEnvioTienda || tiendaNoDisponible"
+          :disabled="stockActual === 0 || sinEnvioTienda || tiendaNoDisponible || ventaPausadaProducto"
           v-else
           class="btn-agregar"
           @click="aumentarCantidad(producto)"
@@ -214,6 +217,7 @@ import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/us
 import Swal from 'sweetalert2';
 import StarRating from '@/components/StarRating.vue';
 import { useCalificaciones } from '@/composables/useCalificaciones';
+import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
 
 const props = defineProps<{ producto: Producto }>();
 
@@ -251,8 +255,12 @@ const sinEnvioTienda = computed(() => sinEnvio(props.producto?.tiendaId));
 const { noPuedeVender } = useEstadoTiendas();
 const tiendaNoDisponible = computed(() => noPuedeVender(props.producto?.tiendaId));
 
+/* La tienda pausó la venta (resurtiendo) o dio de baja el artículo */
+const ventaPausadaProducto = computed(() => ventaBloqueada(props.producto));
+
 const etiquetaBotonAgregar = computed(() => {
   if (tiendaNoDisponible.value) return 'Tienda no disponible';
+  if (ventaPausadaProducto.value) return 'Venta pausada';
   if (sinEnvioTienda.value) return 'Sin envío a domicilio';
   if (stockActual.value === 0) return 'Sin stock';
   return '+ Agregar al carrito';
@@ -547,8 +555,9 @@ function onImgError(e: Event) {
 }
 
 .btn-icon {
-  position: absolute;
-  top: 1rem;
+  position: fixed; /* volver y carrito siempre visibles al hacer scroll */
+  top: max(1rem, env(safe-area-inset-top));
+  z-index: 1000;
   background: var(--surface);
   border: none;
   border-radius: 50%;

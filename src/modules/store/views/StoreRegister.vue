@@ -1,7 +1,7 @@
 <template>
   <div class="wizard-container">
     <!-- ENCABEZADO -->
-    <ArrowBack class="btn-icon back" @click="$router.back()" />
+    <TopBarFija titulo="Registro de tienda" @back="$router.back()" />
 
     <div class="wizard-header">
       <div class="store-emblem" aria-hidden="true">
@@ -675,7 +675,7 @@
 </template>
 
 <script setup lang="ts">
-import ArrowBack from "@/components/ArrowBack.vue";
+import TopBarFija from "@/components/TopBarFija.vue";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { useTiendas } from "@/composables/useTiendas";
 import { hashPassword } from "@/composables/usePassword";

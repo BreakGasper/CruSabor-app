@@ -7,6 +7,7 @@ import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 import Swal from 'sweetalert2';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
 import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
+import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
 
 /**
  * Carrito "rápido" para listas de productos (tienda, categorías, perfil de tienda).
@@ -46,6 +47,9 @@ export function useCarritoRapido() {
   /** Se elabora cuando el cliente lo pide */
   const esPorPedido = (producto: Producto) => producto.porPedido === true;
 
+  /** La tienda pausó la venta o dio de baja el artículo */
+  const ventaPausada = (producto: Producto) => ventaBloqueada(producto);
+
   const sinStock = (producto: Producto) => stockDe(producto) === 0;
 
   const limpiar = () => {
@@ -84,6 +88,10 @@ export function useCarritoRapido() {
     }
     if (sinEnvioTienda(producto)) {
       Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+      return;
+    }
+    if (ventaBloqueada(producto)) {
+      Swal.fire({ icon: 'info', title: 'Venta pausada', text: MENSAJE_VENTA_PAUSADA, confirmButtonColor: '#0165d8' });
       return;
     }
     if (!sessionPedidoId.value) generarNuevoPedidoId(sessionUser.value.id);
@@ -148,6 +156,7 @@ export function useCarritoRapido() {
     sincronizar,
     stockDe,
     esPorPedido,
+    ventaPausada,
     sinStock,
     sinEnvioTienda,
     tiendaNoDisponible,

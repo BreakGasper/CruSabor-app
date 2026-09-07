@@ -2,10 +2,63 @@ import { ref as vueRef, computed, onMounted } from "vue";
 import type { Ref } from "vue";
 import { useEstadoTiendas } from "@/composables/useMembresia";
 import { db } from "@/firebase";
-import { ref as dbRef, onValue } from "firebase/database";
+import { ref as dbRef, onValue, push, set, update } from "firebase/database";
 import type { Producto } from "@/types/Producto";
- 
-import { push, set } from "firebase/database";
+
+/* =========================================================================
+ *  DISPONIBILIDAD Y STOCK DE UN ARTÍCULO (reglas puras)
+ * ========================================================================= */
+
+/** Con esta cantidad o menos en alguna variante, el artículo se avisa como "por agotarse" */
+export const UMBRAL_STOCK_BAJO = 3;
+
+export type EstadoStock = "agotado" | "bajo" | "ok" | "sin-control";
+
+export interface ResumenStock {
+  estado: EstadoStock;
+  /** Menor stock entre las variantes con control (Infinity si ninguna lo controla) */
+  minimo: number;
+  /** Suma del stock controlado */
+  total: number;
+}
+
+/**
+ * Stock de un artículo mirando todas sus variantes. Las variantes con -1 (ilimitado)
+ * y los artículos bajo pedido no se controlan.
+ */
+export function resumenStock(p: Pick<Producto, "variantes" | "porPedido"> | null | undefined): ResumenStock {
+  if (!p || p.porPedido) return { estado: "sin-control", minimo: Infinity, total: Infinity };
+  const lista: any[] = Array.isArray(p.variantes) ? p.variantes : Object.values(p.variantes || {});
+  const controladas = lista.map((v) => Number(v?.stock)).filter((s) => Number.isFinite(s) && s !== -1);
+  if (!controladas.length) return { estado: "sin-control", minimo: Infinity, total: Infinity };
+  const minimo = Math.min(...controladas);
+  const total = controladas.reduce((a, b) => a + Math.max(0, b), 0);
+  if (total <= 0) return { estado: "agotado", minimo, total };
+  if (minimo <= UMBRAL_STOCK_BAJO) return { estado: "bajo", minimo, total };
+  return { estado: "ok", minimo, total };
+}
+
+/** true si la tienda pausó la venta o dio de baja el artículo (no se puede comprar) */
+export const ventaBloqueada = (p: Pick<Producto, "ventaPausada" | "baja"> | null | undefined) =>
+  p?.ventaPausada === true || p?.baja === true;
+
+export const MENSAJE_VENTA_PAUSADA = "La tienda pausó la venta de este producto por el momento (está resurtiendo).";
+
+/** La tienda pausa o reanuda la venta de un artículo (sigue visible en el catálogo) */
+export async function pausarVentaArticulo(articuloId: string, pausar: boolean) {
+  await update(dbRef(db, `articulos/${articuloId}`), {
+    ventaPausada: pausar,
+    ventaPausadaEn: pausar ? new Date().toISOString() : null,
+  });
+}
+
+/** La tienda da de baja (oculta del catálogo) o reactiva un artículo */
+export async function darDeBajaArticulo(articuloId: string, baja: boolean) {
+  await update(dbRef(db, `articulos/${articuloId}`), {
+    baja,
+    bajaEn: baja ? new Date().toISOString() : null,
+  });
+}
 
 
 
@@ -47,8 +100,12 @@ export function useArticulos(opciones: UseArticulosOpciones = {}) {
     return actual && actual !== a.tiendaNombre ? { ...a, tiendaNombre: actual } : a;
   };
 
+  // Catálogo público: fuera tiendas que no pueden vender y artículos dados de baja.
+  // La tienda (cargarArticulosPorTienda) ve todo, incluidos los de baja, para reactivarlos.
   const articulos = computed<Producto[]>(() =>
-    (filtrarPorTienda.value ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId)) : crudos.value).map(conNombreVivo),
+    (filtrarPorTienda.value ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId) && a.baja !== true) : crudos.value).map(
+      conNombreVivo,
+    ),
   );
 
   onMounted(() => {

@@ -19,6 +19,8 @@ import ArrowBack from './ArrowBack.vue';
  * - `fallback`: ruta a la que ir si no hay pantalla anterior dentro de la app
  *   (entrada directa por URL). Vue Router guarda la ruta previa en history.state.back.
  * - Emite `back` si prefieres manejar el regreso tú mismo (se usa en vez del router).
+ * - `sticky` (por defecto true): la barra se queda arriba al hacer scroll, así el título
+ *   y la flecha de regresar nunca se pierden. Pasa `:sticky="false"` para desactivarlo.
  */
 const props = withDefaults(
   defineProps<{
@@ -26,7 +28,7 @@ const props = withDefaults(
     sticky?: boolean;
     fallback?: string;
   }>(),
-  { sticky: false, fallback: '/' },
+  { sticky: true, fallback: '/' },
 );
 
 const emit = defineEmits<{ (e: 'back'): void }>();

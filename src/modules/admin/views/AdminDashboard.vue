@@ -111,6 +111,10 @@
           <h3>Categorías</h3>
           <p>Catálogo de categorías de tiendas y productos.</p>
         </router-link>
+        <router-link to="/admin/cuentas" class="module">
+          <h3>Cuentas</h3>
+          <p>Administradores que pueden entrar a este panel: crear, editar y desactivar.</p>
+        </router-link>
       </section>
     </main>
 

@@ -32,7 +32,8 @@
       />
       <div class="fila-precio">
         <span class="precio">${{ Number(producto.precio).toFixed(2) }}</span>
-        <span v-if="esPorPedido(producto)" class="tag por-pedido" title="La tienda lo elabora cuando lo pides">Bajo pedido</span>
+        <span v-if="ventaPausada(producto)" class="tag agotado" title="La tienda pausó la venta por el momento">Venta pausada</span>
+        <span v-else-if="esPorPedido(producto)" class="tag por-pedido" title="La tienda lo elabora cuando lo pides">Bajo pedido</span>
         <span v-else-if="sinStock(producto)" class="tag agotado">Agotado</span>
         <span v-else-if="sinEnvioTienda(producto)" class="tag sin-envio">Sin envío</span>
       </div>
@@ -42,11 +43,11 @@
         <button
           v-if="!(cantidadEnCarrito[producto.articuloId] > 0)"
           class="btn-agregar"
-          :disabled="sinStock(producto) || sinEnvioTienda(producto)"
+          :disabled="sinStock(producto) || sinEnvioTienda(producto) || ventaPausada(producto)"
           @click.stop="aumentar(producto)"
         >
           <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
-          {{ sinEnvioTienda(producto) ? "Sin envío" : sinStock(producto) ? "Sin stock" : "Agregar" }}
+          {{ ventaPausada(producto) ? "Pausado" : sinEnvioTienda(producto) ? "Sin envío" : sinStock(producto) ? "Sin stock" : "Agregar" }}
         </button>
         <div v-else class="contador">
           <button
@@ -87,7 +88,7 @@ import { useCalificaciones } from "@/composables/useCalificaciones";
 const router = useRouter();
 const props = defineProps<{ producto: Producto }>();
 
-const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda, esPorPedido } = useCarritoRapido();
+const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda, esPorPedido, ventaPausada } = useCarritoRapido();
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
 const { resumenDe, miVoto, calificar } = useCalificaciones("articulos");
 

@@ -1,7 +1,7 @@
 <template>
   <div class="checkout-container">
     <div class="checkout-header">
-      <ArrowBack class="btn-icon back" @click="FlechaBack()" />
+      <TopBarFija titulo="Confirmar pedido" @back="FlechaBack()" />
       <h1 class="title">Confirmar Pedido</h1>
       <p class="subtitle">Paso {{ paso }} / 3</p>
     </div>
@@ -186,7 +186,7 @@
 import { ref, computed, watch, onMounted, reactive } from "vue";
 import { sessionUser } from "@/utils/sessionUser";
 import { useRouter } from "vue-router";
-import ArrowBack from "@/components/ArrowBack.vue";
+import TopBarFija from "@/components/TopBarFija.vue";
 import { useCarrito } from "@/db/composables/useCarrito";
 import { guardarPedidos } from "@/composables/usePedidos";
 import { tiendasCerradas } from "@/composables/useHorarioTienda";
@@ -321,7 +321,9 @@ const siguientePaso = async () => {
             ? "Sin stock suficiente"
             : e?.name === "TiendaNoDisponibleError"
               ? "Tienda no disponible"
-              : "No se pudo confirmar",
+              : e?.name === "ArticuloNoDisponibleError"
+                ? "Venta pausada"
+                : "No se pudo confirmar",
         text: e?.message || String(e),
         icon: "error",
         confirmButtonColor: "#0165d8",

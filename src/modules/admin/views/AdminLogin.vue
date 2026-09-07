@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <!-- Volver -->
-    <ArrowBack class="btn-icon back" @click="$router.push('/')" />
+    <TopBarFija titulo="Administrador" @back="$router.push('/')" />
 
     <!-- Encabezado -->
     <div class="login-header">
@@ -105,8 +105,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import ArrowBack from '@/components/ArrowBack.vue';
+import { useRouter, useRoute } from 'vue-router';
+import TopBarFija from '@/components/TopBarFija.vue';
 import { loginAdmin } from '@/composables/useAdmin';
 import { guardarSesionAdmin } from '@/utils/sessionAdmin';
 import { cerrarSesion } from '@/utils/sessionUser';
@@ -115,8 +115,14 @@ import eyeIcon from '@/assets/icons/eye.png';
 import eyeOffIcon from '@/assets/icons/eye-off.png';
 
 const router = useRouter();
+const route = useRoute();
 
 const form = reactive({ username: '', password: '' });
+// Desde el login de clientes se llega con ?tel=... cuando la contraseña de admin es distinta
+if (typeof route?.query?.tel === 'string' && /^\d{10}$/.test(route.query.tel)) {
+  const d = route.query.tel;
+  form.username = `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+}
 const errors = reactive<{
   username?: string;
   password?: string;

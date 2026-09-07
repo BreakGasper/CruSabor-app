@@ -2,6 +2,7 @@
   <div class="articulos-list-container">
     <!-- Header -->
     <PageHeader v-if="showHeader" title="Productos" :fallback="`/store/profile/${tiendaId}`" sticky>
+        <CampanaTienda v-if="esDuenoTienda" :tienda-id="tiendaId" />
         <button
           v-if="!esDuenoTienda"
           class="icon-btn icon-circle cart-btn"
@@ -65,9 +66,12 @@
         v-for="producto in articulosPaginados"
         :key="producto.articuloId"
         class="card"
+        :class="{ 'de-baja': producto.baja, pausado: producto.ventaPausada && !producto.baja }"
         @click="irADetalle(producto)"
       >
         <div class="img-container">
+          <span v-if="producto.baja" class="estado-tag baja">Dado de baja</span>
+          <span v-else-if="producto.ventaPausada" class="estado-tag pausado">⏸ Venta pausada</span>
           <img
              style="border-radius: 5%;"
             loading="lazy"
@@ -118,17 +122,41 @@
           <p class="subcategoria">{{ producto.categoria || 'General' }}</p>
           <p class="precio">${{ producto.precio }}</p>
 
+          <!-- Acciones de la dueña o dueño: pausar venta / dar de baja -->
+          <div v-if="esDuenoTienda" class="acciones-dueno" @click.stop>
+            <button
+              type="button"
+              class="btn-estado"
+              :class="{ activo: producto.ventaPausada }"
+              :disabled="procesando === producto.articuloId || producto.baja"
+              :title="producto.ventaPausada ? 'Reanudar la venta' : 'Pausar la venta hasta resurtir'"
+              @click="togglePausa(producto)"
+            >
+              {{ producto.ventaPausada ? '▶ Reanudar venta' : '⏸ Pausar venta' }}
+            </button>
+            <button
+              type="button"
+              class="btn-estado"
+              :class="producto.baja ? 'reactivar' : 'baja'"
+              :disabled="procesando === producto.articuloId"
+              :title="producto.baja ? 'Volver a mostrarlo en el catálogo' : 'Ocultarlo del catálogo'"
+              @click="toggleBaja(producto)"
+            >
+              {{ producto.baja ? '↺ Reactivar' : '⬇ Dar de baja' }}
+            </button>
+          </div>
+
           <!-- Agregar al carrito (solo clientes, no el dueño) -->
           <div v-if="!esDuenoTienda" class="acciones" @click.stop>
             <button
               v-if="!(cantidadEnCarrito[producto.articuloId] > 0)"
               class="btn-agregar"
-              :disabled="sinStock(producto) || tiendaSinEnvio"
-              :title="tiendaSinEnvio ? 'Esta tienda no envía a domicilio' : ''"
+              :disabled="sinStock(producto) || tiendaSinEnvio || ventaPausada(producto)"
+              :title="ventaPausada(producto) ? 'La tienda pausó la venta por el momento' : tiendaSinEnvio ? 'Esta tienda no envía a domicilio' : ''"
               @click.stop="aumentar(producto)"
             >
               <FontAwesomeIcon :icon="['fas', 'shopping-cart']" />
-              {{ tiendaSinEnvio ? 'Sin envío' : sinStock(producto) ? 'Sin stock' : 'Agregar' }}
+              {{ ventaPausada(producto) ? 'Venta pausada' : tiendaSinEnvio ? 'Sin envío' : sinStock(producto) ? 'Sin stock' : 'Agregar' }}
             </button>
 
             <div v-else class="contador-carrito">
@@ -195,8 +223,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useArticulos } from '@/composables/useArticulos';
+import { useArticulos, pausarVentaArticulo, darDeBajaArticulo } from '@/composables/useArticulos';
 import PageHeader from '@/components/PageHeader.vue';
+import CampanaTienda from '@/modules/store/components/CampanaTienda.vue';
+import Swal from 'sweetalert2';
 import userDefaultImage from '@/assets/icons/user_back_profile.png';
 import { useRoute, useRouter } from 'vue-router';
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
@@ -209,8 +239,45 @@ import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
 import { useEnvioTienda } from '@/composables/useEnvioTienda';
 
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
-const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock } =
+const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, ventaPausada } =
   useCarritoRapido();
+
+/* Acciones de la dueña o dueño sobre la disponibilidad de sus artículos */
+const procesando = ref<string | null>(null);
+async function togglePausa(p: Producto) {
+  procesando.value = p.articuloId;
+  try {
+    await pausarVentaArticulo(p.articuloId, !p.ventaPausada);
+    Swal.fire({ toast: true, position: 'bottom', timer: 1600, showConfirmButton: false, icon: 'success', title: p.ventaPausada ? 'Venta reanudada' : 'Venta pausada' });
+  } catch (e: any) {
+    Swal.fire({ icon: 'error', title: 'No se pudo actualizar', text: e?.message || String(e) });
+  } finally {
+    procesando.value = null;
+  }
+}
+async function toggleBaja(p: Producto) {
+  if (!p.baja) {
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: `¿Dar de baja "${p.nombre}"?`,
+      text: 'Dejará de aparecer en el catálogo. Podrás reactivarlo desde aquí cuando quieras.',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, dar de baja',
+      cancelButtonText: 'Volver',
+      confirmButtonColor: '#e74c3c',
+    });
+    if (!r.isConfirmed) return;
+  }
+  procesando.value = p.articuloId;
+  try {
+    await darDeBajaArticulo(p.articuloId, !p.baja);
+    Swal.fire({ toast: true, position: 'bottom', timer: 1600, showConfirmButton: false, icon: 'success', title: p.baja ? 'Artículo reactivado' : 'Artículo dado de baja' });
+  } catch (e: any) {
+    Swal.fire({ icon: 'error', title: 'No se pudo actualizar', text: e?.message || String(e) });
+  } finally {
+    procesando.value = null;
+  }
+}
 const { sinEnvio } = useEnvioTienda();
 const tiendaSinEnvio = computed(() => sinEnvio(tiendaId));
 
@@ -626,6 +693,64 @@ const obtenerStock = (producto: Producto) => {
   font-size: 0.8rem;
   margin-top: 0.3rem;
   font-weight: 500;
+}
+
+/* Estado del artículo (dueña o dueño) */
+.card.de-baja .img-container img,
+.card.pausado .img-container img {
+  filter: grayscale(0.7);
+  opacity: 0.7;
+}
+.estado-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.estado-tag.baja {
+  background: #fdecea;
+  color: #c0392b;
+}
+.estado-tag.pausado {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+.acciones-dueno {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.btn-estado {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.btn-estado.activo {
+  background: #e0e7ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+.btn-estado.baja {
+  color: #c0392b;
+}
+.btn-estado.reactivar {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+.btn-estado:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .agotado {

@@ -1,7 +1,7 @@
 <template>
   <div class="register-container">
     <!-- Volver -->
-    <ArrowBack class="btn-icon back" @click="$router.back()" />
+    <TopBarFija titulo="Crear cuenta" @back="$router.back()" />
 
     <!-- Encabezado -->
     <div class="register-header">
@@ -390,7 +390,7 @@ import GMale from "@/assets/icons/g-male.png";
 import GOther from "@/assets/icons/g-other.png";
 import AvatarIcon from "@/assets/icons/user_back_profile.png";
 import { uploadUserImage } from "@/composables/useStorage";
-import ArrowBack from "@/components/ArrowBack.vue";
+import TopBarFija from "@/components/TopBarFija.vue";
 import { hashPassword } from "@/composables/usePassword";
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";

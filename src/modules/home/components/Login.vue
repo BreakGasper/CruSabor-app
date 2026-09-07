@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <!-- Volver -->
-    <ArrowBack class="btn-icon back" @click="$router.back()" />
+    <TopBarFija titulo="Ingresar" @back="$router.back()" />
 
     <!-- Encabezado -->
     <div class="login-header">
@@ -108,6 +108,28 @@
       </p>
     </form>
 
+    <!-- Elección de acceso: el celular es de un cliente y también de un administrador -->
+    <div v-if="eleccion" class="modal-overlay eleccion-overlay" @click.self="cancelarEleccion">
+      <div class="modal-content eleccion-acceso" role="dialog" aria-modal="true" aria-label="¿Cómo quieres entrar?">
+        <button class="modal-close" aria-label="Cerrar" @click="cancelarEleccion">×</button>
+        <h2 class="eleccion-titulo">Hola, {{ eleccion.user.nombre?.split(' ')[0] || 'de nuevo' }} 👋</h2>
+        <p class="eleccion-texto">Este celular también es de administrador. ¿Cómo quieres entrar?</p>
+        <div class="eleccion-opciones">
+          <button type="button" class="eleccion-btn cliente" :disabled="entrando" @click="entrarComoCliente">
+            <span class="eleccion-icono">🛍️</span>
+            <span class="eleccion-label">Como cliente</span>
+            <span class="eleccion-sub">Comprar en las tiendas</span>
+          </button>
+          <button type="button" class="eleccion-btn admin" :disabled="entrando" @click="entrarComoAdmin">
+            <span class="eleccion-icono">🛡️</span>
+            <span class="eleccion-label">Como administrador</span>
+            <span class="eleccion-sub">Panel de MAVI</span>
+          </button>
+        </div>
+        <p v-if="errorEleccion" class="eleccion-error">{{ errorEleccion }}</p>
+      </div>
+    </div>
+
     <!-- Modal ForgotPassword -->
     <div
       v-if="mostrarForgotPassword"
@@ -141,12 +163,15 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { findUserByPhone } from "@/composables/useAuth";
-import ArrowBack from "@/components/ArrowBack.vue";
+import TopBarFija from "@/components/TopBarFija.vue";
 import router from "@/router";
 import { validatePasswordHash } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
 import CustomToast from "@/components/CustomToast.vue";
 import { guardarSesion, cerrarSesion } from "@/utils/sessionUser";
+import { findAdminByPhone, type Admin } from "@/composables/useAdmin";
+import { guardarSesionAdmin, cerrarSesionAdmin } from "@/utils/sessionAdmin";
+import { RUTA_ADMIN_HOME, RUTA_ADMIN_LOGIN } from "@/modules/admin/adminRoutes";
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
 const telefono = ref("");
@@ -215,27 +240,85 @@ async function handleLogin() {
   }
   const isValid = await validatePasswordHash(password.value, user.pass);
 
-  if (isValid) {
-    // Limpiar sesión de tienda anterior si existe
+  if (!isValid) {
+    passwordError.value = "❌ Contraseña incorrecta";
+    return;
+  }
+
+  // Si el celular también es de un administrador activo, se pregunta cómo entrar.
+  // Se pregunta en cada inicio de sesión (también tras cerrar sesión y volver a entrar).
+  const admin = await findAdminByPhone(soloDigitos());
+  if (admin && admin.activo) {
+    errorEleccion.value = "";
+    eleccion.value = { user, admin };
+    return;
+  }
+  abrirSesionCliente(user);
+}
+
+/* ---------- Elección cliente / administrador ---------- */
+const eleccion = ref<{ user: any; admin: Admin } | null>(null);
+const entrando = ref(false);
+const errorEleccion = ref("");
+
+function abrirSesionCliente(user: any) {
+  // Una sola sesión activa: se cierran las de tienda y administrador
+  localStorage.removeItem("tiendas");
+  cerrarSesionAdmin();
+  cerrarSesion();
+
+  guardarSesion({
+    id: user.id,
+    nombre: user.nombre,
+    telefono: user.celular,
+    email: user.email,
+    domicilio: user.calleNumero,
+    colonia: user.lugar,
+    municipio: user.municipio,
+    codigpostal: user.codigoPostal,
+    estado: user.estado,
+  });
+  router.replace("/");
+}
+
+function entrarComoCliente() {
+  if (!eleccion.value) return;
+  const { user } = eleccion.value;
+  eleccion.value = null;
+  abrirSesionCliente(user);
+}
+
+async function entrarComoAdmin() {
+  if (!eleccion.value || entrando.value) return;
+  entrando.value = true;
+  errorEleccion.value = "";
+  try {
+    const { admin } = eleccion.value;
+    // La cuenta de administrador tiene su propia contraseña; si coincide con la escrita se entra directo
+    const valida = await validatePasswordHash(password.value, admin.password || "");
+    if (!valida) {
+      errorEleccion.value = "Tu contraseña de administrador es distinta. Te llevamos al acceso del panel.";
+      setTimeout(() => router.push({ path: RUTA_ADMIN_LOGIN, query: { tel: soloDigitos() } }), 1400);
+      return;
+    }
     localStorage.removeItem("tiendas");
     cerrarSesion();
-
-    guardarSesion({
-      id: user.id,
-      nombre: user.nombre,
-      telefono: user.celular,
-      email: user.email,
-      domicilio: user.calleNumero,
-      colonia: user.lugar,
-      municipio: user.municipio,
-      codigpostal: user.codigoPostal,
-      estado: user.estado,
+    guardarSesionAdmin({
+      id: admin.id,
+      nombre: admin.nombre,
+      telefono: admin.telefono,
+      rol: admin.rol,
+      inicio: new Date().toISOString(),
     });
-    router.replace("/");
-    // Redirigir
-  } else {
-    passwordError.value = "❌ Contraseña incorrecta";
+    eleccion.value = null;
+    router.replace(RUTA_ADMIN_HOME);
+  } finally {
+    entrando.value = false;
   }
+}
+
+function cancelarEleccion() {
+  if (!entrando.value) eleccion.value = null;
 }
 
 function forgotPassword() {
@@ -565,6 +648,73 @@ function forgotPassword() {
   max-width: 400px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
+/* Elección cliente / administrador */
+.eleccion-acceso {
+  text-align: center;
+  padding: 1.6rem 1.25rem 1.25rem;
+}
+.eleccion-titulo {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.eleccion-texto {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.eleccion-opciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.eleccion-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.eleccion-btn:hover {
+  transform: translateY(-2px);
+}
+.eleccion-btn.cliente:hover {
+  border-color: var(--color-bg-blue-ligth);
+}
+.eleccion-btn.admin:hover {
+  border-color: #10b981;
+}
+.eleccion-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.eleccion-icono {
+  font-size: 1.8rem;
+}
+.eleccion-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.eleccion-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.eleccion-error {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff4e5;
+  color: #8a5a00;
+  font-size: 0.85rem;
+}
+
 .modal-close {
   position: absolute;
   top: 12px;

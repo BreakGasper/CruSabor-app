@@ -2,10 +2,8 @@
   <div class="register-container">
     <!-- Header -->
     <div class="register-header">
-      <div class="back-btn">
-        <ArrowBack @click="$router.back()" />
-      </div>
-      <h1 class="title">Registrar Artículo</h1>
+      <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="$router.back()" />
+      <h1 class="title">{{ isEdit ? 'Editar Artículo' : 'Registrar Artículo' }}</h1>
       <p class="subtitle">Rápido y fácil ✨</p>
       <div class="step-indicator">
         <span v-for="n in 3" :key="n" :class="{ active: step >= n }">{{
@@ -477,7 +475,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { tiendasSinMembresiaVigente, MOTIVO_SIN_MEMBRESIA_LABEL } from '@/composables/useMembresia';
 import { Html5Qrcode } from 'html5-qrcode';
-import ArrowBack from '@/components/ArrowBack.vue';
+import TopBarFija from '@/components/TopBarFija.vue';
 
 const route = useRoute();
 const router = useRouter();

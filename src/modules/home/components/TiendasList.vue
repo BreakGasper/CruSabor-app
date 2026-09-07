@@ -68,57 +68,9 @@
       {{ soloFavoritas && !busqueda ? 'Aún no tienes tiendas favoritas.' : 'No encontramos tiendas con ese criterio.' }}
     </p>
 
-    <!-- Lista -->
+    <!-- Lista vertical con la misma tarjeta de la portada -->
     <div v-else class="grid">
-      <div
-        v-for="t in tiendasFiltradas"
-        :key="t.tiendaId"
-        class="tienda-card"
-        @click="verTienda(t)"
-      >
-        <img
-          :src="t.logoUrl || placeholderLogo"
-          :alt="t.nombreTienda"
-          class="logo"
-          loading="lazy"
-          @error="onImgError"
-        />
-
-        <div class="info">
-          <div class="nombre-row">
-            <h3 class="nombre">{{ t.nombreTienda }}</h3>
-            <span v-if="t.categoria" class="categoria">{{ t.categoria }}</span>
-          </div>
-
-          <div class="detalle-row">
-            <span class="ubicacion" :title="`${t.colonia}, ${t.municipio}`">
-              📍 {{ [t.colonia, t.municipio].filter(Boolean).join(', ') || 'Sin ubicación' }}
-            </span>
-            <a
-              v-if="t.telefono"
-              class="telefono"
-              :href="`tel:${t.telefono}`"
-              @click.stop
-            >
-              📞 {{ formatTelefono(t.telefono) }}
-            </a>
-          </div>
-
-          <div class="extras">
-            <span v-if="t.envioDomicilio" class="tag envio">🚚 Envío a domicilio</span>
-            <span v-if="t.incluyeWhatsapp" class="tag wa">WhatsApp</span>
-          </div>
-        </div>
-
-        <button
-          class="fav-btn"
-          :class="{ active: esFavorita(t.tiendaId) }"
-          :title="esFavorita(t.tiendaId) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-          @click.stop="toggle(t)"
-        >
-          <FontAwesomeIcon :icon="esFavorita(t.tiendaId) ? ['fas', 'heart'] : ['far', 'heart']" />
-        </button>
-      </div>
+      <TiendaCard v-for="t in tiendasFiltradas" :key="t.tiendaId" :tienda="t" detalle @abrir="verTienda" />
     </div>
   </div>
 </template>
@@ -127,15 +79,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import PageHeader from '@/components/PageHeader.vue';
+import TiendaCard from './TiendaCard.vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
-import placeholderLogo from '@/assets/icons/user_back_profile.png';
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
 import { tiendaPuedeVender } from '@/composables/useMembresia';
 
 const router = useRouter();
 const { tiendas, loading, cargarTiendas } = useTiendas();
-const { esFavorita, toggle, favoritasIds } = useTiendasFavoritas();
+const { esFavorita, favoritasIds } = useTiendasFavoritas();
 const route = useRoute();
 /** Desde el perfil se llega con /tiendas?favoritas=1 */
 const soloFavoritas = ref(route.query.favoritas === '1');
@@ -174,17 +125,8 @@ const tiendasFiltradas = computed(() => {
     .sort((a, b) => a.nombreTienda.localeCompare(b.nombreTienda));
 });
 
-function formatTelefono(tel: string) {
-  const d = String(tel).replace(/\D/g, '');
-  return d.length === 10 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : tel;
-}
-
 function verTienda(t: Tienda) {
   router.push(`/store/profile/${t.tiendaId}`);
-}
-
-function onImgError(e: Event) {
-  (e.target as HTMLImageElement).src = placeholderLogo;
 }
 </script>
 
@@ -319,10 +261,11 @@ function onImgError(e: Event) {
 }
 
 /* Grid */
+/* Lista vertical: una tarjeta (TiendaCard) debajo de otra, a todo lo ancho */
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 @media (min-width: 768px) {
   .grid {
@@ -330,155 +273,9 @@ function onImgError(e: Event) {
     gap: 1rem;
   }
 }
-
-/* Card */
-.tienda-card {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.85rem 1rem;
-  background: var(--surface);
-  border-radius: 16px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  min-width: 0;
-}
-.tienda-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
-}
-.logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: var(--surface-2);
-  border: 2px solid #eef2f7;
-}
-.info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.nombre-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.nombre {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.categoria {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #e8f1fc;
-  color: var(--brand-blue-text);
-  white-space: nowrap;
-}
-.detalle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  min-width: 0;
-}
-.ubicacion {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.telefono {
-  flex-shrink: 0;
-  color: var(--brand-blue-text);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.telefono:hover {
-  text-decoration: underline;
-}
-.extras {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.tag {
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-weight: 500;
-}
-.tag.envio {
-  background: #eef8f1;
-  color: #1e8449;
-}
-.tag.wa {
-  background: #e9f9ee;
-  color: #128c7e;
-}
-.fav-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: none;
-  background: #f4f6f9;
-  color: #b5bcc6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  padding: 0;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-.fav-btn:hover,
-.fav-btn.active {
-  background: #ffecec;
-  color: #e74c3c;
-}
-
 @media (max-width: 480px) {
   .tiendas-container {
     padding: 0.5rem 0.75rem 2rem;
-  }
-  .logo {
-    width: 54px;
-    height: 54px;
-  }
-  .detalle-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-  .fav-btn {
-    width: 34px;
-    height: 34px;
-  }
-  .nombre-row {
-    flex-wrap: wrap;
-    gap: 4px 8px;
-  }
-  .nombre {
-    white-space: normal;
-    line-height: 1.2;
   }
 }
 </style>

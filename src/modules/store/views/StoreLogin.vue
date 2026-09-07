@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <!-- Volver -->
-    <ArrowBack class="btn-icon back" @click="$router.push('/')" />
+    <TopBarFija titulo="Acceso tiendas" @back="$router.push('/')" />
 
     <!-- Encabezado -->
     <div class="login-header">
@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import ArrowBack from '@/components/ArrowBack.vue';
+import TopBarFija from '@/components/TopBarFija.vue';
 import { findUserByPhoneStore } from '@/composables/useAuth';
 import { validatePasswordHash } from '@/composables/usePassword';
 import { cerrarSesion } from '@/utils/sessionUser';

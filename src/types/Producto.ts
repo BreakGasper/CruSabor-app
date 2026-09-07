@@ -25,6 +25,10 @@ export interface Producto {
    * muestra como "Atendiendo tu pedido" mientras la tienda lo prepara.
    */
   porPedido?: boolean;
+  /** Venta pausada por la tienda (p. ej. para resurtir): se ve en el catálogo pero no se puede comprar */
+  ventaPausada?: boolean;
+  /** Dado de baja por la tienda: no aparece en el catálogo público; la tienda puede reactivarlo */
+  baja?: boolean;
   variantes: Array<{
     color: string;
     colorCodigo: string; // Nuevo campo para el código del color

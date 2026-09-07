@@ -15,6 +15,7 @@ import {
 } from 'firebase/database';
 import { tiendasQueNoPuedenVender, TiendaNoDisponibleError } from '@/composables/useMembresia';
 import { tiendasCerradas, TiendaCerradaError } from '@/composables/useHorarioTienda';
+import { ventaBloqueada } from '@/composables/useArticulos';
 import { sessionUser } from '@/utils/sessionUser';
 
 /* =========================================================================
@@ -164,6 +165,18 @@ export interface Pedido {
   };
 
   items: PedidoItem[];
+}
+
+/** Artículos cuya venta la tienda pausó o dio de baja después de que el cliente los agregó */
+export class ArticuloNoDisponibleError extends Error {
+  constructor(public articulos: { id: string; nombre: string }[]) {
+    super(
+      (articulos.length === 1 ? 'La tienda pausó la venta de: ' : 'La tienda pausó la venta de: ') +
+        articulos.map((a) => a.nombre).join(', ') +
+        '. Quítalo del carrito para continuar.',
+    );
+    this.name = 'ArticuloNoDisponibleError';
+  }
 }
 
 export class StockInsuficienteError extends Error {
@@ -409,6 +422,14 @@ export async function guardarPedidos(
   // …ni cerrada según su horario (sus artículos se quedan en el carrito)
   const cerradas = await tiendasCerradas(items.map((i) => i.proveedor || ''));
   if (cerradas.length) throw new TiendaCerradaError(cerradas);
+
+  // 0b) Ningún artículo puede tener la venta pausada o estar dado de baja
+  const noVendibles: { id: string; nombre: string }[] = [];
+  for (const it of items) {
+    const snap = await get(dbRef(db, `articulos/${it.id_articulo}`));
+    if (snap.exists() && ventaBloqueada(snap.val())) noVendibles.push({ id: it.id_articulo, nombre: it.nombreProducto });
+  }
+  if (noVendibles.length) throw new ArticuloNoDisponibleError(noVendibles);
 
   // 1) Reservar stock (atómico por variante)
   const descontados: PedidoItem[] = [];

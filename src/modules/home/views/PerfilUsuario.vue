@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container">
-    <ArrowBack class="back-button" @click="$router.back()" />
+    <TopBarFija titulo="Mi perfil" @back="$router.back()" />
 
     <!-- Menú lateral fijo tipo botones redondeados -->
     <div class="menu-tabs-floating" :class="{ hidden: menuHidden }">
@@ -191,7 +191,7 @@ import Button from "primevue/button";
 import FavoritosList from "@/modules/home/components/FavoritosList.vue";
 import TiendasFavoritas from "@/modules/home/components/TiendasFavoritas.vue";
 import DireccionesList from "@/modules/home/components/DireccionesList.vue";
-import ArrowBack from "@/components/ArrowBack.vue";
+import TopBarFija from "@/components/TopBarFija.vue";
 import { cerrarSesion, sessionUser } from "@/utils/sessionUser";
 import { getUserById, updateUserPassword } from "@/composables/useAuth";
 import { calcularEdad, obtenerGenero } from "@/utils/toolsUtils";
