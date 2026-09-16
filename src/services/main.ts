@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { enviarCorreo } from "./mailService.ts";
 import { crearRouterPagos } from "./pagos/router.ts";
+import { crearRouterRecuperacion } from "./recuperacion/router.ts";
 
 console.log(">>> Iniciando main.ts");
 
@@ -24,32 +24,8 @@ app.use(cors({ origin: origenes }));
 
 app.get("/salud", (_req, res) => res.json({ ok: true }));
 
-app.post("/recuperar-password", async (req, res) => {
-  const { email, codigo } = req.body;  // <-- recibir el código desde el frontend
-  if (!email || !codigo) return res.status(400).json({ success: false, message: "Falta correo o código" });
-
-  const html = `
-    <p>Saludos! </p>
-    <p>Tu código de verificación es: <b>${codigo}</b></p>
-
-    <p>Si tu no solicitaste ningun cambio de contraseña,
-      ignora el correo !Porfavor¡</p>
-
-      <p>Como recomendacion valida tu cuenta, de ser necesario cambia tu contraseña</p>
-  `;
-
-  const resultado = await enviarCorreo({
-    to: email,
-    subject: "Recuperar contraseña - CruStore",
-    html,
-  });
-
-  if (resultado.success) {
-    res.json({ success: true }); // ya no hace falta devolver el código
-  } else {
-    res.status(500).json({ success: false, message: "Error al enviar correo" });
-  }
-});
+// Recuperar contraseña: el código se genera y verifica en el servidor (nunca en el navegador)
+app.use("/recuperar-password", crearRouterRecuperacion());
 
 // Pago automático de membresías con Mercado Pago (crear pago + webhook)
 app.use("/pagos", crearRouterPagos());

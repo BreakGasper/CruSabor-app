@@ -86,6 +86,17 @@
           <strong>Blog</strong> <br />
           <span v-html="linkifyShort(store.blog)"></span>
         </div>
+
+        <!-- Compartir el perfil: lo usan tanto visitantes como la dueña o dueño -->
+        <BotonCompartir
+          v-if="store.tiendaId"
+          class="compartir-tienda"
+          mostrar-texto
+          etiqueta="Compartir esta tienda"
+          :titulo="store.nombreTienda"
+          :texto="textoCompartir"
+          :url="urlCompartir"
+        />
       </div>
 
       <!-- Sección: Datos de la empresa -->
@@ -444,6 +455,8 @@ import type { Producto } from '@/types/Producto';
 import StarRating from '@/components/StarRating.vue';
 import { useCalificaciones } from '@/composables/useCalificaciones';
 import CampanaTienda from '@/modules/store/components/CampanaTienda.vue';
+import BotonCompartir from '@/components/BotonCompartir.vue';
+import { urlPerfilTienda, textoCompartirTienda } from '@/composables/useCompartir';
 
 const router = useRouter();
 
@@ -469,6 +482,13 @@ async function calificarTienda(estrellas: number) {
 const route = useRoute();
 const { tiendaLogueada, obtenerTienda } = useTiendas();
 const store = ref<Tienda | null>(null);
+
+/* Compartir el perfil (WhatsApp y demás). El enlace se arma con la ruta pública,
+   no con location.href, para no arrastrar query como ?pago=exito */
+const urlCompartir = computed(() => urlPerfilTienda(store.value?.tiendaId || ''));
+const textoCompartir = computed(() =>
+  textoCompartirTienda(store.value?.nombreTienda || '', store.value?.categoria),
+);
 
 // Productos de la tienda + carrito rápido.
 // useArticulos carga todos los artículos; filtramos por tienda para no depender
@@ -1537,6 +1557,12 @@ body {
 }
 
 /* ===== Favorita ===== */
+.compartir-tienda {
+  /* El envoltorio ocupa el ancho de la tarjeta y centra el botón dentro */
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
 .fav-store-btn {
   position: absolute;
   top: 12px;

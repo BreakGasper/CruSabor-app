@@ -36,7 +36,7 @@ Construida con **Vue 3 + TypeScript + Vite**, **Firebase Realtime Database** com
 | Datos | [Firebase Realtime Database](https://firebase.google.com/products/realtime-database) (usuarios, tiendas, artículos, categorías, pedidos, configuración, admins, calificaciones) |
 | Local | [Dexie](https://dexie.org/) sobre IndexedDB (carrito, favoritos, tiendas favoritas), respaldado por usuario en Firebase (`src/db/sync.ts`) |
 | Imágenes | Cloudinary / Firebase Storage |
-| Servidor | Express (`src/services/main.ts`): correo de recuperación con Nodemailer y pagos de membresía con Mercado Pago. Publicado en Render (`render.yaml`) |
+| Servidor | Express (`src/services/main.ts`): recuperar contraseña (código en el servidor) con Nodemailer y pagos de membresía con Mercado Pago. Publicado en Render (`render.yaml`) |
 | Pagos | [Mercado Pago Checkout Pro](https://www.mercadopago.com.mx/developers/es/docs/checkout-pro/landing) vía API REST con `fetch` (sin SDK), webhook firmado |
 | Calidad | [vue-tsc](https://github.com/vuejs/language-tools), [Vitest](https://vitest.dev/) + jsdom + fake-indexeddb + Vue Test Utils |
 | Hosting | App: Firebase Hosting (`dist`) → https://mrapp-b8d1e.web.app · API: Render → https://mavi-api.onrender.com |
@@ -116,7 +116,8 @@ Antes de dar por terminado un cambio: `npm test` y `npm run type-check` deben pa
 ```
 src/
 ├── components/          Compartidos: PageHeader (barra azul sticky), TopBarFija (píldora fija con regreso),
-│                        ArrowBack, ConfirmModal, CustomToast, CartButton, StarRating, PullToRefresh, DireccionForm
+│                        ArrowBack, ConfirmModal, CustomToast, CartButton, StarRating, PullToRefresh, DireccionForm,
+│                        BotonCompartir (menú del sistema o lista con WhatsApp / Facebook / correo / copiar)
 ├── composables/         Acceso a Firebase y reglas puras:
 │                        useAuth, useTiendas, useArticulos, useCategorias, usePedidos, useMembresia,
 │                        useHorarioTienda, useCalificaciones, useAlertasTienda, useEnvioTienda,
@@ -226,6 +227,16 @@ Fuente de verdad: `tiendas/{id}/nombreTienda`. Artículos (`tiendaNombre`), carr
 
 `tiendas/{id}/horario` tiene una entrada por día ("Lunes"…"Domingo") con `inicio`/`fin` en `HH:MM`; día sin horas = cerrado. Los productos de una tienda **cerrada** se pueden guardar en el carrito pero no comprar: el carrito los marca, los excluye del total y manda al checkout solo los de tiendas abiertas; `guardarPedidos` vuelve a validar (`TiendaCerradaError`). Tras comprar solo salen del carrito los artículos comprados. Sin horario registrado = abierta. Se admiten horarios que cruzan la medianoche; `proximaApertura` da el texto "Abre hoy a las 10:00 a.m.".
 
+### Compartir (`BotonCompartir.vue`, `useCompartir.ts`)
+
+En el **perfil de tienda** es una píldora con texto (`mostrar-texto`) al cierre de la tarjeta "Otros datos", debajo del blog; queda fuera del `v-if` del blog para que aparezca aunque la tienda no lo tenga. Lo ven tanto visitantes como la dueña o dueño, porque quien más difunde su tienda es su propietario. En el teléfono abre `navigator.share`, la hoja del sistema con todas las apps instaladas (WhatsApp, Messenger, Telegram, Mensajes). Donde no existe —escritorio, o si el navegador la niega— se despliega una lista propia con WhatsApp, Facebook, correo y copiar enlace.
+
+El mismo componente está en el **detalle de producto** (`urlProducto(articuloId)` → `/producto/:id`) como círculo flotante en la columna del borde derecho, debajo del corazón; sin corazón (visitante sin sesión o una tienda mirando) ocupa su lugar. A partir de 900 px el corazón cuelga del borde inferior de la imagen, así que ahí los dos van a la misma altura y compartir se pone a su izquierda. El mensaje del producto nombra el artículo y su tienda pero **no lleva precio**: cada variante tiene el suyo y cambia, así que el texto acabaría contradiciendo la pantalla que abre quien lo recibe.
+
+El enlace se arma con `urlPerfilTienda(tiendaId)` / `urlProducto(articuloId)` a partir del origen y la ruta, **nunca** con `location.href`: así no se comparte por accidente la query del momento (`?pago=exito` al volver de Mercado Pago). `wa.me/?text=` sin número deja que la persona elija el contacto. La lista se teleporta a `<body>` por la misma razón que la campana: `.store-banner` tiene `overflow: hidden` y la recortaría.
+
+`BotonCompartir` tiene **un solo nodo raíz** (un `<span>` que envuelve al botón y al `Teleport`). No es cosmético: con dos raíces Vue no le pasa el `data-v-` del padre y **cualquier regla scoped del padre deja de aplicar en silencio** —posición, márgenes, centrado—. `tests/compartir.spec.ts` lo vigila comprobando que el envoltorio lleve también el scope de la pantalla que lo usa.
+
 ### Favoritas y calificación
 
 - Tiendas favoritas por cliente en Dexie (`useTiendasFavoritas`), respaldadas en Firebase.
@@ -308,6 +319,17 @@ Archivos del servidor: `src/services/pagos/{router,logicaPago,mercadoPagoApi,alm
 
 **Salir a producción**: cambiar `MP_ACCESS_TOKEN` por el `APP_USR-...` y `MP_WEBHOOK_SECRET` por la clave del webhook de producción en Render; registrar el webhook de producción con la misma URL; llenar `FIREBASE_SERVICE_ACCOUNT_JSON`.
 
+### Recuperar contraseña (servidor)
+
+El cliente que olvidó su contraseña la recupera **sin que el navegador conozca ni valide el código**. Vive en el servidor Express (`src/services/recuperacion/`):
+
+| Endpoint | Qué hace |
+| --- | --- |
+| `POST /recuperar-password/solicitar { telefono }` | Busca al cliente por celular; genera un código de 4 dígitos, lo guarda **hasheado** (bcrypt) en memoria del proceso con caducidad (`MINUTOS_VIGENCIA = 10`) y lo envía por correo. Responde `{ ok, email }` con el correo oculto (`b***@gmail.com`). Sin cuenta/correo → 404 |
+| `POST /recuperar-password/cambiar { telefono, codigo, nuevaPassword }` | Verifica el código **en el servidor** (caducidad + `MAX_INTENTOS = 5`) y, si es correcto, escribe la nueva contraseña (hash) en `usuarios/{id}/pass` y descarta la solicitud (un solo uso) |
+
+El código se guarda en memoria, no en la base: es privado (la base es de lectura abierta) y si el servidor se reinicia, se pide de nuevo. La reglas puras (código, caducidad, intentos, validación) están en `logica.ts` y se prueban solas. `ForgotPassword.vue` solo pide teléfono → código + contraseña nueva; ya no genera ni compara nada.
+
 ---
 
 ## 10. Administración
@@ -342,10 +364,12 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `cartview.navegacion.spec.ts` | Carrito agrupado por tienda; el estado enviado a `/checkout` debe ser clonable |
 | `nombreTienda.spec.ts` | Renombrar tienda propaga a artículos; catálogo y carrito muestran el nombre vivo |
 | `calificaciones.spec.ts` | Promedio, voto por cliente, `StarRating`, portada (`CategoriasScroll`, `TiendasDestacadas`) |
+| `compartir.spec.ts` | Compartir tienda y producto: enlaces por destino, menú del sistema (incluido el cierre sin elegir), lista de respaldo y el botón dentro de `ProductDetail` |
 | `alertasTienda.spec.ts` | Campana: reglas de stock, pedidos por atender, pausar venta / dar de baja y su efecto en catálogo, carrito y pedido |
 | `pullToRefresh.spec.ts` | Gesto de deslizar para actualizar: umbral, scroll, estado refrescando |
 | `membresia.spec.ts`, `vencimientos.spec.ts` | Estatus efectivo, vigencias, avisos y bloqueo de venta |
 | `solicitudesPago.spec.ts`, `pagoAutomatico.spec.ts` | Modo manual ("Ya pagué") y servidor de pagos (preferencia, firma del webhook, activación) |
+| `recuperacion.spec.ts` | Recuperar contraseña en el servidor: código hasheado con caducidad, intentos máximos, cambio de contraseña de un solo uso |
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas, categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
@@ -374,7 +398,7 @@ Todos leen `VITE_FIREBASE_DATABASE_URL` del `.env` y usan la API REST de la base
 - Las credenciales de Mercado Pago en Render son de prueba (`TEST-`).
 - `FIREBASE_STORAGE_BASE_URL` en `src/constants/firebase_util.ts` debe apuntar a la URL real de imágenes.
 - Artículos antiguos no tienen `categoriaId`; la app compara por nombre como respaldo. Conviene migrarlos.
-- Recuperar contraseña solo existe para clientes.
+- Recuperar contraseña existe solo para clientes (no para tiendas ni admins). El flujo ya es server-side (`src/services/recuperacion/`); requiere `SMTP_USER`/`SMTP_PASS` en el servidor.
 - El repositorio tiene `package-lock.json` y `yarn.lock`; usar solo uno.
 - No se ha hecho una revisión visual pantalla por pantalla en modo oscuro; si algún texto queda sin contraste, corregirlo con los tokens.
 - El repositorio es público y en algún momento `.env` estuvo versionado: conviene rotar la contraseña de aplicación de Gmail y regenerar el token TEST de Mercado Pago. Existe un nodo `Mpago` en la base con un token viejo que conviene borrar.
@@ -405,3 +429,11 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-06 | `PageHeader` sticky por defecto + `TopBarFija` en cabeceras grandes | Título y regreso visibles en todas las pantallas sin rehacer las portadas |
 | 2026-09-06 | Elección cliente/administrador basada en datos (celular presente en `admins/`), no en un número fijo | Funciona para cualquier admin que también sea cliente |
 | 2026-09-06 | Gestión de cuentas solo para `superadmin`, con salvaguardas | Evitar quedarse sin acceso al panel |
+| 2026-09-16 | Recuperar contraseña con el código generado y verificado en el servidor | En el navegador el código era decorativo: se generaba y comparaba en el cliente, así que no protegía nada |
+| 2026-09-16 | El código se guarda en memoria del servidor, no en la base | La base es de lectura abierta; en memoria no se expone. Si el servidor se reinicia, se pide de nuevo |
+| 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
+| 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
+| 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |
+| 2026-09-16 | Compartir vive en la tarjeta del perfil y como círculo flotante en el producto | En el perfil compite con la campana y el corazón del banner; en el producto la columna derecha ya es la de acciones |
+| 2026-09-16 | `BotonCompartir` con un solo nodo raíz, sin `inheritAttrs: false` | Con dos raíces (botón + Teleport) el componente no hereda el `data-v-` del padre y sus estilos scoped no aplican, sin error ni aviso |
+| 2026-09-16 | El mensaje al compartir un producto no incluye el precio | Cada variante tiene el suyo y cambia; el texto quedaría contradiciendo la pantalla que se abre |

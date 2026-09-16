@@ -18,6 +18,7 @@
       <!-- Carrito -->
       <CartButton v-if="!esTienda" class="btn-icon cart" />
 
+
       <button
         v-if="sessionUsuarioValidation() && !esTienda"
         class="btn-fav"
@@ -29,6 +30,15 @@
           class="icono-corazon"
         />
       </button>
+
+      <!-- Compartir: en la misma columna flotante, debajo del corazón -->
+      <BotonCompartir
+        class="btn-compartir"
+        :class="{ 'sin-favorito': !muestraFavorito }"
+        :titulo="producto.nombre"
+        :texto="textoCompartir"
+        :url="urlCompartir"
+      />
     </div>
 
     <!-- Información del producto -->
@@ -216,10 +226,21 @@ import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda'
 import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
 import Swal from 'sweetalert2';
 import StarRating from '@/components/StarRating.vue';
+import BotonCompartir from '@/components/BotonCompartir.vue';
+import { urlProducto, textoCompartirProducto } from '@/composables/useCompartir';
 import { useCalificaciones } from '@/composables/useCalificaciones';
 import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
 
 const props = defineProps<{ producto: Producto }>();
+
+/* Sin corazón (visitante sin sesión o una tienda mirando), compartir ocupa su lugar */
+const muestraFavorito = computed(() => sessionUsuarioValidation() && !esTienda.value);
+
+/* Compartir el producto (WhatsApp y demás) */
+const urlCompartir = computed(() => urlProducto(String(props.producto.articuloId || '')));
+const textoCompartir = computed(() =>
+  textoCompartirProducto(props.producto.nombre, props.producto.tiendaNombre),
+);
 
 /* Calificación del producto (1 a 5 estrellas, un voto por cliente) */
 const { resumenDe, miVoto, calificar } = useCalificaciones('articulos');
@@ -587,6 +608,21 @@ function onImgError(e: Event) {
   right: 1rem;
 }
 
+/* Columna flotante del borde derecho: el corazón arriba y compartir debajo */
+.btn-compartir {
+  position: absolute;
+  top: calc(50vh - 30px + 62px); /* 62px = alto del corazón + separación */
+  right: 1rem;
+}
+/* El círculo vive dentro del componente: se iguala al tamaño del corazón */
+.btn-compartir :deep(.compartir-btn) {
+  width: 50px;
+  height: 50px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.btn-compartir.sin-favorito {
+  top: calc(50vh - 30px); /* no hay corazón: compartir ocupa su lugar */
+}
 .btn-fav {
   position: absolute;
   top: calc(50vh - 30px); /* ajusta si lo quieres más arriba/abajo */
@@ -897,6 +933,12 @@ function onImgError(e: Event) {
   .btn-fav {
     top: calc(42vh - 25px);
   }
+  .btn-compartir {
+    top: calc(42vh - 25px + 62px);
+  }
+  .btn-compartir.sin-favorito {
+    top: calc(42vh - 25px);
+  }
   .detalle-info {
     padding: 1.25rem 1rem;
     padding-bottom: 5rem; /* espacio para el botón fijo */
@@ -932,6 +974,16 @@ function onImgError(e: Event) {
   .btn-fav {
     top: auto;
     bottom: -25px;
+    right: 1.5rem;
+  }
+  /* Aquí el corazón cuelga del borde inferior de la imagen: debajo quedaría fuera
+     del contenedor, así que los dos van a la misma altura, compartir a su izquierda */
+  .btn-compartir {
+    top: auto;
+    bottom: -25px;
+    right: calc(1.5rem + 62px);
+  }
+  .btn-compartir.sin-favorito {
     right: 1.5rem;
   }
   .detalle-info {
