@@ -23,6 +23,7 @@ import { sessionUser } from '@/utils/sessionUser';
 vi.mock('@/router', () => ({ default: routerMock }));
 import Login from '@/modules/home/components/Login.vue';
 import AdminCuentas from '@/modules/admin/views/AdminCuentas.vue';
+import { __setConfiguracion } from '@/composables/useConfiguracion';
 
 const TEL = '3751241114';
 let hashCliente: string;
@@ -135,6 +136,20 @@ describe('Login: celular de cliente y administrador', () => {
       await flushPromises();
     }
   }
+
+  it('oculta "¿Tienes una tienda?" cuando el registro de tiendas está cerrado', async () => {
+    __setConfiguracion({ registro: { tiendasAbierto: false } });
+    const w = mount(Login, { global: { stubs } });
+    await flushPromises();
+    expect(w.find('.switch-link').exists()).toBe(false);
+
+    __setConfiguracion({ registro: { tiendasAbierto: true } });
+    await flushPromises();
+    expect(w.find('.switch-link').exists()).toBe(true);
+
+    w.unmount();
+    __setConfiguracion(null); // vuelve a suscribirse al mock para las demás pruebas
+  });
 
   it('con un celular que también es admin pregunta cómo entrar; como cliente crea la sesión de cliente', async () => {
     const w = mount(Login, { global: { stubs } });

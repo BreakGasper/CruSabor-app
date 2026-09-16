@@ -29,7 +29,7 @@ import {
 
 export interface OpcionesRecuperacion {
   almacen?: () => Promise<Almacen>;
-  enviarCorreo?: (m: { to: string; subject: string; html: string }) => Promise<{ success: boolean }>;
+  enviarCorreo?: (m: { to: string; subject: string; html: string }) => Promise<{ success: boolean; error?: any }>;
   codigos?: Map<string, SolicitudRecuperacion>;
   generarCodigo?: () => string;
   ahora?: () => Date;
@@ -93,7 +93,10 @@ export function crearRouterRecuperacion(op: OpcionesRecuperacion = {}) {
       const r = await enviar({ to: usuario.email, subject: 'Recuperar contraseña - CruStore', html });
       if (!r.success) {
         codigos.delete(tel);
-        res.status(502).json({ error: 'No se pudo enviar el correo. Intenta más tarde.' });
+        // Temporal: se incluye el detalle del error para diagnosticar por qué Gmail rechaza el envío
+        const detalle = r.error?.response || r.error?.message || String(r.error || '');
+        log('No se pudo enviar el correo:', detalle);
+        res.status(502).json({ error: 'No se pudo enviar el correo. Intenta más tarde.', detalle });
         return;
       }
 

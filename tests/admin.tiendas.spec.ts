@@ -19,6 +19,7 @@ import {
   useHistorialTienda,
 } from '@/composables/useAdminTiendas';
 import AdminTiendas from '@/modules/admin/views/AdminTiendas.vue';
+import { __setConfiguracion } from '@/composables/useConfiguracion';
 
 const HOY = new Date(2026, 8, 6); // 6 sep 2026
 const base = { telefono: '3311111111', envioDomicilio: true, metodosPago: ['Efectivo'], horario: {}, categoria: 'Comida', municipio: 'Zapopan' };
@@ -171,6 +172,23 @@ describe('pantalla AdminTiendas', () => {
     const w = mount(AdminTiendas, { global: { stubs } });
     await flushPromises();
     expect(w.findAll('.fila').map((f) => f.attributes('data-tienda'))).toEqual(['pend']);
+  });
+
+  it('el interruptor de registro de tiendas refleja el estado y lo cambia en la configuración', async () => {
+    __setConfiguracion({ registro: { tiendasAbierto: true } });
+    const w = mount(AdminTiendas, { global: { stubs } });
+    await flushPromises();
+
+    const banner = w.find('.registro-toggle');
+    expect(banner.text()).toContain('Abierto');
+    expect(banner.classes()).not.toContain('cerrado');
+
+    // Cerrar el registro escribe el flag en la base (los clientes y tiendas existentes no se tocan)
+    await banner.find('button').trigger('click');
+    await flushPromises();
+    expect(__getAt('configuracion/registro/tiendasAbierto')).toBe(false);
+
+    __setConfiguracion(null); // vuelve a suscribirse al mock para las demás pruebas
   });
 
   it('muestra la acción correcta según la situación', async () => {

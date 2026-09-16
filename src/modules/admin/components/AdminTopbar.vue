@@ -47,28 +47,34 @@
           <span v-if="pendientes.length" class="notif-badge">{{ pendientes.length > 99 ? '99+' : pendientes.length }}</span>
         </button>
 
-        <div v-if="notifAbierto" class="notif-panel" role="dialog" aria-label="Pagos por confirmar">
-          <div class="notif-head">
-            <strong>Pagos por confirmar</strong>
-            <button type="button" class="notif-cerrar" aria-label="Cerrar" @click="notifAbierto = false">✕</button>
-          </div>
-          <p v-if="!pendientes.length" class="notif-vacio">No hay avisos pendientes.</p>
-          <ul v-else class="notif-lista">
-            <li v-for="s in pendientes.slice(0, 8)" :key="s.id">
-              <router-link :to="`/admin/tiendas/${s.tiendaId}`" class="notif-item" @click="notifAbierto = false">
-                <span class="notif-nombre">{{ s.nombreTienda || s.tiendaId }}</span>
-                <span class="notif-meta">
-                  {{ PLAN_LABEL[s.plan] || s.plan }} · {{ fechaCorta(s.fecha) }}
-                  <span v-if="s.referencia"> · Ref. <strong>{{ s.referencia }}</strong></span>
-                  <span v-else class="sin-ref"> · sin referencia</span>
-                </span>
+        <!-- El panel se teleporta a <body> para no quedar recortado: en móvil se ve
+             centrado, en escritorio arriba a la derecha (como desplegable). -->
+        <Teleport to="body">
+          <div v-if="notifAbierto" class="notif-overlay" @click.self="notifAbierto = false">
+            <div class="notif-panel" role="dialog" aria-label="Pagos por confirmar">
+              <div class="notif-head">
+                <strong>Pagos por confirmar</strong>
+                <button type="button" class="notif-cerrar" aria-label="Cerrar" @click="notifAbierto = false">✕</button>
+              </div>
+              <p v-if="!pendientes.length" class="notif-vacio">No hay avisos pendientes.</p>
+              <ul v-else class="notif-lista">
+                <li v-for="s in pendientes.slice(0, 8)" :key="s.id">
+                  <router-link :to="`/admin/tiendas/${s.tiendaId}`" class="notif-item" @click="notifAbierto = false">
+                    <span class="notif-nombre">{{ s.nombreTienda || s.tiendaId }}</span>
+                    <span class="notif-meta">
+                      {{ PLAN_LABEL[s.plan] || s.plan }} · {{ fechaCorta(s.fecha) }}
+                      <span v-if="s.referencia"> · Ref. <strong>{{ s.referencia }}</strong></span>
+                      <span v-else class="sin-ref"> · sin referencia</span>
+                    </span>
+                  </router-link>
+                </li>
+              </ul>
+              <router-link to="/admin" class="notif-todo" @click="notifAbierto = false">
+                Ver todos en el tablero<span v-if="pendientes.length > 8"> ({{ pendientes.length }})</span>
               </router-link>
-            </li>
-          </ul>
-          <router-link to="/admin" class="notif-todo" @click="notifAbierto = false">
-            Ver todos en el tablero<span v-if="pendientes.length > 8"> ({{ pendientes.length }})</span>
-          </router-link>
-        </div>
+            </div>
+          </div>
+        </Teleport>
       </div>
 
       <span class="user-name">{{ admin?.nombre }}</span>
@@ -243,18 +249,41 @@ function salir() {
   border: 2px solid #111827;
   box-sizing: border-box;
 }
+/* Overlay del panel (teleportado a <body>). En móvil, centrado con fondo oscuro;
+   en escritorio, arriba a la derecha como desplegable, sin fondo. */
+.notif-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
 .notif-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  width: 320px;
-  max-width: calc(100vw - 2rem);
+  width: 100%;
+  max-width: 360px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   color: var(--text);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   padding: 10px 0 6px;
-  z-index: 50;
+}
+@media (min-width: 721px) {
+  .notif-overlay {
+    background: transparent;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 66px 18px 0; /* debajo del topbar, alineado a la campana */
+  }
+  .notif-panel {
+    max-width: 340px;
+    max-height: 70vh;
+  }
 }
 .notif-head {
   display: flex;
@@ -283,7 +312,7 @@ function salir() {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 320px;
+  flex: 1 1 auto;
   overflow-y: auto;
 }
 .notif-item {
@@ -350,6 +379,20 @@ function salir() {
   .nav {
     order: 3;
     width: 100%;
+    /* Barra deslizable de lado: caben las 5 secciones (la última es "Cuentas") */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox: sin barra visible */
+    scroll-snap-type: x proximity;
+  }
+  .nav::-webkit-scrollbar {
+    display: none; /* Chrome/Safari: sin barra visible */
+  }
+  .nav-link {
+    flex: 0 0 auto; /* no se encogen: se conserva su ancho y se desliza */
+    white-space: nowrap;
+    scroll-snap-align: start;
   }
   .brand-sub,
   .user-rol,

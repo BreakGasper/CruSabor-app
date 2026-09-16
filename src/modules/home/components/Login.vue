@@ -100,7 +100,7 @@
         Crear cuenta
       </button>
 
-      <p class="switch-link">
+      <p v-if="registroTiendasAbierto" class="switch-link">
         ¿Tienes una tienda?
         <a href="#" @click.prevent="$router.push('/store/login')"
           >Ingresa aquí</a
@@ -174,6 +174,10 @@ import { guardarSesionAdmin, cerrarSesionAdmin } from "@/utils/sessionAdmin";
 import { RUTA_ADMIN_HOME, RUTA_ADMIN_LOGIN } from "@/modules/admin/adminRoutes";
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
+import { useConfiguracion } from "@/composables/useConfiguracion";
+
+// Cuando el admin cierra el registro de tiendas, se oculta el "¿Tienes una tienda?"
+const { registroTiendasAbierto } = useConfiguracion();
 const telefono = ref("");
 const password = ref("");
 const telefonoError = ref("");

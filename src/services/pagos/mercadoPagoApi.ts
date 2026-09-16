@@ -64,10 +64,14 @@ export async function crearPreferencia(token: string, d: DatosPreferencia) {
     external_reference: d.externalReference,
     notification_url: d.notificationUrl,
     back_urls: d.backUrls,
-    auto_return: 'approved',
     statement_descriptor: 'MAVI',
     metadata: { external_reference: d.externalReference },
   };
+  // auto_return regresa solo a la app al aprobarse, pero Mercado Pago EXIGE que
+  // back_urls.success sea una URL pública https; con localhost la rechaza
+  // ("auto_return invalid. back_url.success must be defined"). En local se omite:
+  // la preferencia se crea igual y el pago funciona, solo que sin redirección sola.
+  if (/^https:\/\//i.test(d.backUrls.success)) body.auto_return = 'approved';
   if (d.payerEmail) body.payer = { email: d.payerEmail };
 
   const pref = await llamar(token, '/checkout/preferences', {

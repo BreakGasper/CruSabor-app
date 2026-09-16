@@ -204,7 +204,7 @@ Título y botón de regresar nunca se pierden al hacer scroll:
 | --- | --- |
 | `/admin/login` | Acceso con celular y contraseña (`admins/`) |
 | `/admin` | Tablero: contadores por estatus, pendientes, pagos por confirmar, última revisión de membresías |
-| `/admin/tiendas`, `/admin/tiendas/:id` | Tiendas: estatus, membresías, registrar pagos manuales, historial |
+| `/admin/tiendas`, `/admin/tiendas/:id` | Tiendas: estatus, membresías, registrar pagos manuales, historial. Arriba, interruptor para **abrir/cerrar el registro de tiendas nuevas** |
 | `/admin/categorias` | Catálogo de categorías (con propagación del nombre a tiendas y artículos) |
 | `/admin/configuracion` | Nodo `configuracion`: precios de membresía, días de gracia, modo de pago (`links` / `automatico`), mantenimiento, registro abierto |
 | `/admin/cuentas` | Cuentas de administrador: crear, editar, contraseña, activar/desactivar |
@@ -310,7 +310,7 @@ Archivos del servidor: `src/services/pagos/{router,logicaPago,mercadoPagoApi,alm
 **Cómo probar un pago simulado (checklist)**
 
 1. `curl https://mavi-api.onrender.com/pagos/membresia/estado` → debe dar `{"activo":true}` (la primera llamada puede tardar ~1 min).
-2. En la base: `configuracion.pagos.modo` = `automatico` y precios > 0.
+2. En la base: `configuracion.pagos.modo` = `automatico` y precios > 0. **El monto no puede ser muy bajo:** con precios de $1 el checkout responde "La operación no acepta este medio de pago" porque está por debajo del mínimo de Mercado Pago. Usa precios reales (p. ej. $20–$50 MXN o más).
 3. `MP_ACCESS_TOKEN` en Render debe ser el de **pruebas** (`TEST-`). Verificar con `curl -H "Authorization: Bearer $TOKEN" https://api.mercadopago.com/users/me`.
 4. En Mercado Pago › Tus integraciones › Webhooks (modo pruebas) debe estar `https://mavi-api.onrender.com/pagos/membresia/webhook` con el evento **Pagos**, y su clave debe coincidir con `MP_WEBHOOK_SECRET`.
 5. Entrar a la app publicada con una tienda → perfil → "Ir a pagar" → elegir plan. En el checkout usar un **usuario comprador de prueba** (con token `TEST-` una cuenta real no puede pagar) y tarjeta de prueba, p. ej. Visa `4075 5957 1648 3764`, CVV `123`, titular `APRO` (aprobado) u `OTHE` (rechazado).
@@ -330,6 +330,10 @@ El cliente que olvidó su contraseña la recupera **sin que el navegador conozca
 
 El código se guarda en memoria, no en la base: es privado (la base es de lectura abierta) y si el servidor se reinicia, se pide de nuevo. La reglas puras (código, caducidad, intentos, validación) están en `logica.ts` y se prueban solas. `ForgotPassword.vue` solo pide teléfono → código + contraseña nueva; ya no genera ni compara nada.
 
+**Teléfono con guiones.** El campo del teléfono se muestra formateado `375-124-1114` (formato 3-3-4) mientras se escribe; al servidor se le mandan **solo los dígitos** (`soloDigitosTel`). Da igual con guiones o sin ellos: el servidor normaliza con `soloDigitos`.
+
+**En local hacen falta DOS procesos a la vez:** `npm run dev` (la app, puerto 5173) y `npm run server` (el que envía el correo, puerto 3000; configurable con `PORT` en `.env`). El navegador **no** manda correo por sí mismo: le pide al servidor Express que lo haga, por eso ambos deben estar encendidos. `VITE_API_URL` debe apuntar al puerto del servidor. En producción esto no aplica: el servidor vive en Render, siempre encendido. Para diagnosticar el correo sin la app: `node scripts/probar-correo.mjs [telefono]` prueba la conexión, la autenticación con Gmail y el envío, e imprime el error exacto si falla.
+
 ---
 
 ## 10. Administración
@@ -340,6 +344,7 @@ El código se guarda en memoria, no en la base: es privado (la base es de lectur
 - Tablero: contadores por estatus, tiendas pendientes de aprobación, por vencer en 7 días, avisos "Ya pagué" por confirmar (con campana en `AdminTopbar`) y última corrida de la revisión de membresías.
 - Registrar un pago (manual o automático) siempre deja la tienda `activa`: autoriza pendientes y reactiva bloqueadas o vencidas. La vigencia se cuenta desde hoy, o desde la vigencia actual si aún no venció. Historiales en `tiendas/{id}/historialEstatus` y `tiendas/{id}/pagosMembresia`.
 - Para **publicar productos** una tienda necesita membresía vigente; una tienda activa sin membresía sigue vendiendo lo ya publicado pero no publica nuevo (guard en `ProductForm` y en el botón ➕ del perfil).
+- **Cerrar el registro de tiendas nuevas** (`configuracion.registro.tiendasAbierto`): interruptor en `/admin/tiendas` (y en `/admin/configuracion`, con mensaje personalizable). Cerrarlo oculta el enlace "¿Tienes una tienda?" del login del cliente, oculta el botón de registro en `/store/login` y bloquea el alta en `/store/register`. **No afecta a los clientes** (siguen comprando) **ni a las tiendas existentes** (siguen operando y sus dueños siguen entrando). Sirve para pausar altas mientras se hace algún ajuste.
 - Categorías: al renombrar se propaga a tiendas y artículos; no se elimina una categoría en uso.
 
 ---
@@ -371,7 +376,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `solicitudesPago.spec.ts`, `pagoAutomatico.spec.ts` | Modo manual ("Ya pagué") y servidor de pagos (preferencia, firma del webhook, activación) |
 | `recuperacion.spec.ts` | Recuperar contraseña en el servidor: código hasheado con caducidad, intentos máximos, cambio de contraseña de un solo uso |
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
-| `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas, categorías y nodo `configuracion` |
+| `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
 | `storeEdit.spec.ts`, `envio.spec.ts`, `favoritasSync.spec.ts`, `tiendasFavoritas.spec.ts`, `direcciones.spec.ts`, `sync.spec.ts` | Editar tienda, envío a domicilio, favoritas y su sincronización, libreta de direcciones, respaldo local↔Firebase |
 
@@ -388,6 +393,8 @@ Todos leen `VITE_FIREBASE_DATABASE_URL` del `.env` y usan la API REST de la base
 | `node scripts/migrar-estado-tiendas.mjs [--apply]` | Dejar explícito `estatus` en tiendas antiguas |
 | `node scripts/migrar-categoriaId.mjs [--apply]` | Asignar `categoriaId` a artículos que solo tienen el nombre |
 | `node scripts/revisar-membresias.mjs` | Correr a mano la revisión de membresías |
+| `node scripts/probar-correo.mjs [telefono]` | Diagnóstico del correo (SMTP de Gmail): conexión, autenticación y envío; si pasas un celular, busca ese usuario y le envía |
+| `node scripts/establecer-password.mjs --password … ( --telefono … | --todos ) [--apply]` | Fijar una contraseña (hash bcrypt) a un cliente/admin por celular, o a todos |
 
 ---
 
@@ -431,6 +438,12 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-06 | Gestión de cuentas solo para `superadmin`, con salvaguardas | Evitar quedarse sin acceso al panel |
 | 2026-09-16 | Recuperar contraseña con el código generado y verificado en el servidor | En el navegador el código era decorativo: se generaba y comparaba en el cliente, así que no protegía nada |
 | 2026-09-16 | El código se guarda en memoria del servidor, no en la base | La base es de lectura abierta; en memoria no se expone. Si el servidor se reinicia, se pide de nuevo |
+| 2026-09-16 | El teléfono del recuperar contraseña se muestra con guiones, se envía solo con dígitos | Más legible al escribir; el servidor normaliza igual |
+| 2026-09-16 | La preferencia de pago ya no fija `payer.email` con el correo de la tienda | Anclaba el Checkout Pro al modo "Sin cuenta" y rechazaba las tarjetas de prueba ("La operación no acepta este medio de pago"); el pagador se identifica en el checkout |
+| 2026-09-16 | Los precios de membresía deben superar el mínimo de Mercado Pago | Con $1 el checkout rechaza el medio de pago ("La operación no acepta este medio de pago") por monto bajo; usar precios reales |
+| 2026-09-16 | Cerrar el registro de tiendas se controla también desde `/admin/tiendas` y oculta el "¿Tienes una tienda?" del cliente | Pausar altas nuevas sin frenar a clientes ni a tiendas existentes; el enlace del cliente no respetaba el flag |
+| 2026-09-16 | El panel "Pagos por confirmar" del admin se teleporta a `<body>` (centrado en móvil, desplegable en escritorio) | Como desplegable quedaba recortado/estrecho en móvil; mismo patrón que la campana de las tiendas |
+| 2026-09-16 | `auto_return` solo se envía cuando `back_urls.success` es https | Mercado Pago rechaza la preferencia con URL de retorno en localhost ("auto_return invalid. back_url.success must be defined"); así se puede probar el pago en local |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |

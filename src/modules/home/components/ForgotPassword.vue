@@ -9,7 +9,7 @@
       <form @submit.prevent="solicitarCodigo">
         <div class="input-telefono">
           <span class="prefijo">+52</span>
-          <input type="tel" v-model="telefono" placeholder="Número de teléfono" @input="limpiarTelefono" required />
+          <input type="tel" v-model="telefono" placeholder="375-124-1114" maxlength="12" @input="limpiarTelefono" required />
           <img src="@/assets/icons/smartphone.png" alt="Teléfono" class="icono-telefono" />
         </div>
         <button type="submit" :disabled="loading">
@@ -95,9 +95,15 @@ const formularioListo = computed(
     nuevaContrasena.value === confirmarContrasena.value,
 );
 
-// Teléfono: solo dígitos, máximo 10
+// Teléfono: se muestra con guiones (375-124-1114) pero al servidor van solo los dígitos
+function soloDigitosTel() {
+  return telefono.value.replace(/\D/g, "").slice(0, 10);
+}
 function limpiarTelefono() {
-  telefono.value = telefono.value.replace(/\D/g, "").slice(0, 10);
+  const d = soloDigitosTel();
+  if (d.length <= 3) telefono.value = d;
+  else if (d.length <= 6) telefono.value = `${d.slice(0, 3)}-${d.slice(3)}`;
+  else telefono.value = `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
 const onInputCodigo = (index: number) => {
@@ -113,8 +119,8 @@ const onBorrar = (index: number) => {
 };
 
 async function solicitarCodigo() {
-  limpiarTelefono();
-  if (telefono.value.length !== 10) {
+  const tel = soloDigitosTel();
+  if (tel.length !== 10) {
     mensaje.value = "Ingresa un número de 10 dígitos.";
     return;
   }
@@ -124,7 +130,7 @@ async function solicitarCodigo() {
     const res = await fetch(`${API}/recuperar-password/solicitar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ telefono: telefono.value }),
+      body: JSON.stringify({ telefono: tel }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -156,7 +162,7 @@ async function cambiarContrasena() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        telefono: telefono.value,
+        telefono: soloDigitosTel(),
         codigo: codigo.value,
         nuevaPassword: nuevaContrasena.value,
       }),

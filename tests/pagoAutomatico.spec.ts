@@ -17,6 +17,7 @@ import {
   cambiosParaPagoAprobado,
 } from '../src/services/pagos/logicaPago.ts';
 import { crearRouterPagos } from '../src/services/pagos/router.ts';
+import { crearPreferencia } from '../src/services/pagos/mercadoPagoApi.ts';
 import type { Almacen } from '../src/services/pagos/almacen.ts';
 import { iniciarPagoMembresia, resultadoPagoDesdeQuery, urlApi } from '@/composables/useMercadoPago';
 import { normalizarConfiguracion, useConfiguracion, __setConfiguracion } from '@/composables/useConfiguracion';
@@ -62,6 +63,28 @@ describe('lógica pura', () => {
     const vig = cambiosParaPagoAprobado({ ...base, tiendaId: 't1', tienda: { estatus: 'activa', membresia: { vigenteHasta: '2026-09-20' } } });
     expect(vig.cambios['tiendas/t1/membresia/vigenteHasta']).toBe('2026-10-20');
     expect(vig.cambios['tiendas/t1/estatus']).toBeUndefined();
+  });
+});
+
+/* ---------------- crearPreferencia: auto_return ---------------- */
+describe('crearPreferencia', () => {
+  const fakeRes = (data: any) => ({ ok: true, status: 200, text: async () => JSON.stringify(data) });
+  const base = { titulo: 't', descripcion: 'd', monto: 100, externalReference: 'ref', notificationUrl: 'https://api.test/webhook' };
+
+  it('manda auto_return solo cuando back_urls.success es https (localhost lo omite)', async () => {
+    const fetchMock = vi.fn(async () => fakeRes({ id: 'p1', init_point: 'https://mp/p1', sandbox_init_point: 'https://mp/sb' }));
+    const orig = global.fetch;
+    global.fetch = fetchMock as any;
+    try {
+      await crearPreferencia('TOK', { ...base, backUrls: { success: 'https://mavi.test/x?pago=exito', pending: '', failure: '' } });
+      expect(JSON.parse((fetchMock.mock.calls[0][1] as any).body).auto_return).toBe('approved');
+
+      fetchMock.mockClear();
+      await crearPreferencia('TOK', { ...base, backUrls: { success: 'http://localhost:5173/x?pago=exito', pending: '', failure: '' } });
+      expect(JSON.parse((fetchMock.mock.calls[0][1] as any).body).auto_return).toBeUndefined();
+    } finally {
+      global.fetch = orig;
+    }
   });
 });
 
@@ -138,7 +161,8 @@ describe('POST /pagos/membresia/crear', () => {
     expect(pref.externalReference).toBe('membresia|t1|anual|id1');
     expect(pref.notificationUrl).toBe('https://api.mavi.test/pagos/membresia/webhook');
     expect(pref.backUrls.success).toBe('https://mavi.test/store/profile/t1?pago=exito');
-    expect(pref.payerEmail).toBe('lupita@pan.mx');
+    // No se fija el correo del pagador (anclaba el checkout al modo invitado y rechazaba tarjetas de prueba)
+    expect(pref.payerEmail).toBeUndefined();
   });
 
   it('valida tienda, plan, modo y precio', async () => {

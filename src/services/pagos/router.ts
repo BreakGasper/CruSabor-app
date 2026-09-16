@@ -103,7 +103,9 @@ export function crearRouterPagos(op: OpcionesRouter = {}) {
           pending: `${volver}?pago=pendiente`,
           failure: `${volver}?pago=error`,
         },
-        payerEmail: tienda.email || undefined,
+        // No se fija el correo del pagador: quien paga es la tienda con SU cuenta de
+        // Mercado Pago (o un comprador de prueba). Fijar aquí el email de la tienda
+        // anclaba el checkout al modo "Sin cuenta" y rechazaba las tarjetas de prueba.
         idempotencyKey: intentoId,
       });
 

@@ -3,6 +3,28 @@
     <AdminTopbar titulo="Tiendas" />
 
     <main class="admin-main">
+      <!-- Control rápido: abrir/cerrar el registro de tiendas nuevas.
+           Cerrar NO afecta a los clientes ni a las tiendas existentes. -->
+      <div class="registro-toggle" :class="{ cerrado: !registroTiendasAbierto }">
+        <div class="registro-info">
+          <strong>Registro de tiendas nuevas: {{ registroTiendasAbierto ? 'Abierto' : 'Cerrado' }}</strong>
+          <span>
+            {{ registroTiendasAbierto
+              ? 'Cualquiera puede registrar una tienda. Ciérralo cuando necesites pausar altas nuevas.'
+              : 'Nadie puede registrar tiendas nuevas. Los clientes siguen comprando y las tiendas existentes siguen operando.' }}
+          </span>
+        </div>
+        <button
+          type="button"
+          class="btn"
+          :class="registroTiendasAbierto ? 'btn-cerrar-registro' : 'btn-abrir-registro'"
+          :disabled="guardandoRegistro"
+          @click="alternarRegistro"
+        >
+          {{ guardandoRegistro ? 'Guardando...' : (registroTiendasAbierto ? 'Cerrar registro' : 'Abrir registro') }}
+        </button>
+      </div>
+
       <!-- Filtros -->
       <div class="filters">
         <div class="chips">
@@ -101,6 +123,23 @@ import { estadoEfectivo, diasParaVencer, ESTADO_LABEL, type EstadoEfectivo } fro
 import { aprobarTienda, bloquearTienda, desbloquearTienda, type PagoRegistrado } from '@/composables/useAdminTiendas';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
 import { useSolicitudesPago } from '@/composables/useSolicitudesPago';
+import { useConfiguracion } from '@/composables/useConfiguracion';
+
+// Abrir/cerrar el registro de tiendas nuevas desde esta pantalla (mismo flag que /admin/configuracion)
+const { registroTiendasAbierto, guardarConfiguracion } = useConfiguracion();
+const guardandoRegistro = ref(false);
+async function alternarRegistro() {
+  const abrir = !registroTiendasAbierto.value;
+  guardandoRegistro.value = true;
+  try {
+    await guardarConfiguracion({ registro: { tiendasAbierto: abrir } });
+    Swal.fire({ toast: true, position: 'bottom', timer: 1800, showConfirmButton: false, icon: 'success', title: abrir ? 'Registro de tiendas abierto' : 'Registro de tiendas cerrado' });
+  } catch {
+    Swal.fire({ toast: true, position: 'bottom', timer: 2200, showConfirmButton: false, icon: 'error', title: 'No se pudo guardar el cambio' });
+  } finally {
+    guardandoRegistro.value = false;
+  }
+}
 
 type Filtro = 'todas' | EstadoEfectivo | 'por-vencer';
 const FILTROS: { clave: Filtro; label: string }[] = [
@@ -271,6 +310,49 @@ function onPagoGuardado(p: PagoRegistrado) {
   flex-direction: column;
   gap: 10px;
   margin-bottom: 1rem;
+}
+.registro-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.registro-toggle.cerrado {
+  border-color: #e11d48;
+  border-width: 1.5px;
+}
+.registro-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.registro-info strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.registro-info span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+.btn-cerrar-registro {
+  background: var(--surface);
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+.btn-abrir-registro {
+  background: #059669;
+  color: #fff;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .chips {
   display: flex;
