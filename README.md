@@ -36,7 +36,7 @@ Construida con **Vue 3 + TypeScript + Vite**, **Firebase Realtime Database** com
 | Datos | [Firebase Realtime Database](https://firebase.google.com/products/realtime-database) (usuarios, tiendas, artículos, categorías, pedidos, configuración, admins, calificaciones) |
 | Local | [Dexie](https://dexie.org/) sobre IndexedDB (carrito, favoritos, tiendas favoritas), respaldado por usuario en Firebase (`src/db/sync.ts`) |
 | Imágenes | Cloudinary / Firebase Storage |
-| Servidor | Express (`src/services/main.ts`): recuperar contraseña (código en el servidor) con Nodemailer y pagos de membresía con Mercado Pago. Publicado en Render (`render.yaml`) |
+| Servidor | Express (`src/services/main.ts`): recuperar contraseña (código en el servidor; correo por SMTP en local y por API de Brevo en producción) y pagos de membresía con Mercado Pago. Publicado en Render (`render.yaml`) |
 | Pagos | [Mercado Pago Checkout Pro](https://www.mercadopago.com.mx/developers/es/docs/checkout-pro/landing) vía API REST con `fetch` (sin SDK), webhook firmado |
 | Calidad | [vue-tsc](https://github.com/vuejs/language-tools), [Vitest](https://vitest.dev/) + jsdom + fake-indexeddb + Vue Test Utils |
 | Hosting | App: Firebase Hosting (`dist`) → https://mrapp-b8d1e.web.app · API: Render → https://mavi-api.onrender.com |
@@ -328,6 +328,8 @@ El cliente que olvidó su contraseña la recupera **sin que el navegador conozca
 | `POST /recuperar-password/solicitar { telefono }` | Busca al cliente por celular; genera un código de 4 dígitos, lo guarda **hasheado** (bcrypt) en memoria del proceso con caducidad (`MINUTOS_VIGENCIA = 10`) y lo envía por correo. Responde `{ ok, email }` con el correo oculto (`b***@gmail.com`). Sin cuenta/correo → 404 |
 | `POST /recuperar-password/cambiar { telefono, codigo, nuevaPassword }` | Verifica el código **en el servidor** (caducidad + `MAX_INTENTOS = 5`) y, si es correcto, escribe la nueva contraseña (hash) en `usuarios/{id}/pass` y descarta la solicitud (un solo uso) |
 
+**Envío del correo.** En **local** se manda por el SMTP de Gmail (`SMTP_USER`/`SMTP_PASS`). En **producción (Render)** el SMTP directo a Gmail está bloqueado (da `Connection timeout`), así que el correo se manda por la **API HTTP de Brevo**: si existe `BREVO_API_KEY` se usa Brevo, si no, SMTP. El remitente es `SMTP_USER` y debe estar **verificado en Brevo**. Diagnóstico: `node scripts/probar-correo.mjs [telefono]` (local, SMTP).
+
 El código se guarda en memoria, no en la base: es privado (la base es de lectura abierta) y si el servidor se reinicia, se pide de nuevo. La reglas puras (código, caducidad, intentos, validación) están en `logica.ts` y se prueban solas. `ForgotPassword.vue` solo pide teléfono → código + contraseña nueva; ya no genera ni compara nada.
 
 **Teléfono con guiones.** El campo del teléfono se muestra formateado `375-124-1114` (formato 3-3-4) mientras se escribe; al servidor se le mandan **solo los dígitos** (`soloDigitosTel`). Da igual con guiones o sin ellos: el servidor normaliza con `soloDigitos`.
@@ -444,6 +446,7 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | Cerrar el registro de tiendas se controla también desde `/admin/tiendas` y oculta el "¿Tienes una tienda?" del cliente | Pausar altas nuevas sin frenar a clientes ni a tiendas existentes; el enlace del cliente no respetaba el flag |
 | 2026-09-16 | El panel "Pagos por confirmar" del admin se teleporta a `<body>` (centrado en móvil, desplegable en escritorio) | Como desplegable quedaba recortado/estrecho en móvil; mismo patrón que la campana de las tiendas |
 | 2026-09-16 | `auto_return` solo se envía cuando `back_urls.success` es https | Mercado Pago rechaza la preferencia con URL de retorno en localhost ("auto_return invalid. back_url.success must be defined"); así se puede probar el pago en local |
+| 2026-09-16 | El correo se envía por API HTTP de Brevo en producción (SMTP solo en local) | Render bloquea el SMTP saliente a Gmail ("Connection timeout"); la API de Brevo viaja por https y sí sale |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |

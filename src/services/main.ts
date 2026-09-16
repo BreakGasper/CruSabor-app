@@ -11,6 +11,7 @@ dotenv.config();
 dotenv.config({ path: ".env.local", override: true });
 console.log("SMTP_USER:", process.env.SMTP_USER);
 console.log("SMTP_PASS:", process.env.SMTP_PASS ? "Cargada ✅" : "No cargada ❌");
+console.log("BREVO_API_KEY:", process.env.BREVO_API_KEY ? "Cargada ✅ (correo por API HTTP)" : "No cargada (usa SMTP)");
 console.log("MP_ACCESS_TOKEN:", process.env.MP_ACCESS_TOKEN ? "Cargado ✅" : "No cargado ❌");
 console.log("MP_WEBHOOK_SECRET:", process.env.MP_WEBHOOK_SECRET ? "Cargado ✅" : "No cargado ❌");
 console.log("API_PUBLIC_URL:", process.env.API_PUBLIC_URL || "(vacía: Mercado Pago no podrá avisar los pagos)");
