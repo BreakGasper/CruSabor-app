@@ -3,6 +3,12 @@
     <AdminTopbar titulo="Cuentas" />
 
     <main class="admin-main">
+      <div class="tabs-cuentas">
+        <button type="button" class="tab-cuenta" :class="{ active: vista === 'admins' }" @click="vista = 'admins'">Administradores</button>
+        <button type="button" class="tab-cuenta" :class="{ active: vista === 'clientes' }" @click="vista = 'clientes'">Clientes</button>
+      </div>
+
+      <template v-if="vista === 'admins'">
       <div class="head">
         <div>
           <h1 class="page-title">Cuentas de administrador</h1>
@@ -50,6 +56,36 @@
           </div>
         </li>
       </ul>
+      </template>
+
+      <!-- ============ CLIENTES ============ -->
+      <section v-else class="clientes">
+        <h1 class="page-title">Cuentas de clientes</h1>
+        <p class="page-hint">Busca a un cliente para ayudarlo: restablecer su contraseña o corregir su nombre/correo.</p>
+        <input
+          v-model="qCliente"
+          type="search"
+          class="buscar-cliente"
+          placeholder="Buscar por nombre, celular o correo..."
+          @input="buscarClientesDebounced"
+        />
+        <p v-if="buscandoClientes" class="empty">Buscando...</p>
+        <p v-else-if="qCliente && !clientes.length" class="empty">Sin resultados.</p>
+        <p v-else-if="!qCliente" class="empty">Escribe para buscar un cliente.</p>
+        <ul v-else class="lista">
+          <li v-for="c in clientes" :key="c.id" class="fila">
+            <div class="icono admin">{{ inicial(c.nombre) }}</div>
+            <div class="info">
+              <p class="nombre">{{ c.nombre || '(sin nombre)' }}</p>
+              <p class="desc">📱 {{ formatTelefono(c.celular) }}<span v-if="c.email"> · ✉️ {{ c.email }}</span></p>
+            </div>
+            <div class="acciones">
+              <button type="button" class="btn btn-editar" @click="editarCliente(c)">Editar</button>
+              <button type="button" class="btn btn-activar" @click="resetClientePassword(c)">Restablecer contraseña</button>
+            </div>
+          </li>
+        </ul>
+      </section>
     </main>
 
     <AdminCuentaModal :visible="modalVisible" :admin="adminEdit" :creado-por="sesion?.id" @close="modalVisible = false" @saved="onGuardada" />
@@ -63,7 +99,9 @@ import AdminTopbar from '../components/AdminTopbar.vue';
 import AdminCuentaModal from '../components/AdminCuentaModal.vue';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import { useAdminsEnVivo, actualizarAdmin, motivoBloqueoCambio, ROL_LABEL, type Admin, type RolAdmin } from '@/composables/useAdmin';
+import { buscarClientes, restablecerPasswordCliente, actualizarClienteAdmin, type ClienteAdmin } from '@/composables/useAdminClientes';
 
+const vista = ref<'admins' | 'clientes'>('admins');
 const sesion = computed(() => sessionAdmin.value);
 const soySuper = computed(() => sesion.value?.rol === 'superadmin');
 const { admins, cargando } = useAdminsEnVivo();
@@ -98,6 +136,75 @@ function abrirEditar(a: Admin) {
 function onGuardada(info: { id: string; nombre: string; nuevo: boolean }) {
   modalVisible.value = false;
   toast(info.nuevo ? `Cuenta de ${info.nombre} creada` : `Cuenta de ${info.nombre} actualizada`);
+}
+
+/* ---------- Clientes (soporte) ---------- */
+const qCliente = ref('');
+const clientes = ref<ClienteAdmin[]>([]);
+const buscandoClientes = ref(false);
+let tBuscar: ReturnType<typeof setTimeout> | undefined;
+
+async function refrescarClientes() {
+  const q = qCliente.value.trim();
+  if (!q) { clientes.value = []; buscandoClientes.value = false; return; }
+  clientes.value = await buscarClientes(q);
+  buscandoClientes.value = false;
+}
+function buscarClientesDebounced() {
+  clearTimeout(tBuscar);
+  if (!qCliente.value.trim()) { clientes.value = []; buscandoClientes.value = false; return; }
+  buscandoClientes.value = true;
+  tBuscar = setTimeout(refrescarClientes, 350);
+}
+
+async function resetClientePassword(c: ClienteAdmin) {
+  const { value, isConfirmed } = await Swal.fire({
+    title: `Nueva contraseña`,
+    text: c.nombre || formatTelefono(c.celular),
+    input: 'password',
+    inputPlaceholder: 'Mínimo 6 caracteres',
+    inputAttributes: { autocapitalize: 'off', autocomplete: 'new-password' },
+    showCancelButton: true,
+    confirmButtonText: 'Restablecer',
+    cancelButtonText: 'Cancelar',
+    preConfirm: (v: string) => {
+      if (!v || v.length < 6) Swal.showValidationMessage('La contraseña debe tener al menos 6 caracteres');
+      return v;
+    },
+  });
+  if (!isConfirmed || !value) return;
+  try {
+    await restablecerPasswordCliente(c.id, value);
+    toast('Contraseña restablecida');
+  } catch (e: any) {
+    toast(e?.message || 'No se pudo restablecer', 'error');
+  }
+}
+
+const escaparAttr = (s: string) => String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+async function editarCliente(c: ClienteAdmin) {
+  const { value, isConfirmed } = await Swal.fire({
+    title: 'Editar cliente',
+    html:
+      `<input id="ac-nombre" class="swal2-input" placeholder="Nombre" value="${escaparAttr(c.nombre)}">` +
+      `<input id="ac-email" class="swal2-input" placeholder="Correo" value="${escaparAttr(c.email)}">`,
+    showCancelButton: true,
+    confirmButtonText: 'Guardar',
+    cancelButtonText: 'Cancelar',
+    preConfirm: () => ({
+      nombre: (document.getElementById('ac-nombre') as HTMLInputElement)?.value ?? '',
+      email: (document.getElementById('ac-email') as HTMLInputElement)?.value ?? '',
+    }),
+  });
+  if (!isConfirmed || !value) return;
+  try {
+    await actualizarClienteAdmin(c.id, value as { nombre: string; email: string });
+    toast('Cliente actualizado');
+    await refrescarClientes();
+  } catch (e: any) {
+    toast(e?.message || 'No se pudo guardar', 'error');
+  }
 }
 
 async function toggleActivo(a: Admin) {
@@ -153,6 +260,39 @@ async function toggleActivo(a: Admin) {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
+}
+.tabs-cuentas {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+.tab-cuenta {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tab-cuenta.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #059669;
+}
+.buscar-cliente {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin: 8px 0 1rem;
 }
 .page-hint {
   margin: 0.25rem 0 0;

@@ -14,6 +14,10 @@
           {{ sembrando ? 'Cargando...' : 'Cargar municipios de Jalisco' }}
         </button>
       </div>
+      <div v-if="municipios.length" class="barra">
+        <button type="button" class="btn btn-sec" @click="marcarTodos(true)">Marcar todos</button>
+        <button type="button" class="btn btn-sec" @click="marcarTodos(false)">Desmarcar todos</button>
+      </div>
 
       <div class="resumen">
         <span>{{ municipios.length }} municipios</span>
@@ -48,6 +52,7 @@ import {
   useMunicipiosEnVivo,
   sembrarMunicipiosJalisco,
   setAlcanceMunicipio,
+  marcarTodosAlcance,
   type MunicipioData,
 } from '@/composables/useLugar';
 
@@ -63,6 +68,10 @@ const filtrados = computed(() => {
 
 async function alternar(m: MunicipioData) {
   await setAlcanceMunicipio(m.id, !m.alcance);
+}
+
+async function marcarTodos(alcance: boolean) {
+  await marcarTodosAlcance(alcance);
 }
 
 async function sembrar() {
@@ -100,6 +109,7 @@ async function sembrar() {
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-sembrar { background: #059669; color: #fff; }
+.btn-sec { background: var(--surface); color: var(--text); border-color: var(--border); }
 .resumen { display: flex; gap: 8px; color: var(--text-muted); font-size: 0.82rem; margin: 10px 0; }
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .fila {

@@ -207,7 +207,7 @@ Título y botón de regresar nunca se pierden al hacer scroll:
 | `/admin/tiendas`, `/admin/tiendas/:id` | Tiendas: estatus, membresías, registrar pagos manuales, historial. Arriba, interruptor para **abrir/cerrar el registro de tiendas nuevas** |
 | `/admin/categorias` | Catálogo de categorías (con propagación del nombre a tiendas y artículos) |
 | `/admin/configuracion` | Nodo `configuracion`: precios de membresía, días de gracia, modo de pago (`links` / `automatico`), mantenimiento, registro abierto |
-| `/admin/cuentas` | Cuentas de administrador: crear, editar, contraseña, activar/desactivar |
+| `/admin/cuentas` | Cuentas de administrador (crear/editar/activar) y **soporte a clientes**: buscar cliente y restablecer su contraseña o corregir nombre/correo |
 | `/admin/banners` | Banners del carrusel de la portada: subir imagen, título/subtítulo, enlace, vigencia (fechas), activar/ocultar y ordenar |
 | `/admin/municipios` | Municipios de Jalisco: cargar los 125, marcar con check cuáles tienen alcance (cobertura); solo esos se ofrecen al registrar/editar tienda |
 
@@ -393,6 +393,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
 | `banners.spec.ts` | Banners de la portada: regla de vigencia (activo + fechas) y CRUD del admin (crear, actualizar, ocultar, eliminar) |
 | `municipios.spec.ts` | Municipios (125, alcance, sembrar sin duplicar) y colonias por código postal (parseo y búsqueda tolerante a fallos) |
+| `adminClientes.spec.ts` | Soporte a clientes desde el admin: búsqueda, restablecer contraseña (hash) y editar nombre/correo |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
 | `storeEdit.spec.ts`, `envio.spec.ts`, `favoritasSync.spec.ts`, `tiendasFavoritas.spec.ts`, `direcciones.spec.ts`, `sync.spec.ts` | Editar tienda, envío a domicilio, favoritas y su sincronización, libreta de direcciones, respaldo local↔Firebase |
@@ -469,6 +470,9 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | Municipios con `alcance` (check en /admin/municipios); registro y edición de tienda solo muestran los que tienen alcance | El admin controla la cobertura sin tocar código; `alcance` ausente = disponible, para no romper lo existente |
 | 2026-09-16 | Colonias por código postal (API gratuita en vivo), con degradado a captura manual | Cargar todas las colonias de Jalisco es inviable/pesado; por CP es preciso y ligero. Si la API falla, el formulario sigue con texto libre |
 | 2026-09-16 | Editar tienda usa el mismo selector de dirección que el registro (municipio, colonia, estado fijo Jalisco, país México) | Consistencia entre alta y edición |
+| 2026-09-16 | Alcance de municipios es opt-in (solo `alcance === true`), con botones marcar/desmarcar todos | El admin decide activamente dónde hay cobertura; por defecto nada seleccionado |
+| 2026-09-16 | Encabezado "Explorar" con enlace "Ver más productos" (→ /productos), como el de Tiendas | Consistencia visual entre secciones de la portada |
+| 2026-09-16 | El admin puede dar soporte a clientes desde /admin/cuentas (restablecer contraseña, editar datos) | Resolver problemas de acceso de clientes sin tocar la base a mano |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |

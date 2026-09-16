@@ -12,8 +12,8 @@ export interface MunicipioData {
   alcance?: boolean;
 }
 
-/** ¿La plataforma da servicio en este municipio? (ausente = sí, para no romper lo anterior) */
-export const tieneAlcance = (m: Pick<MunicipioData, "alcance">) => m.alcance !== false;
+/** ¿La plataforma da servicio en este municipio? Solo los que el admin marca explícitamente. */
+export const tieneAlcance = (m: Pick<MunicipioData, "alcance">) => m.alcance === true;
 
 /** Los 125 municipios de Jalisco (nombres oficiales). Para sembrarlos desde el admin. */
 export const MUNICIPIOS_JALISCO: string[] = [
@@ -168,7 +168,7 @@ export function useMunicipiosEnVivo(): { municipios: Ref<MunicipioData[]>; carga
           municipio: String(m?.municipio || ""),
           estado: String(m?.estado || "Jalisco"),
           pueblos: Array.isArray(m?.pueblos) ? m.pueblos : [],
-          alcance: m?.alcance !== false,
+          alcance: m?.alcance === true,
         }))
         .sort((a, b) => a.municipio.localeCompare(b.municipio, "es"));
       cargando.value = false;
@@ -187,7 +187,8 @@ export async function sembrarMunicipiosJalisco(): Promise<number> {
   for (const municipio of MUNICIPIOS_JALISCO) {
     if (existentes.has(norm(municipio))) continue;
     const nuevo = push(dbRef(db, "municipios"));
-    await set(nuevo, { id: nuevo.key, municipio, estado: "Jalisco", pueblos: [], alcance: true });
+    // alcance:false por defecto → el admin marca a mano cuáles tienen cobertura
+    await set(nuevo, { id: nuevo.key, municipio, estado: "Jalisco", pueblos: [], alcance: false });
     agregados++;
   }
   return agregados;
@@ -196,6 +197,13 @@ export async function sembrarMunicipiosJalisco(): Promise<number> {
 /** Marca o desmarca el alcance de un municipio */
 export async function setAlcanceMunicipio(id: string, alcance: boolean): Promise<void> {
   await update(dbRef(db, `municipios/${id}`), { alcance });
+}
+
+/** Marca o desmarca el alcance de TODOS los municipios (para limpiar o seleccionar en bloque) */
+export async function marcarTodosAlcance(alcance: boolean): Promise<void> {
+  const snap = await get(dbRef(db, "municipios"));
+  const data = (snap.val() as Record<string, any>) || {};
+  await Promise.all(Object.keys(data).map((id) => update(dbRef(db, `municipios/${id}`), { alcance })));
 }
 
 /** Reemplaza las colonias (pueblos) de un municipio */

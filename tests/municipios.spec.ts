@@ -8,6 +8,7 @@ import {
   tieneAlcance,
   sembrarMunicipiosJalisco,
   setAlcanceMunicipio,
+  marcarTodosAlcance,
   obtenerMunicipios,
 } from '@/composables/useLugar';
 import { extraer, buscarPorCP } from '@/composables/useCodigoPostal';
@@ -18,9 +19,9 @@ describe('municipios de Jalisco', () => {
     expect(new Set(MUNICIPIOS_JALISCO.map((m) => m.toLowerCase())).size).toBe(125);
   });
 
-  it('tieneAlcance: ausente o true = sí; false = no', () => {
-    expect(tieneAlcance({})).toBe(true);
+  it('tieneAlcance: solo true = sí (ausente o false = no; opt-in)', () => {
     expect(tieneAlcance({ alcance: true })).toBe(true);
+    expect(tieneAlcance({})).toBe(false);
     expect(tieneAlcance({ alcance: false })).toBe(false);
   });
 });
@@ -28,10 +29,13 @@ describe('municipios de Jalisco', () => {
 describe('sembrar y alcance (admin)', () => {
   beforeEach(() => __reset({ municipios: {} }));
 
-  it('siembra los 125 municipios y no duplica al repetir', async () => {
+  it('siembra los 125 municipios (sin alcance por defecto) y no duplica al repetir', async () => {
     const n = await sembrarMunicipiosJalisco();
     expect(n).toBe(125);
-    expect(Object.keys(__getTree().municipios)).toHaveLength(125);
+    const nodo = __getTree().municipios;
+    expect(Object.keys(nodo)).toHaveLength(125);
+    // Nacen SIN alcance: el admin marca a mano
+    expect(Object.values(nodo).every((m: any) => m.alcance === false)).toBe(true);
 
     const otra = await sembrarMunicipiosJalisco();
     expect(otra).toBe(0);
@@ -53,6 +57,21 @@ describe('sembrar y alcance (admin)', () => {
 
     const lista = await obtenerMunicipios();
     expect(lista.find((m) => m.id === 'm1')!.alcance).toBe(false);
+  });
+
+  it('marcarTodosAlcance cambia todos de una vez', async () => {
+    __reset({
+      municipios: {
+        a: { id: 'a', municipio: 'Guadalajara', estado: 'Jalisco', pueblos: [], alcance: false },
+        b: { id: 'b', municipio: 'Zapopan', estado: 'Jalisco', pueblos: [], alcance: false },
+      },
+    });
+    await marcarTodosAlcance(true);
+    expect(__getAt('municipios/a/alcance')).toBe(true);
+    expect(__getAt('municipios/b/alcance')).toBe(true);
+    await marcarTodosAlcance(false);
+    expect(__getAt('municipios/a/alcance')).toBe(false);
+    expect(__getAt('municipios/b/alcance')).toBe(false);
   });
 });
 

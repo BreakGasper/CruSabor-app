@@ -1,6 +1,9 @@
 <template>
   <div class="carousel-container">
-    <h2 class="carousel-title">Explorar</h2>
+    <div class="encabezado">
+      <h2 class="titulo">Explorar</h2>
+      <button type="button" class="ver-todas" @click="verMas">Ver más productos ›</button>
+    </div>
 
     <div class="carousel-wrapper">
       <button class="arrow left" @click="scrollLeft">&#10094;</button>
@@ -255,3 +258,28 @@ function onImgError(e: Event) {
   (e.target as HTMLImageElement).src = defaultImg;
 }
 </script>
+
+<style scoped>
+.encabezado {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.encabezado .titulo {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+}
+.encabezado .ver-todas {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--brand-blue-text);
+  cursor: pointer;
+  font-family: inherit;
+}
+</style>
