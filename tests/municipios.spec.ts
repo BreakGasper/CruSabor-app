@@ -11,7 +11,7 @@ import {
   marcarTodosAlcance,
   obtenerMunicipios,
 } from '@/composables/useLugar';
-import { extraer, buscarPorCP } from '@/composables/useCodigoPostal';
+import { extraer, buscarPorCP, coloniasPorMunicipio } from '@/composables/useCodigoPostal';
 
 describe('municipios de Jalisco', () => {
   it('la lista tiene los 125 municipios, sin duplicados', () => {
@@ -107,5 +107,28 @@ describe('colonias por código postal', () => {
     }));
     const info = await buscarPorCP('44100', fetchOk as any);
     expect(info).toMatchObject({ colonias: ['Centro'], municipio: 'Guadalajara' });
+  });
+
+  it('coloniasPorMunicipio dedup, ordena y filtra por municipio; tolera fallos', async () => {
+    const fetchOk = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        zip_codes: [
+          { d_asenta: 'Centro', d_mnpio: 'Guadalajara' },
+          { d_asenta: 'Americana', d_mnpio: 'Guadalajara' },
+          { d_asenta: 'Centro', d_mnpio: 'Guadalajara' }, // duplicado
+          { d_asenta: 'OtraCiudad', d_mnpio: 'Zapopan' }, // otro municipio: se ignora
+        ],
+        meta: { pagination: { total_pages: 1 } },
+      }),
+    }));
+    const cols = await coloniasPorMunicipio('Guadalajara', fetchOk as any);
+    expect(cols).toEqual(['Americana', 'Centro']);
+
+    const fetchCaido = vi.fn(async () => {
+      throw new Error('sin red');
+    });
+    expect(await coloniasPorMunicipio('Guadalajara', fetchCaido as any)).toEqual([]);
+    expect(await coloniasPorMunicipio('', fetchOk as any)).toEqual([]);
   });
 });

@@ -246,7 +246,7 @@ import { reactive, ref, watch, onMounted } from 'vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { obtenerCategorias, type CategoriaData } from '@/composables/useCategorias';
 import { obtenerMunicipios, obtenerPueblosPorMunicipio, tieneAlcance, type MunicipioData } from '@/composables/useLugar';
-import { buscarPorCP } from '@/composables/useCodigoPostal';
+import { buscarPorCP, coloniasPorMunicipio } from '@/composables/useCodigoPostal';
 import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
 
 /**
@@ -290,8 +290,18 @@ onMounted(async () => {
 });
 
 async function cargarColonias(municipio: string) {
-  colonias.value = await obtenerPueblosPorMunicipio(municipio);
-  coloniasFiltradas.value = [...colonias.value];
+  // 1) colonias guardadas del municipio (si el admin las curó)
+  const guardadas = await obtenerPueblosPorMunicipio(municipio);
+  colonias.value = guardadas;
+  coloniasFiltradas.value = [...guardadas];
+  // 2) si no hay, se traen por API (mejor esfuerzo); si falla, queda texto libre
+  if (!guardadas.length) {
+    const api = await coloniasPorMunicipio(municipio);
+    if (api.length) {
+      colonias.value = api;
+      coloniasFiltradas.value = [...api];
+    }
+  }
 }
 function onMunicipioInput() {
   mostrarMunicipios.value = true;

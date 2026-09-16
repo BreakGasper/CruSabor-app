@@ -48,6 +48,47 @@ export function extraer(data: any): InfoCP | null {
   return { colonias, municipio, estado };
 }
 
+const COL_API = (m: string, page: number) =>
+  `https://sepomex.icalialabs.com/api/v1/zip_codes?municipality=${encodeURIComponent(m)}&per_page=200&page=${page}`;
+
+/**
+ * Lista de colonias de un municipio (para el desplegable al elegir municipio).
+ * Mejor esfuerzo: pide varias páginas a la API, filtra por municipio y quita duplicados.
+ * Si la API falla o el municipio es enorme, devuelve lo que alcanzó (o []).
+ */
+export async function coloniasPorMunicipio(
+  municipio: string,
+  fetchImpl: typeof fetch = fetch,
+  maxPaginas = 4,
+): Promise<string[]> {
+  const m = String(municipio || '').trim();
+  if (!m) return [];
+  const set = new Set<string>();
+  try {
+    for (let page = 1; page <= maxPaginas; page++) {
+      const r = await fetchImpl(COL_API(m, page), {
+        headers: { accept: 'application/json' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) break;
+      const data = await r.json();
+      const rows = filas(data);
+      if (!rows.length) break;
+      for (const row of rows) {
+        const mun = texto(row?.d_mnpio, row?.municipio, row?.municipality);
+        const col = texto(row?.d_asenta, row?.asentamiento, row?.colonia, row?.settlement);
+        // Si la API no filtró, nos quedamos solo con las del municipio pedido
+        if (col && (!mun || mun.toLowerCase() === m.toLowerCase())) set.add(col);
+      }
+      const totalPages = Number(data?.meta?.pagination?.total_pages);
+      if ((totalPages && page >= totalPages) || rows.length < 200) break;
+    }
+  } catch {
+    /* sin conexión / CORS / timeout: se devuelve lo que haya */
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 /** Consulta el C.P. (5 dígitos). Devuelve null si no hay 5 dígitos o si la API falla. */
 export async function buscarPorCP(cp: string, fetchImpl: typeof fetch = fetch): Promise<InfoCP | null> {
   const limpio = String(cp || '').replace(/\D/g, '');

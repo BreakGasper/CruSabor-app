@@ -14,6 +14,7 @@
           {{ sembrando ? 'Cargando...' : 'Cargar municipios de Jalisco' }}
         </button>
       </div>
+      <p></p>
       <div v-if="municipios.length" class="barra">
         <button type="button" class="btn btn-sec" @click="marcarTodos(true)">Marcar todos</button>
         <button type="button" class="btn btn-sec" @click="marcarTodos(false)">Desmarcar todos</button>

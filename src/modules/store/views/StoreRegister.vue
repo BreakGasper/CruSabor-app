@@ -694,7 +694,7 @@ import TopBarFija from "@/components/TopBarFija.vue";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { useTiendas } from "@/composables/useTiendas";
 import { hashPassword } from "@/composables/usePassword";
-import { buscarPorCP } from "@/composables/useCodigoPostal";
+import { buscarPorCP, coloniasPorMunicipio } from "@/composables/useCodigoPostal";
 import router from "@/router";
 import {
   obtenerMunicipios,
@@ -797,11 +797,19 @@ async function seleccionarMunicipio(m: MunicipioData) {
   municipiosFiltrados.value = [];
   mostrarListaMunicipios.value = false;
 
-  // Obtener pueblos
-  pueblos.value = await obtenerPueblosPorMunicipio(m.municipio);
-  pueblosFiltrados.value = [...pueblos.value];
+  // Colonias: primero las guardadas del municipio; si no hay, se traen por API
   puebloSeleccionado.value = "";
   form.value.colonia = "";
+  const guardadas = await obtenerPueblosPorMunicipio(m.municipio);
+  pueblos.value = guardadas;
+  pueblosFiltrados.value = [...guardadas];
+  if (!guardadas.length) {
+    const api = await coloniasPorMunicipio(m.municipio);
+    if (api.length) {
+      pueblos.value = api;
+      pueblosFiltrados.value = [...api];
+    }
+  }
 
   // Municipio válido → habilitar pueblo y quitar error
   errors.value.municipio = "";
