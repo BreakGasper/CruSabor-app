@@ -39,6 +39,7 @@
           </label>
           <span class="etq" :class="m.alcance ? 'on' : 'off'">{{ m.alcance ? 'Con alcance' : 'Sin alcance' }}</span>
           <span class="cols">{{ (m.pueblos?.length || 0) }} colonias</span>
+          <button type="button" class="btn-borrar" title="Eliminar municipio" @click="borrar(m)">✕</button>
         </li>
       </ul>
     </main>
@@ -54,6 +55,7 @@ import {
   sembrarMunicipiosJalisco,
   setAlcanceMunicipio,
   marcarTodosAlcance,
+  eliminarMunicipio,
   type MunicipioData,
 } from '@/composables/useLugar';
 
@@ -73,6 +75,19 @@ async function alternar(m: MunicipioData) {
 
 async function marcarTodos(alcance: boolean) {
   await marcarTodosAlcance(alcance);
+}
+
+async function borrar(m: MunicipioData) {
+  const r = await Swal.fire({
+    icon: 'warning',
+    title: `¿Eliminar "${m.municipio}"?`,
+    text: 'Se quita de la lista de municipios. Útil para borrar duplicados o entradas mal escritas.',
+    showCancelButton: true,
+    confirmButtonText: 'Eliminar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#d9534f',
+  });
+  if (r.isConfirmed) await eliminarMunicipio(m.id);
 }
 
 async function sembrar() {
@@ -125,6 +140,18 @@ async function sembrar() {
 .etq.on { color: #059669; }
 .etq.off { color: var(--text-muted); }
 .cols { font-size: 0.75rem; color: var(--text-muted); flex: none; }
+.btn-borrar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #fca5a5;
+  background: var(--surface);
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
 @media (max-width: 520px) {
   .cols { display: none; }
 }

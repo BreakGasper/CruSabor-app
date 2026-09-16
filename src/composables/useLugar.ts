@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from "vue";
 
 import { db } from "@/firebase";
-import { ref as dbRef, push, set, get, update, onValue, type Unsubscribe } from "firebase/database";
+import { ref as dbRef, push, set, get, update, remove, onValue, type Unsubscribe } from "firebase/database";
 
 export interface MunicipioData {
   id: string;
@@ -31,7 +31,7 @@ export const MUNICIPIOS_JALISCO: string[] = [
   "Pihuamo", "Poncitlán", "Puerto Vallarta", "Villa Purificación", "Quitupan", "El Salto",
   "San Cristóbal de la Barranca", "San Diego de Alejandría", "San Juan de los Lagos",
   "San Juanito de Escobedo", "San Julián", "San Marcos", "San Martín de Bolaños",
-  "San Martín Hidalgo", "San Miguel el Alto", "Gómez Farías", "San Sebastián del Oeste",
+  "San Martín de Hidalgo", "San Miguel el Alto", "Gómez Farías", "San Sebastián del Oeste",
   "Santa María de los Ángeles", "Sayula", "Tala", "Talpa de Allende", "Tamazula de Gordiano",
   "Tapalpa", "Tecalitlán", "Tecolotlán", "Techaluta de Montenegro", "Tenamaxtlán", "Teocaltiche",
   "Teocuitatlán de Corona", "Tepatitlán de Morelos", "Tequila", "Teuchitlán", "Tizapán el Alto",
@@ -209,4 +209,9 @@ export async function marcarTodosAlcance(alcance: boolean): Promise<void> {
 /** Reemplaza las colonias (pueblos) de un municipio */
 export async function setColoniasMunicipio(id: string, pueblos: string[]): Promise<void> {
   await update(dbRef(db, `municipios/${id}`), { pueblos: Array.from(new Set(pueblos.filter(Boolean))) });
+}
+
+/** Elimina un municipio (p. ej. una entrada duplicada o mal escrita) */
+export async function eliminarMunicipio(id: string): Promise<void> {
+  await remove(dbRef(db, `municipios/${id}`));
 }

@@ -9,6 +9,7 @@ import {
   sembrarMunicipiosJalisco,
   setAlcanceMunicipio,
   marcarTodosAlcance,
+  eliminarMunicipio,
   obtenerMunicipios,
 } from '@/composables/useLugar';
 import { extraer, buscarPorCP, coloniasPorMunicipio } from '@/composables/useCodigoPostal';
@@ -17,6 +18,11 @@ describe('municipios de Jalisco', () => {
   it('la lista tiene los 125 municipios, sin duplicados', () => {
     expect(MUNICIPIOS_JALISCO).toHaveLength(125);
     expect(new Set(MUNICIPIOS_JALISCO.map((m) => m.toLowerCase())).size).toBe(125);
+  });
+
+  it('usa "San Martín de Hidalgo" (con "de", como la entrada original con colonias)', () => {
+    expect(MUNICIPIOS_JALISCO).toContain('San Martín de Hidalgo');
+    expect(MUNICIPIOS_JALISCO).not.toContain('San Martín Hidalgo');
   });
 
   it('tieneAlcance: solo true = sí (ausente o false = no; opt-in)', () => {
@@ -57,6 +63,12 @@ describe('sembrar y alcance (admin)', () => {
 
     const lista = await obtenerMunicipios();
     expect(lista.find((m) => m.id === 'm1')!.alcance).toBe(false);
+  });
+
+  it('eliminarMunicipio quita la entrada (para borrar duplicados)', async () => {
+    __reset({ municipios: { dup: { id: 'dup', municipio: 'San Martín Hidalgo', estado: 'Jalisco', pueblos: [], alcance: false } } });
+    await eliminarMunicipio('dup');
+    expect(__getAt('municipios/dup')).toBeUndefined();
   });
 
   it('marcarTodosAlcance cambia todos de una vez', async () => {

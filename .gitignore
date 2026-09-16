@@ -26,5 +26,6 @@ dist-ssr
 # Secretos locales (nunca al repositorio)
 .env
 .env.*
+*.env
 !.env.production
 !.env.example
