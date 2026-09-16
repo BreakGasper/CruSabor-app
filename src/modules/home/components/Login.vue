@@ -19,7 +19,7 @@
         </svg>
       </div>
       <span class="badge">Clientes</span>
-      <h1 class="title">MAVI</h1>
+      <h1 class="title">Cru - Shop</h1>
       <p class="subtitle">Bienvenido de nuevo 👋</p>
     </div>
 

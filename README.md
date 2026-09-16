@@ -209,6 +209,7 @@ Título y botón de regresar nunca se pierden al hacer scroll:
 | `/admin/configuracion` | Nodo `configuracion`: precios de membresía, días de gracia, modo de pago (`links` / `automatico`), mantenimiento, registro abierto |
 | `/admin/cuentas` | Cuentas de administrador: crear, editar, contraseña, activar/desactivar |
 | `/admin/banners` | Banners del carrusel de la portada: subir imagen, título/subtítulo, enlace, vigencia (fechas), activar/ocultar y ordenar |
+| `/admin/municipios` | Municipios de Jalisco: cargar los 125, marcar con check cuáles tienen alcance (cobertura); solo esos se ofrecen al registrar/editar tienda |
 
 ---
 
@@ -343,7 +344,7 @@ Render bloquea el SMTP saliente, así que producción manda por la API HTTP de B
 
 1. **Crea la cuenta** en [brevo.com](https://www.brevo.com/) (es distinta de folk.app u otras; asegúrate de estar en `app.brevo.com`).
 2. **API key HTTP:** en `app.brevo.com/settings/keys/api`, pestaña **"API keys"** (NO la de "SMTP"), genera una que empiece con **`xkeysib-`**. La de SMTP (`xsmtpsib-`) **no sirve** aquí.
-3. **Verifica el remitente:** **Senders, Domains & Dedicated IPs → Senders → Add a sender** con el mismo correo que `SMTP_USER` (p. ej. `backgaspar@gmail.com`); abre el correo de confirmación de Brevo y pulsa el enlace hasta que quede con ✓ verde. Sin esto, Brevo acepta la llamada pero **rechaza el envío** ("the sender ... is not valid").
+3. **Verifica el remitente:** **Senders, Domains & Dedicated IPs → Senders → Add a sender** con el mismo correo que `SMTP_USER` (p. ej. `tu-correo@gmail.com`); abre el correo de confirmación de Brevo y pulsa el enlace hasta que quede con ✓ verde. Sin esto, Brevo acepta la llamada pero **rechaza el envío** ("the sender ... is not valid").
 4. **Autoriza las IPs de Render:** si Brevo tiene activada la seguridad de "IPs autorizadas", agrega las **Outbound IP Addresses** del servicio de Render (Render → servicio → Settings → *Outbound IP Addresses*, son fijas) en `app.brevo.com/security/authorised_ips`. Si no, Brevo responde `401 unrecognised IP address`. (Local usa tu propia IP; agrégala igual si quieres probar el camino Brevo en local.)
 5. **En Render → Environment:** `BREVO_API_KEY=xkeysib-...` (y `SMTP_USER` con el remitente verificado). En los logs del arranque debe verse `BREVO_API_KEY: Cargada ✅`.
 6. **Verifica** en Brevo → **Transactional → Logs**: cada correo muestra su estado real (Delivered / Blocked / Bounce / rechazo por remitente). Ahí se ve el motivo si algo no llega.
@@ -391,6 +392,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `recuperacion.spec.ts` | Recuperar contraseña en el servidor: código hasheado con caducidad, intentos máximos, cambio de contraseña de un solo uso |
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
 | `banners.spec.ts` | Banners de la portada: regla de vigencia (activo + fechas) y CRUD del admin (crear, actualizar, ocultar, eliminar) |
+| `municipios.spec.ts` | Municipios (125, alcance, sembrar sin duplicar) y colonias por código postal (parseo y búsqueda tolerante a fallos) |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
 | `storeEdit.spec.ts`, `envio.spec.ts`, `favoritasSync.spec.ts`, `tiendasFavoritas.spec.ts`, `direcciones.spec.ts`, `sync.spec.ts` | Editar tienda, envío a domicilio, favoritas y su sincronización, libreta de direcciones, respaldo local↔Firebase |
@@ -464,6 +466,9 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | En Brevo hay que verificar el remitente y autorizar las IPs de salida de Render | Brevo acepta la llamada pero rechaza el envío si el remitente no está verificado, y da 401 si la IP no está autorizada |
 | 2026-09-16 | Registro de tienda: estado fijo "Jalisco", campo "País: México" no editable, y los 125 municipios de Jalisco | Por ahora todas las tiendas son de Jalisco; los municipios salen del nodo `municipios` (se cargan con el script). La colonia es lista si el municipio tiene colonias cargadas, o texto libre si no |
 | 2026-09-16 | Banners de la portada administrables (`banners/`), con imagen, título, subtítulo, enlace, vigencia, activo y orden | Un carrusel arriba de "Explorar" que el admin controla sin tocar código; el enlace hace clickeable el banner y la vigencia permite promos por fechas |
+| 2026-09-16 | Municipios con `alcance` (check en /admin/municipios); registro y edición de tienda solo muestran los que tienen alcance | El admin controla la cobertura sin tocar código; `alcance` ausente = disponible, para no romper lo existente |
+| 2026-09-16 | Colonias por código postal (API gratuita en vivo), con degradado a captura manual | Cargar todas las colonias de Jalisco es inviable/pesado; por CP es preciso y ligero. Si la API falla, el formulario sigue con texto libre |
+| 2026-09-16 | Editar tienda usa el mismo selector de dirección que el registro (municipio, colonia, estado fijo Jalisco, país México) | Consistencia entre alta y edición |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |

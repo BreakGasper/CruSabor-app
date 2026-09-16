@@ -120,24 +120,58 @@
             </label>
           </div>
           <div class="se-grid-2 calle">
-            <label class="se-campo">
-              <span>Colonia *</span>
-              <input v-model="form.colonia" type="text" :class="{ err: errores.colonia }" />
+            <!-- MUNICIPIO con autocompletado (mismo criterio que el registro) -->
+            <label class="se-campo" style="position: relative">
+              <span>Municipio *</span>
+              <input
+                v-model="form.municipio"
+                type="text"
+                autocomplete="off"
+                placeholder="Selecciona municipio"
+                :class="{ err: errores.municipio }"
+                @focus="mostrarMunicipios = true"
+                @blur="mostrarMunicipios = false"
+                @input="onMunicipioInput"
+              />
+              <ul v-if="mostrarMunicipios && municipiosFiltrados.length" class="se-autocomplete">
+                <li v-for="m in municipiosFiltrados" :key="m.id" @mousedown.prevent="seleccionarMunicipio(m)">
+                  {{ m.municipio }}
+                </li>
+              </ul>
             </label>
-            <label class="se-campo">
-              <span>C.P. *</span>
-              <input v-model="form.cp" type="text" inputmode="numeric" maxlength="5" :class="{ err: errores.cp }" />
-              <small v-if="errores.cp">{{ errores.cp }}</small>
+            <!-- COLONIA: lista si el municipio tiene colonias, o texto libre -->
+            <label class="se-campo" style="position: relative">
+              <span>Colonia *</span>
+              <input
+                v-model="form.colonia"
+                type="text"
+                autocomplete="off"
+                :placeholder="colonias.length ? 'Selecciona colonia' : 'Escribe tu colonia'"
+                :class="{ err: errores.colonia }"
+                @focus="mostrarColonias = true"
+                @blur="mostrarColonias = false"
+                @input="onColoniaInput"
+              />
+              <ul v-if="mostrarColonias && coloniasFiltradas.length" class="se-autocomplete">
+                <li v-for="c in coloniasFiltradas" :key="c" @mousedown.prevent="seleccionarColonia(c)">{{ c }}</li>
+              </ul>
             </label>
           </div>
           <div class="se-grid-2">
             <label class="se-campo">
-              <span>Municipio *</span>
-              <input v-model="form.municipio" type="text" :class="{ err: errores.municipio }" />
+              <span>C.P. *</span>
+              <input v-model="form.cp" type="text" inputmode="numeric" maxlength="5" :class="{ err: errores.cp }" @input="onCpInput" />
+              <small v-if="errores.cp">{{ errores.cp }}</small>
             </label>
             <label class="se-campo">
               <span>Estado *</span>
-              <input v-model="form.estado" type="text" :class="{ err: errores.estado }" />
+              <input v-model="form.estado" type="text" readonly :class="{ err: errores.estado }" />
+            </label>
+          </div>
+          <div class="se-grid-2">
+            <label class="se-campo">
+              <span>País</span>
+              <input v-model="form.pais" type="text" readonly />
             </label>
           </div>
           <small v-if="errores.direccion" class="se-error">{{ errores.direccion }}</small>
@@ -211,6 +245,8 @@
 import { reactive, ref, watch, onMounted } from 'vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { obtenerCategorias, type CategoriaData } from '@/composables/useCategorias';
+import { obtenerMunicipios, obtenerPueblosPorMunicipio, tieneAlcance, type MunicipioData } from '@/composables/useLugar';
+import { buscarPorCP } from '@/composables/useCodigoPostal';
 import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
 
 /**
@@ -236,9 +272,62 @@ const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 const METODOS_PAGO = ['Efectivo', 'Tarjeta', 'Transferencia'];
 
 const categorias = ref<CategoriaData[]>([]);
+
+/* ---------- municipios y colonias (mismo criterio que el registro) ---------- */
+const municipios = ref<MunicipioData[]>([]);
+const municipiosFiltrados = ref<MunicipioData[]>([]);
+const colonias = ref<string[]>([]);
+const coloniasFiltradas = ref<string[]>([]);
+const mostrarMunicipios = ref(false);
+const mostrarColonias = ref(false);
+
 onMounted(async () => {
   categorias.value = await obtenerCategorias();
+  municipios.value = (await obtenerMunicipios()).filter(tieneAlcance);
+  municipiosFiltrados.value = municipios.value;
+  // Si ya hay municipio (tienda existente), carga sus colonias para el desplegable
+  if (form.municipio) await cargarColonias(form.municipio);
 });
+
+async function cargarColonias(municipio: string) {
+  colonias.value = await obtenerPueblosPorMunicipio(municipio);
+  coloniasFiltradas.value = [...colonias.value];
+}
+function onMunicipioInput() {
+  mostrarMunicipios.value = true;
+  const val = form.municipio.toLowerCase();
+  municipiosFiltrados.value = municipios.value.filter((m) => m.municipio.toLowerCase().includes(val));
+}
+async function seleccionarMunicipio(m: MunicipioData) {
+  form.municipio = m.municipio;
+  form.estado = m.estado || 'Jalisco';
+  mostrarMunicipios.value = false;
+  form.colonia = '';
+  await cargarColonias(m.municipio);
+}
+function onColoniaInput() {
+  mostrarColonias.value = true;
+  const val = form.colonia.toLowerCase();
+  coloniasFiltradas.value = colonias.value.filter((c) => c.toLowerCase().includes(val));
+}
+function seleccionarColonia(c: string) {
+  form.colonia = c;
+  mostrarColonias.value = false;
+}
+async function onCpInput() {
+  form.cp = form.cp.replace(/\D/g, '').slice(0, 5);
+  if (form.cp.length !== 5) return;
+  const info = await buscarPorCP(form.cp);
+  if (!info) return;
+  if (info.colonias.length) {
+    colonias.value = info.colonias;
+    coloniasFiltradas.value = [...info.colonias];
+  }
+  if (info.municipio) {
+    const existe = municipios.value.find((m) => m.municipio.toLowerCase() === info.municipio.toLowerCase());
+    if (existe) form.municipio = existe.municipio;
+  }
+}
 
 /* ---------- formulario ---------- */
 const horarioVacio = () =>
@@ -259,7 +348,8 @@ const form = reactive({
   colonia: '',
   cp: '',
   municipio: '',
-  estado: '',
+  estado: 'Jalisco',
+  pais: 'México',
   metodosPago: [] as string[],
   envioDomicilio: false,
   zonasEntrega: [] as string[],
@@ -281,7 +371,9 @@ function cargarDesde(t: Tienda) {
   form.colonia = t.colonia || '';
   form.cp = String(t.cp || '');
   form.municipio = t.municipio || '';
-  form.estado = t.estado || '';
+  form.estado = t.estado || 'Jalisco';
+  form.pais = t.pais || 'México';
+  if (form.municipio) cargarColonias(form.municipio);
   form.metodosPago = [...(t.metodosPago || [])];
   form.envioDomicilio = !!t.envioDomicilio;
   form.zonasEntrega = [...(t.zonasEntrega || [])];
@@ -391,6 +483,7 @@ async function guardar() {
       cp: form.cp,
       municipio: form.municipio.trim(),
       estado: form.estado.trim(),
+      pais: form.pais.trim(),
       metodosPago: [...form.metodosPago],
       envioDomicilio: form.envioDomicilio,
       zonasEntrega: form.envioDomicilio ? [...form.zonasEntrega] : [],
@@ -491,6 +584,31 @@ watch(
 .se-campo input.err, .se-campo select.err { border-color: #e74c3c; }
 .se-campo small, .hint { color: var(--text-muted); font-size: 0.75rem; }
 .se-campo small:not(.hint) { color: #c0392b; }
+.se-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.se-autocomplete li {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.se-autocomplete li:hover {
+  background: var(--surface-2);
+}
 .se-error { color: #c0392b; font-size: 0.82rem; }
 .se-error-general { margin: 0; padding: 8px 10px; background: #fdecea; border-radius: 8px; }
 

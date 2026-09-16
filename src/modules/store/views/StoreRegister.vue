@@ -351,7 +351,7 @@
                 maxlength="5"
                 minlength="5"
                 class="form-input"
-                @input="form.cp = form.cp.replace(/\D/g, '')"
+                @input="onCpInput"
               />
             </div>
             <span v-if="errors.cp" class="error-msg">{{ errors.cp }}</span>
@@ -694,11 +694,13 @@ import TopBarFija from "@/components/TopBarFija.vue";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { useTiendas } from "@/composables/useTiendas";
 import { hashPassword } from "@/composables/usePassword";
+import { buscarPorCP } from "@/composables/useCodigoPostal";
 import router from "@/router";
 import {
   obtenerMunicipios,
   obtenerPueblosPorMunicipio,
   obtenerTodosPueblos,
+  tieneAlcance,
 } from "@/composables/useLugar";
 import type { MunicipioData } from "@/composables/useLugar";
 import {
@@ -811,6 +813,28 @@ function seleccionarPueblo(pueblo: string) {
   form.value.colonia = pueblo;
   pueblosFiltrados.value = [];
   mostrarListaPueblos.value = false;
+}
+
+// Al escribir un C.P. de 5 dígitos, busca colonias por API y autocompleta lo que se pueda
+async function onCpInput() {
+  form.value.cp = form.value.cp.replace(/\D/g, "").slice(0, 5);
+  if (form.value.cp.length !== 5) return;
+  const info = await buscarPorCP(form.value.cp);
+  if (!info) return; // API caída/CORS: se sigue con captura manual
+  if (info.colonias.length) {
+    pueblos.value = info.colonias;
+    pueblosFiltrados.value = [...info.colonias];
+    puebloDisabled.value = false;
+  }
+  // El municipio solo se fija si la plataforma tiene alcance ahí
+  if (info.municipio) {
+    const existe = municipios.value.find((m) => m.municipio.toLowerCase() === info.municipio.toLowerCase());
+    if (existe) {
+      form.value.municipio = existe.municipio;
+      errors.value.municipio = "";
+      puebloDisabled.value = false;
+    }
+  }
 }
 
 // La colonia se puede elegir de la lista (si el municipio tiene colonias cargadas)
@@ -1053,8 +1077,9 @@ function validarCategoria() {
 onMounted(async () => {
   categorias.value = await obtenerCategorias();
   const lista = await obtenerMunicipios();
-  municipios.value = lista;
-  municipiosFiltrados.value = lista; // inicialmente todos
+  // Solo los municipios donde la plataforma tiene alcance (los que marca el admin)
+  municipios.value = lista.filter(tieneAlcance);
+  municipiosFiltrados.value = municipios.value; // inicialmente todos
 });
 
 onMounted(async () => {

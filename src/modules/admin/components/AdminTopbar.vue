@@ -26,6 +26,7 @@
       <router-link to="/admin/tiendas" class="nav-link" active-class="active">Tiendas</router-link>
       <router-link to="/admin/categorias" class="nav-link" active-class="active">Categorías</router-link>
       <router-link to="/admin/banners" class="nav-link" active-class="active">Banners</router-link>
+      <router-link to="/admin/municipios" class="nav-link" active-class="active">Municipios</router-link>
       <router-link to="/admin/configuracion" class="nav-link" active-class="active">Configuración</router-link>
       <router-link to="/admin/cuentas" class="nav-link" active-class="active">Cuentas</router-link>
     </nav>
