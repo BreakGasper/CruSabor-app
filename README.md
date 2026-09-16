@@ -336,6 +336,17 @@ El código se guarda en memoria, no en la base: es privado (la base es de lectur
 
 **En local hacen falta DOS procesos a la vez:** `npm run dev` (la app, puerto 5173) y `npm run server` (el que envía el correo, puerto 3000; configurable con `PORT` en `.env`). El navegador **no** manda correo por sí mismo: le pide al servidor Express que lo haga, por eso ambos deben estar encendidos. `VITE_API_URL` debe apuntar al puerto del servidor. En producción esto no aplica: el servidor vive en Render, siempre encendido. Para diagnosticar el correo sin la app: `node scripts/probar-correo.mjs [telefono]` prueba la conexión, la autenticación con Gmail y el envío, e imprime el error exacto si falla.
 
+#### Configurar el correo en producción con Brevo (checklist)
+
+Render bloquea el SMTP saliente, así que producción manda por la API HTTP de Brevo. Una sola vez:
+
+1. **Crea la cuenta** en [brevo.com](https://www.brevo.com/) (es distinta de folk.app u otras; asegúrate de estar en `app.brevo.com`).
+2. **API key HTTP:** en `app.brevo.com/settings/keys/api`, pestaña **"API keys"** (NO la de "SMTP"), genera una que empiece con **`xkeysib-`**. La de SMTP (`xsmtpsib-`) **no sirve** aquí.
+3. **Verifica el remitente:** **Senders, Domains & Dedicated IPs → Senders → Add a sender** con el mismo correo que `SMTP_USER` (p. ej. `backgaspar@gmail.com`); abre el correo de confirmación de Brevo y pulsa el enlace hasta que quede con ✓ verde. Sin esto, Brevo acepta la llamada pero **rechaza el envío** ("the sender ... is not valid").
+4. **Autoriza las IPs de Render:** si Brevo tiene activada la seguridad de "IPs autorizadas", agrega las **Outbound IP Addresses** del servicio de Render (Render → servicio → Settings → *Outbound IP Addresses*, son fijas) en `app.brevo.com/security/authorised_ips`. Si no, Brevo responde `401 unrecognised IP address`. (Local usa tu propia IP; agrégala igual si quieres probar el camino Brevo en local.)
+5. **En Render → Environment:** `BREVO_API_KEY=xkeysib-...` (y `SMTP_USER` con el remitente verificado). En los logs del arranque debe verse `BREVO_API_KEY: Cargada ✅`.
+6. **Verifica** en Brevo → **Transactional → Logs**: cada correo muestra su estado real (Delivered / Blocked / Bounce / rechazo por remitente). Ahí se ve el motivo si algo no llega.
+
 ---
 
 ## 10. Administración
@@ -447,6 +458,7 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | El panel "Pagos por confirmar" del admin se teleporta a `<body>` (centrado en móvil, desplegable en escritorio) | Como desplegable quedaba recortado/estrecho en móvil; mismo patrón que la campana de las tiendas |
 | 2026-09-16 | `auto_return` solo se envía cuando `back_urls.success` es https | Mercado Pago rechaza la preferencia con URL de retorno en localhost ("auto_return invalid. back_url.success must be defined"); así se puede probar el pago en local |
 | 2026-09-16 | El correo se envía por API HTTP de Brevo en producción (SMTP solo en local) | Render bloquea el SMTP saliente a Gmail ("Connection timeout"); la API de Brevo viaja por https y sí sale |
+| 2026-09-16 | En Brevo hay que verificar el remitente y autorizar las IPs de salida de Render | Brevo acepta la llamada pero rechaza el envío si el remitente no está verificado, y da 401 si la IP no está autorizada |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |
