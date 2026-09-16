@@ -18,6 +18,7 @@ export interface Tienda extends ControlTienda {
   cp: string;
   municipio: string;
   estado: string;
+  pais?: string;
   email: string;
   telefono: string;
   incluyeWhatsapp: boolean;

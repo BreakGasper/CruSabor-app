@@ -208,6 +208,7 @@ Título y botón de regresar nunca se pierden al hacer scroll:
 | `/admin/categorias` | Catálogo de categorías (con propagación del nombre a tiendas y artículos) |
 | `/admin/configuracion` | Nodo `configuracion`: precios de membresía, días de gracia, modo de pago (`links` / `automatico`), mantenimiento, registro abierto |
 | `/admin/cuentas` | Cuentas de administrador: crear, editar, contraseña, activar/desactivar |
+| `/admin/banners` | Banners del carrusel de la portada: subir imagen, título/subtítulo, enlace, vigencia (fechas), activar/ocultar y ordenar |
 
 ---
 
@@ -389,6 +390,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `solicitudesPago.spec.ts`, `pagoAutomatico.spec.ts` | Modo manual ("Ya pagué") y servidor de pagos (preferencia, firma del webhook, activación) |
 | `recuperacion.spec.ts` | Recuperar contraseña en el servidor: código hasheado con caducidad, intentos máximos, cambio de contraseña de un solo uso |
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
+| `banners.spec.ts` | Banners de la portada: regla de vigencia (activo + fechas) y CRUD del admin (crear, actualizar, ocultar, eliminar) |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
 | `storeEdit.spec.ts`, `envio.spec.ts`, `favoritasSync.spec.ts`, `tiendasFavoritas.spec.ts`, `direcciones.spec.ts`, `sync.spec.ts` | Editar tienda, envío a domicilio, favoritas y su sincronización, libreta de direcciones, respaldo local↔Firebase |
@@ -407,6 +409,7 @@ Todos leen `VITE_FIREBASE_DATABASE_URL` del `.env` y usan la API REST de la base
 | `node scripts/migrar-categoriaId.mjs [--apply]` | Asignar `categoriaId` a artículos que solo tienen el nombre |
 | `node scripts/revisar-membresias.mjs` | Correr a mano la revisión de membresías |
 | `node scripts/probar-correo.mjs [telefono]` | Diagnóstico del correo (SMTP de Gmail): conexión, autenticación y envío; si pasas un celular, busca ese usuario y le envía |
+| `node scripts/cargar-municipios-jalisco.mjs [--apply]` | Carga los 125 municipios de Jalisco en el nodo `municipios` (idempotente; no duplica; conserva los que ya tienen colonias) |
 | `node scripts/establecer-password.mjs --password … ( --telefono … | --todos ) [--apply]` | Fijar una contraseña (hash bcrypt) a un cliente/admin por celular, o a todos |
 
 ---
@@ -459,6 +462,8 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | `auto_return` solo se envía cuando `back_urls.success` es https | Mercado Pago rechaza la preferencia con URL de retorno en localhost ("auto_return invalid. back_url.success must be defined"); así se puede probar el pago en local |
 | 2026-09-16 | El correo se envía por API HTTP de Brevo en producción (SMTP solo en local) | Render bloquea el SMTP saliente a Gmail ("Connection timeout"); la API de Brevo viaja por https y sí sale |
 | 2026-09-16 | En Brevo hay que verificar el remitente y autorizar las IPs de salida de Render | Brevo acepta la llamada pero rechaza el envío si el remitente no está verificado, y da 401 si la IP no está autorizada |
+| 2026-09-16 | Registro de tienda: estado fijo "Jalisco", campo "País: México" no editable, y los 125 municipios de Jalisco | Por ahora todas las tiendas son de Jalisco; los municipios salen del nodo `municipios` (se cargan con el script). La colonia es lista si el municipio tiene colonias cargadas, o texto libre si no |
+| 2026-09-16 | Banners de la portada administrables (`banners/`), con imagen, título, subtítulo, enlace, vigencia, activo y orden | Un carrusel arriba de "Explorar" que el admin controla sin tocar código; el enlace hace clickeable el banner y la vigencia permite promos por fechas |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |

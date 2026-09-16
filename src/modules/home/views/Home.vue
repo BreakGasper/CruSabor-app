@@ -128,6 +128,9 @@
     <!-- Categorías: icono + nombre en scroll horizontal -->
     <CategoriasScroll />
 
+    <!-- Banners promocionales (los administra el admin), arriba de "Explorar" -->
+    <BannersCarousel class="carrusel-div" />
+
     <!-- Carrusel de productos destacados (Explorar) -->
     <HorizontalCarousel
       :productos="productosParaCarrusel"
@@ -168,6 +171,7 @@
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
+import BannersCarousel from "../components/BannersCarousel.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
 import TiendasDestacadas from "../components/TiendasDestacadas.vue";
 import ProductCard from "../components/ProductCard.vue";

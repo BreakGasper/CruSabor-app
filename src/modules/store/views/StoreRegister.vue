@@ -313,16 +313,12 @@
                 id="pueblo"
                 v-model="puebloSeleccionado"
                 type="text"
-                placeholder="Selecciona pueblo"
+                :placeholder="pueblos.length ? 'Selecciona colonia' : 'Escribe tu colonia'"
                 class="form-input"
                 :disabled="puebloDisabled"
                 @focus="mostrarListaPueblos = true"
                 autocomplete="off"
-                @input="
-                  pueblosFiltrados = pueblos.filter((p) =>
-                    p.toLowerCase().includes(puebloSeleccionado.toLowerCase())
-                  )
-                "
+                @input="onColoniaInput"
               />
             </div>
             <ul
@@ -382,6 +378,25 @@
             <span v-if="errors.estado" class="error-msg">{{
               errors.estado
             }}</span>
+          </div>
+
+          <!-- PAÍS (no editable) -->
+          <div class="full-width">
+            <label for="pais">País</label>
+            <div class="input-with-icon">
+              <img
+                src="@/assets/icons/estado.png"
+                alt="País"
+                class="input-icon"
+              />
+              <input
+                id="pais"
+                v-model="form.pais"
+                type="text"
+                class="form-input"
+                readonly
+              />
+            </div>
           </div>
         </div>
 
@@ -720,7 +735,8 @@ const form = ref({
   colonia: "",
   cp: "",
   municipio: "",
-  estado: "",
+  estado: "Jalisco", // por ahora todas las tiendas son de Jalisco
+  pais: "México", // fijo, no editable
   facebook: "",
   instagram: "",
   productos: "",
@@ -795,8 +811,15 @@ function seleccionarPueblo(pueblo: string) {
   form.value.colonia = pueblo;
   pueblosFiltrados.value = [];
   mostrarListaPueblos.value = false;
+}
 
-  puebloDisabled.value = true;
+// La colonia se puede elegir de la lista (si el municipio tiene colonias cargadas)
+// o escribir a mano (municipios aún sin colonias). Lo tecleado cuenta como colonia.
+function onColoniaInput() {
+  form.value.colonia = puebloSeleccionado.value;
+  pueblosFiltrados.value = pueblos.value.filter((p) =>
+    p.toLowerCase().includes(puebloSeleccionado.value.toLowerCase()),
+  );
 }
 
 // ------------------- HORARIO -------------------
@@ -931,7 +954,9 @@ async function validateStep() {
     }
 
     // --- VALIDACIÓN DE PUEBLO / COLONIA ---
-    if (form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
+    // Solo se exige que esté en la lista cuando el municipio tiene colonias cargadas;
+    // en municipios sin colonias, se acepta lo que el usuario escriba.
+    if (pueblos.value.length && form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
       errors.value.colonia = "Pueblo/Colonia no válido";
     }
   }
