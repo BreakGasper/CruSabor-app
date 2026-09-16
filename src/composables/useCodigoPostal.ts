@@ -5,10 +5,11 @@
  * las colonias, el municipio y el estado. Es "mejor esfuerzo": si la API no responde o el
  * navegador la bloquea, devuelve null y el formulario sigue con captura manual.
  *
- * API por defecto: SEPOMEX (Icalia Labs). Si algún día deja de funcionar, cambiar CP_API
- * y/o el parseo de `extraer()` es suficiente; el resto del código no depende de la forma.
+ * API por defecto: SEPOMEX (api-sepomex.hckdrk.mx), gratuita y sin token. Si deja de
+ * funcionar, cambiar CP_API / COL_API y/o el parseo de `extraer()`; el resto no depende
+ * de la forma exacta de la respuesta.
  */
-const CP_API = (cp: string) => `https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${cp}`;
+const CP_API = (cp: string) => `https://api-sepomex.hckdrk.mx/query/info_cp/${cp}`;
 
 export interface InfoCP {
   colonias: string[];
@@ -31,60 +32,56 @@ function filas(data: any): any[] {
   return [];
 }
 
+/** El asentamiento puede venir como string (una fila por colonia) o como arreglo (modo simplificado) */
+function coloniasDeFila(r: any): string[] {
+  const a = r?.d_asenta ?? r?.asentamiento ?? r?.colonia ?? r?.settlement ?? r?.name;
+  if (Array.isArray(a)) return a.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim());
+  const t = texto(a);
+  return t ? [t] : [];
+}
+
 /** Normaliza una respuesta cruda a { colonias, municipio, estado } */
 export function extraer(data: any): InfoCP | null {
   const rows = filas(data);
   if (!rows.length) return null;
-  const colonias = Array.from(
-    new Set(
-      rows
-        .map((r) => texto(r?.d_asenta, r?.asentamiento, r?.colonia, r?.settlement, r?.name))
-        .filter(Boolean),
-    ),
-  );
+  const colonias = Array.from(new Set(rows.flatMap(coloniasDeFila)));
   const municipio = texto(rows[0]?.d_mnpio, rows[0]?.municipio, rows[0]?.municipality);
   const estado = texto(rows[0]?.d_estado, rows[0]?.estado, rows[0]?.state);
   if (!colonias.length && !municipio) return null;
   return { colonias, municipio, estado };
 }
 
-const COL_API = (m: string, page: number) =>
-  `https://sepomex.icalialabs.com/api/v1/zip_codes?municipality=${encodeURIComponent(m)}&per_page=200&page=${page}`;
+const COL_API = (m: string) =>
+  `https://api-sepomex.hckdrk.mx/query/get_colonia_por_municipio/${encodeURIComponent(m)}`;
 
 /**
  * Lista de colonias de un municipio (para el desplegable al elegir municipio).
- * Mejor esfuerzo: pide varias páginas a la API, filtra por municipio y quita duplicados.
- * Si la API falla o el municipio es enorme, devuelve lo que alcanzó (o []).
+ * Mejor esfuerzo: consulta la API, filtra por municipio y quita duplicados.
+ * Si la API no responde o no soporta la consulta, devuelve [] y el formulario sigue
+ * con captura por código postal o texto libre.
  */
 export async function coloniasPorMunicipio(
   municipio: string,
   fetchImpl: typeof fetch = fetch,
-  maxPaginas = 4,
 ): Promise<string[]> {
   const m = String(municipio || '').trim();
   if (!m) return [];
   const set = new Set<string>();
   try {
-    for (let page = 1; page <= maxPaginas; page++) {
-      const r = await fetchImpl(COL_API(m, page), {
-        headers: { accept: 'application/json' },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!r.ok) break;
-      const data = await r.json();
-      const rows = filas(data);
-      if (!rows.length) break;
-      for (const row of rows) {
-        const mun = texto(row?.d_mnpio, row?.municipio, row?.municipality);
-        const col = texto(row?.d_asenta, row?.asentamiento, row?.colonia, row?.settlement);
-        // Si la API no filtró, nos quedamos solo con las del municipio pedido
-        if (col && (!mun || mun.toLowerCase() === m.toLowerCase())) set.add(col);
-      }
-      const totalPages = Number(data?.meta?.pagination?.total_pages);
-      if ((totalPages && page >= totalPages) || rows.length < 200) break;
+    const r = await fetchImpl(COL_API(m), {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    for (const row of filas(data)) {
+      const mun = texto(row?.d_mnpio, row?.municipio, row?.municipality);
+      // Si la API no filtró, nos quedamos solo con las del municipio pedido
+      if (mun && mun.toLowerCase() !== m.toLowerCase()) continue;
+      for (const col of coloniasDeFila(row)) set.add(col);
     }
   } catch {
-    /* sin conexión / CORS / timeout: se devuelve lo que haya */
+    /* sin conexión / CORS / timeout / endpoint no disponible: [] */
   }
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
 }
