@@ -209,7 +209,7 @@ Título y botón de regresar nunca se pierden al hacer scroll:
 | `/admin/configuracion` | Nodo `configuracion`: precios de membresía, días de gracia, modo de pago (`links` / `automatico`), mantenimiento, registro abierto |
 | `/admin/cuentas` | Cuentas de administrador (crear/editar/activar) y **soporte a clientes**: buscar cliente y restablecer su contraseña o corregir nombre/correo |
 | `/admin/banners` | Banners del carrusel de la portada: subir imagen, título/subtítulo, enlace, vigencia (fechas), activar/ocultar y ordenar |
-| `/admin/municipios` | Municipios de Jalisco: cargar los 125, marcar con check cuáles tienen alcance (cobertura); solo esos se ofrecen al registrar/editar tienda |
+| `/admin/municipios` | Municipios de Jalisco: cargar los 125, marcar con check cuáles tienen alcance (cobertura), marcar/desmarcar todos y eliminar; solo los de alcance se ofrecen al registrar/editar tienda |
 
 ---
 
@@ -392,7 +392,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `recuperacion.spec.ts` | Recuperar contraseña en el servidor: código hasheado con caducidad, intentos máximos, cambio de contraseña de un solo uso |
 | `admin.login.spec.ts`, `adminCuentas.spec.ts` | Login de admin y guard; gestión de cuentas y elección cliente/administrador en `/login` |
 | `banners.spec.ts` | Banners de la portada: regla de vigencia (activo + fechas) y CRUD del admin (crear, actualizar, ocultar, eliminar) |
-| `municipios.spec.ts` | Municipios (125, alcance, sembrar sin duplicar) y colonias por código postal (parseo y búsqueda tolerante a fallos) |
+| `municipios.spec.ts` | Municipios (125, alcance opt-in, sembrar sin duplicar, marcar todos, eliminar, nombre "San Martín de Hidalgo") y colonias por CP / por municipio (parseo y búsqueda tolerante a fallos) |
 | `adminClientes.spec.ts` | Soporte a clientes desde el admin: búsqueda, restablecer contraseña (hash) y editar nombre/correo |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, tarjeta y lista pública |
@@ -428,6 +428,7 @@ Todos leen `VITE_FIREBASE_DATABASE_URL` del `.env` y usan la API REST de la base
 - El repositorio tiene `package-lock.json` y `yarn.lock`; usar solo uno.
 - No se ha hecho una revisión visual pantalla por pantalla en modo oscuro; si algún texto queda sin contraste, corregirlo con los tokens.
 - El repositorio es público y en algún momento `.env` estuvo versionado: conviene rotar la contraseña de aplicación de Gmail y regenerar el token TEST de Mercado Pago. Existe un nodo `Mpago` en la base con un token viejo que conviene borrar.
+- **Rotar credenciales que estuvieron a punto de subirse** (GitHub Push Protection las frenó): la API key de Brevo y la contraseña de aplicación de Gmail. Regenerarlas y dejarlas solo en el `.env` local y en Render. `.gitignore` ya cubre `.env`, `.env.*` y `*.env`, pero conviene no dejar copias de secretos en la carpeta del repo.
 - `functions/package.json` tiene la dependencia `mercadopago` sin uso.
 
 ---
@@ -474,6 +475,9 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | Alcance de municipios es opt-in (solo `alcance === true`), con botones marcar/desmarcar todos | El admin decide activamente dónde hay cobertura; por defecto nada seleccionado |
 | 2026-09-16 | Encabezado "Explorar" con enlace "Ver más productos" (→ /productos), como el de Tiendas | Consistencia visual entre secciones de la portada |
 | 2026-09-16 | El admin puede dar soporte a clientes desde /admin/cuentas (restablecer contraseña, editar datos) | Resolver problemas de acceso de clientes sin tocar la base a mano |
+| 2026-09-16 | API de colonias cambiada de Icalia Labs a `api-sepomex.hckdrk.mx` | El dominio de Icalia dejó de resolver (DNS caído); ambas consultas (por CP y por municipio) dependían de él |
+| 2026-09-16 | El nombre oficial usado es "San Martín de Hidalgo" (con "de"); botón para eliminar municipios en /admin/municipios | La lista sembraba "San Martín Hidalgo" y duplicaba la entrada original con colonias; eliminar permite limpiar duplicados/errores |
+| 2026-09-16 | `.gitignore` refuerza el ignorado de secretos: `.env`, `.env.*` y `*.env` | Se habían perdido las líneas de `.env` y una copia (` - copia.env`) casi se sube; GitHub Push Protection lo frenó |
 | 2026-09-16 | Compartir con `navigator.share` y lista propia solo de respaldo | La hoja del sistema ya trae WhatsApp y todo lo instalado; mantener una lista fija se desactualiza y se ve ajena al teléfono |
 | 2026-09-16 | El enlace a compartir se arma con la ruta, no con `location.href` | Evita compartir `?pago=exito` u otra query del momento |
 | 2026-09-16 | El botón de compartir también lo ve la dueña o dueño | Es quien más difunde su propia tienda |
