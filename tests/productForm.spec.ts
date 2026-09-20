@@ -65,11 +65,15 @@ async function subirImagen(w: any, selector: string, nombre = 'foto.jpg', tipo =
   await input.trigger('change');
 }
 
+/** Botón del pie del paso, por su texto (al editar hay uno más: "Guardar") */
+const boton = (w: any, texto: string) =>
+  w.findAll('.button-row button').find((b: any) => b.text() === texto);
+
 async function completarPaso1(w: any) {
   await w.find('input[placeholder="Nombre del artículo"]').setValue('Chocoflan pay');
   await w.find('textarea[placeholder="Descripción breve"]').setValue('Rebanada de chocoflan artesanal');
   await subirImagen(w, 'input[type=file]');
-  await w.find('.button-row .modern-button').trigger('click');
+  await boton(w, 'Siguiente')!.trigger('click');
 }
 async function completarPaso2(w: any) {
   const precio = w.find('input[placeholder="$0.00"]');
@@ -78,7 +82,7 @@ async function completarPaso2(w: any) {
   await w.find('select.form-input').setValue('pz');
   await w.find('.custom-select').trigger('click');
   await w.find('.dropdown-item').trigger('click');
-  await w.findAll('.button-row .modern-button')[1].trigger('click'); // Siguiente
+  await boton(w, 'Siguiente')!.trigger('click');
 }
 
 describe('ProductForm · validaciones', () => {
@@ -229,12 +233,11 @@ describe('ProductForm · registro', () => {
     const w = await montar();
     await flushPromises();
 
-    await w.find('.button-row .modern-button').trigger('click'); // paso 2
-    await w.findAll('.button-row .modern-button')[1].trigger('click'); // paso 3
+    await boton(w, 'Siguiente')!.trigger('click'); // paso 2
+    await boton(w, 'Siguiente')!.trigger('click'); // paso 3
     await w.find('.stock-check').setValue(true);
     await w.find('.stock-input').setValue('3');
-    expect(w.findAll('.button-row .modern-button')[1].text()).toBe('Guardar cambios');
-    await w.findAll('.button-row .modern-button')[1].trigger('click');
+    await boton(w, 'Guardar cambios')!.trigger('click');
     await flushPromises();
     await flushPromises();
 
@@ -470,5 +473,74 @@ describe('ProductForm · la variante base sigue a la foto del producto', () => {
     expect((w.vm as any).form.url).toBe('');
     expect(variantes(w)[0].url).toBe('');
     expect(variantes(w)[1].url).toBe(`${CLOUD}/v1/propia.jpg`); // la propia se conserva
+  });
+});
+
+/** Artículo ya publicado, para las pruebas de edición */
+const articuloGuardado = (extra: Record<string, any> = {}) => ({
+  nombre: 'Jericalla', descripcion: 'Postre tradicional tapatío', url: 'https://cdn.test/vieja.jpg', precio: 32,
+  unidadMedida: 'pz', categoria: 'Alimentos y Bebidas', categoriaId: 'cat-1', tiendaId: TIENDA, tiendaNombre: 'Postres Lola',
+  variantes: [{ isDefault: true, sku: 'CRU-1', color: 'Gris', tamano: 'Otro', material: 'Otro', detalle: 'Producto Base', precio: 32, stock: -1, tieneStock: false, url: 'https://cdn.test/vieja.jpg' }],
+  ...extra,
+});
+
+/**
+ * Guardar sin recorrer los tres pasos, solo al editar: para corregir un precio o
+ * una foto no tiene caso pasar por todo el formulario otra vez.
+ */
+describe('ProductForm · guardar desde cualquier paso (edición)', () => {
+  async function montarEdicion(extra: Record<string, any> = {}) {
+    __reset({ articulos: { 'art-1': articuloGuardado(extra) }, categorias: {} });
+    routeMock.params = { articuloId: 'art-1' };
+    const w = await montar();
+    await flushPromises();
+    return w;
+  }
+
+  it('en el alta no aparece: no hay artículo que actualizar todavía', async () => {
+    const w = await montar();
+    expect(boton(w, 'Guardar')).toBeUndefined();
+    expect(boton(w, 'Siguiente')).toBeTruthy();
+  });
+
+  it('desde el paso 1 guarda el cambio y vuelve al perfil de la tienda', async () => {
+    const w = await montarEdicion();
+
+    await w.find('input[placeholder="Nombre del artículo"]').setValue('Jericalla grande');
+    await boton(w, 'Guardar')!.trigger('click');
+    await flushPromises();
+    await flushPromises();
+
+    const a = __getAt('articulos/art-1') as any;
+    expect(a.nombre).toBe('Jericalla grande');
+    expect(a.precio).toBe(32); // lo demás se guarda tal cual estaba
+    expect(a.variantes[0]).toMatchObject({ sku: 'CRU-1', url: 'https://cdn.test/vieja.jpg' });
+    expect(routerMock.replace).toHaveBeenCalledWith(`/store/profile/${TIENDA}`);
+  });
+
+  it('desde el paso 2 también, sin llegar a las variantes', async () => {
+    const w = await montarEdicion();
+    await boton(w, 'Siguiente')!.trigger('click'); // paso 2
+
+    const precio = w.find('input[placeholder="$0.00"]');
+    await precio.setValue('40');
+    await precio.trigger('input');
+    await boton(w, 'Guardar')!.trigger('click');
+    await flushPromises();
+    await flushPromises();
+
+    expect((__getAt('articulos/art-1') as any).precio).toBe(40);
+  });
+
+  it('si falta algo de otro paso, avisa y lleva a ese paso sin guardar', async () => {
+    const w = await montarEdicion({ precio: 0 }); // artículo viejo, sin precio válido
+
+    await boton(w, 'Guardar')!.trigger('click');
+    await flushPromises();
+
+    expect(mensaje(w)).toContain('precio');
+    expect(w.find('input[placeholder="$0.00"]').exists()).toBe(true); // se movió al paso 2
+    expect((__getAt('articulos/art-1') as any).precio).toBe(0); // no se guardó nada
+    expect(routerMock.replace).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,14 @@
         </div>
 
         <div class="button-row">
+          <button
+            v-if="isEdit"
+            class="modern-button secondary"
+            :disabled="guardando"
+            @click="guardarCambios"
+          >
+            {{ guardando ? 'Guardando...' : 'Guardar' }}
+          </button>
           <button class="modern-button" @click="nextStep">Siguiente</button>
         </div>
       </div>
@@ -143,6 +151,14 @@
         <div class="button-row">
           <button class="modern-button secondary" @click="prevStep">
             Anterior
+          </button>
+          <button
+            v-if="isEdit"
+            class="modern-button secondary"
+            :disabled="guardando"
+            @click="guardarCambios"
+          >
+            {{ guardando ? 'Guardando...' : 'Guardar' }}
           </button>
           <button class="modern-button" @click="nextStep">Siguiente</button>
         </div>
@@ -802,6 +818,37 @@ function validarVariantes(): boolean {
 function handleSubmit() {
   if (guardando.value) return;
   if (validarVariantes()) submitForm();
+}
+
+/**
+ * Guardar desde cualquier paso. Solo aparece al editar.
+ *
+ * Para corregir un precio o cambiar la foto no hay por qué recorrer los tres
+ * pasos: el artículo ya existe y se guarda completo, con lo que tenga cada paso.
+ * Se valida lo mismo que al final —lo que se guarda es todo el artículo, no solo
+ * el paso a la vista— y si algo falta se lleva al paso donde está, para que el
+ * aviso se pueda atender ahí mismo.
+ */
+function guardarCambios() {
+  if (guardando.value) return;
+  if (!validarPaso1()) {
+    step.value = 1;
+    return;
+  }
+  if (!validarPaso2()) {
+    step.value = 2;
+    return;
+  }
+  // Artículos viejos pueden no tener variantes; es la misma base que crea el
+  // paso 3 al entrar, para no dejar el guardado en un callejón sin salida.
+  if (form.value.variantes.length === 0) {
+    form.value.variantes.push(crearVarianteBase());
+  }
+  if (!validarVariantes()) {
+    step.value = 3;
+    return;
+  }
+  submitForm();
 }
 
 function seleccionarColor(variante: any, colorNombre: string) {
