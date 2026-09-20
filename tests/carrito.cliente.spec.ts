@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { db } from '@/db';
+import { ID_INVITADO, adoptarCarritoInvitado } from '@/db/carritoInvitado';
 import { sessionUser } from '@/utils/sessionUser';
 import { useCarritoRapido } from '@/db/composables/useCarritoRapido';
 import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
@@ -78,14 +79,33 @@ describe('useCarritoRapido', () => {
     expect(result.sinStock(producto('cero', 0))).toBe(true);
   });
 
-  it('sin sesión no agrega y redirige al login', async () => {
+  it('sin sesión sí agrega: el carrito queda a nombre del invitado', async () => {
     sessionUser.value = null;
     const { result, unmount } = withSetup(() => useCarritoRapido());
     cleanups.push(unmount);
 
     await result.aumentar(producto('a', 5));
-    expect(await db.Carrito.count()).toBe(0);
-    expect(routerMock.push).toHaveBeenCalledWith('/login');
+
+    // se guarda, y no manda al login: la sesión se pide al pagar, no al elegir
+    const items = await db.Carrito.toArray();
+    expect(items).toHaveLength(1);
+    expect(items[0].id_usuario).toBe(ID_INVITADO);
+    expect(routerMock.push).not.toHaveBeenCalledWith('/login');
+  });
+
+  it('al iniciar sesión, lo que agregó como invitado pasa a ser suyo', async () => {
+    sessionUser.value = null;
+    const { result, unmount } = withSetup(() => useCarritoRapido());
+    cleanups.push(unmount);
+    await result.aumentar(producto('a', 5));
+
+    sessionUser.value = { id: 'cliente-9' } as any;
+    await adoptarCarritoInvitado('cliente-9');
+
+    const items = await db.Carrito.where('id_usuario').equals('cliente-9').toArray();
+    expect(items).toHaveLength(1);
+    expect(items[0].id_articulo).toBe('a');
+    expect(await db.Carrito.where('id_usuario').equals(ID_INVITADO).count()).toBe(0);
   });
 
   it('el carrito es por usuario y se sincroniza al cambiar de sesión', async () => {

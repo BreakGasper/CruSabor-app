@@ -102,8 +102,8 @@
               placeholder="Crea tu contraseña"
               class="form-input"
               autocomplete="new-password"
-              maxlength="8"
-              minlength="6"
+              :maxlength="PASSWORD_MAX"
+              :minlength="PASSWORD_MIN"
             />
             <button
               type="button"
@@ -135,8 +135,8 @@
               placeholder="Confirma tu contraseña"
               class="form-input"
               autocomplete="new-password"
-              maxlength="8"
-              minlength="6"
+              :maxlength="PASSWORD_MAX"
+              :minlength="PASSWORD_MIN"
             />
             <button
               type="button"
@@ -475,6 +475,22 @@
             />
           </div>
 
+          <!-- Enlace opcional: si lo pone, el icono del perfil lleva a su página -->
+          <label v-if="form.facebook.trim()" class="red-check">
+            <input v-model="form.conEnlaceFacebook" type="checkbox" />
+            <span>Agregar enlace a mi página de Facebook</span>
+          </label>
+          <div v-if="form.conEnlaceFacebook && form.facebook.trim()" class="red-enlace">
+            <input
+              v-model="form.facebookUrl"
+              type="url"
+              inputmode="url"
+              placeholder="facebook.com/mi-tienda"
+              class="form-input"
+            />
+            <span v-if="errors.facebookUrl" class="error">{{ errors.facebookUrl }}</span>
+          </div>
+
           <div class="input-with-icon">
             <img
               src="@/assets/icons/instagram.png"
@@ -487,6 +503,21 @@
               placeholder="Instagram"
               class="form-input"
             />
+          </div>
+
+          <label v-if="form.instagram.trim()" class="red-check">
+            <input v-model="form.conEnlaceInstagram" type="checkbox" />
+            <span>Agregar enlace a mi perfil de Instagram</span>
+          </label>
+          <div v-if="form.conEnlaceInstagram && form.instagram.trim()" class="red-enlace">
+            <input
+              v-model="form.instagramUrl"
+              type="url"
+              inputmode="url"
+              placeholder="instagram.com/mi-tienda"
+              class="form-input"
+            />
+            <span v-if="errors.instagramUrl" class="error">{{ errors.instagramUrl }}</span>
           </div>
         </div>
 
@@ -681,19 +712,31 @@
         </div>
 
         <div class="buttons">
-          <button type="button" class="btn-secondary" @click="prevStep">Atrás</button>
-          <button type="button" class="btn-success" @click="submitStore">Finalizar</button>
+          <button type="button" class="btn-secondary" :disabled="enviando" @click="prevStep">Atrás</button>
+          <button type="button" class="btn-success" :disabled="enviando" @click="submitStore">
+            {{ enviando ? "Registrando…" : "Finalizar" }}
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- Aviso de registro correcto antes de mandar al login -->
+    <CustomToast
+      v-if="showToast"
+      :message="toastMensaje"
+      :type="toastTipo"
+      :duration="2500"
+      @close="showToast = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import TopBarFija from "@/components/TopBarFija.vue";
+import CustomToast from "@/components/CustomToast.vue";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { useTiendas } from "@/composables/useTiendas";
-import { hashPassword } from "@/composables/usePassword";
+import { hashPassword, errorLongitudPassword, PASSWORD_MIN, PASSWORD_MAX } from "@/composables/usePassword";
 import { buscarPorCP, coloniasPorMunicipio } from "@/composables/useCodigoPostal";
 import router from "@/router";
 import {
@@ -710,6 +753,8 @@ import {
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
 import { useConfiguracion } from "@/composables/useConfiguracion";
+import { esEnlaceValido, normalizarEnlace } from "@/utils/enlaces";
+import { tieneColoniasLocales } from "@/composables/coloniasLocales";
 const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
 const stepTitles = [
@@ -741,6 +786,11 @@ const form = ref({
   pais: "México", // fijo, no editable
   facebook: "",
   instagram: "",
+  // Enlace al perfil de la red: opcional, se activa con su casilla
+  conEnlaceFacebook: false,
+  facebookUrl: "",
+  conEnlaceInstagram: false,
+  instagramUrl: "",
   productos: "",
   metodosPago: [] as string[],
   envioDomicilio: false,
@@ -823,8 +873,20 @@ function seleccionarPueblo(pueblo: string) {
   mostrarListaPueblos.value = false;
 }
 
+/**
+ * Autocompletado por C.P.: apagado mientras se define la regla.
+ *
+ * Va como bandera tipada `boolean` y no como un `return` suelto: con el return,
+ * todo lo de abajo queda inalcanzable, TypeScript deja de analizar el flujo y el
+ * guardián `if (!info) return` ya no estrecha el tipo —salían 6 errores de
+ * "possibly null" en código que nunca corre—. Así el apagado es explícito y los
+ * tipos siguen limpios. Para reactivarlo: pon `true`.
+ */
+const AUTOCOMPLETAR_POR_CP: boolean = false;
+
 // Al escribir un C.P. de 5 dígitos, busca colonias por API y autocompleta lo que se pueda
 async function onCpInput() {
+  if (!AUTOCOMPLETAR_POR_CP) return;
   form.value.cp = form.value.cp.replace(/\D/g, "").slice(0, 5);
   if (form.value.cp.length !== 5) return;
   const info = await buscarPorCP(form.value.cp);
@@ -941,6 +1003,20 @@ function eliminarZona(index: number) {
 const { crearTienda, telefonoExiste } = useTiendas();
 const errors = ref<any>({});
 
+// Candado de envío: crearTienda tarda (hash de contraseña + subida de logo,
+// banner y galería), y sin esto cada toque extra en "Finalizar" creaba otra
+// tienda, porque crearTienda hace push() y genera un id nuevo cada vez.
+const enviando = ref(false);
+const showToast = ref(false);
+const toastMensaje = ref("");
+const toastTipo = ref<"success" | "error" | "info">("success");
+
+function avisar(mensaje: string, tipo: "success" | "error" | "info" = "success") {
+  toastMensaje.value = mensaje;
+  toastTipo.value = tipo;
+  showToast.value = true;
+}
+
 async function validateStep() {
   errors.value = {};
   if (step.value === 1) {
@@ -957,8 +1033,10 @@ async function validateStep() {
 
     if (!form.value.password)
       errors.value.password = "La contraseña es obligatoria";
-    else if (form.value.password.length < 6)
-      errors.value.password = "La contraseña debe tener al menos 6 caracteres";
+    else {
+      const err = errorLongitudPassword(form.value.password);
+      if (err) errors.value.password = err;
+    }
 
     if (!form.value.confirmPassword)
       errors.value.confirmPassword = "Confirme su contraseña";
@@ -986,9 +1064,12 @@ async function validateStep() {
     }
 
     // --- VALIDACIÓN DE PUEBLO / COLONIA ---
-    // Solo se exige que esté en la lista cuando el municipio tiene colonias cargadas;
-    // en municipios sin colonias, se acepta lo que el usuario escriba.
-    if (pueblos.value.length && form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
+    // Se exige estar en la lista solo cuando esa lista viene de la API, que es
+    // el padrón oficial. La lista local (`coloniasLocales.ts`) se hizo a mano y
+    // puede tener huecos: ahí se ofrece como sugerencia y se acepta lo que la
+    // tienda escriba, para no dejar fuera a una localidad que falte.
+    const listaEsOficial = pueblos.value.length > 0 && !tieneColoniasLocales(form.value.municipio);
+    if (listaEsOficial && form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
       errors.value.colonia = "Pueblo/Colonia no válido";
     }
   }
@@ -1003,6 +1084,12 @@ async function validateStep() {
       errors.value.telefono = "El teléfono es obligatorio";
     else if (form.value.telefono.replace(/\D/g, "").length !== 10)
       errors.value.telefono = "El teléfono debe tener 10 dígitos";
+
+    // Si pidió enlace, tiene que servir: va a un href que verán sus clientes
+    if (form.value.conEnlaceFacebook && form.value.facebook.trim() && !esEnlaceValido(form.value.facebookUrl))
+      errors.value.facebookUrl = "Escribe una dirección válida (ej. facebook.com/mi-tienda)";
+    if (form.value.conEnlaceInstagram && form.value.instagram.trim() && !esEnlaceValido(form.value.instagramUrl))
+      errors.value.instagramUrl = "Escribe una dirección válida (ej. instagram.com/mi-tienda)";
   }
   if (step.value === 4) {
     if (form.value.metodosPago.length === 0)
@@ -1033,13 +1120,34 @@ function prevStep() {
 
 // ------------------- ENVÍO -------------------
 async function submitStore() {
-  if (!registroTiendasAbierto.value) {
-    alert(configuracion.value.registro.mensajeCerrado);
-    return;
-  }
-  if (!(await validateStep())) return;
+  // Primer candado: si ya se está registrando, ignorar los toques siguientes.
+  // Se pone ANTES de cualquier await, y por eso de forma síncrona: si se pusiera
+  // después del primer await, los toques seguidos alcanzarían a pasar todos por
+  // aquí con el candado aún abierto y volveríamos a crear tiendas de más.
+  if (enviando.value) return;
+  enviando.value = true;
 
   try {
+    if (!registroTiendasAbierto.value) {
+      alert(configuracion.value.registro.mensajeCerrado);
+      enviando.value = false;
+      return;
+    }
+    if (!(await validateStep())) {
+      enviando.value = false; // hay errores que corregir: se puede reintentar
+      return;
+    }
+
+    // Segundo candado: el teléfono se revisó en el paso 3, pero desde entonces
+    // pudo registrarse en otra pestaña o en un intento anterior que sí llegó.
+    if (await telefonoExiste(form.value.telefono)) {
+      step.value = 3;
+      errors.value.telefono = "El teléfono ya está registrado";
+      avisar("Ese teléfono ya tiene una tienda registrada", "error");
+      enviando.value = false; // se puede corregir el teléfono y reintentar
+      return;
+    }
+
     const hashedPassword = await hashPassword(form.value.password);
 
     // Buscar el nombre de la categoría seleccionada
@@ -1047,8 +1155,14 @@ async function submitStore() {
       (c) => c.id === form.value.categoria
     );
 
+    // Los enlaces se guardan ya normalizados (https, sin esquemas raros) y las
+    // casillas no se guardan: son del formulario, no de la tienda.
+    const { conEnlaceFacebook, conEnlaceInstagram, ...datos } = form.value;
+
     await crearTienda({
-      ...form.value,
+      ...datos,
+      facebookUrl: conEnlaceFacebook ? normalizarEnlace(form.value.facebookUrl) || "" : "",
+      instagramUrl: conEnlaceInstagram ? normalizarEnlace(form.value.instagramUrl) || "" : "",
       password: hashedPassword,
       logoFile: form.value.logo ?? undefined,
       galleryFiles: form.value.gallery,
@@ -1056,10 +1170,16 @@ async function submitStore() {
       categoria: categoriaObj?.nombre ?? "", // el nombre
       bannerFile: form.value.banner ?? undefined,
     });
-    router.replace("/store/login");
+    // El aviso se ve un momento antes de mandar al login, si no la pantalla
+    // cambia de golpe y no queda claro que sí se registró.
+    avisar("¡Tienda registrada con éxito!", "success");
+    setTimeout(() => router.replace("/store/login"), 1800);
   } catch (err) {
     console.error("Error registrando tienda:", err);
-    alert("Ocurrió un error al registrar la tienda");
+    avisar("Ocurrió un error al registrar la tienda", "error");
+    // Solo aquí se suelta el candado: tras un registro correcto se mantiene
+    // puesto hasta que la vista se va, para que no se pueda mandar de nuevo.
+    enviando.value = false;
   }
 }
 
@@ -1802,5 +1922,30 @@ select:focus {
     top: 1.5rem;
     left: 1.5rem;
   }
+}
+
+/* Casilla "Agregar enlace" y su campo, bajo cada red social */
+.red-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.15rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.red-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0165d8;
+}
+.red-enlace {
+  margin-bottom: 0.75rem;
+}
+.red-enlace .error {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: #c0392b;
 }
 </style>

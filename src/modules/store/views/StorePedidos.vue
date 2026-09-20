@@ -312,7 +312,7 @@ import {
   fechaPedido,
   tiempoRestanteAtencion,
   formatoTiempoRestante,
-  HORAS_LIMITE_ATENCION,
+  MINUTOS_LIMITE_ATENCION,
   motivoCancelacion,
   textoCancelacion,
   tieneArticulosPorPedido,
@@ -417,7 +417,7 @@ function avisoAtencion(pedido: any): string | null {
   if (ms === null) return null;
   return ms <= 0
     ? 'Se cancelará automáticamente por falta de atención'
-    : `Se cancela en ${formatoTiempoRestante(ms)} si no lo atiendes (límite ${HORAS_LIMITE_ATENCION} h)`;
+    : `Se cancela en ${formatoTiempoRestante(ms)} si no lo atiendes (límite ${MINUTOS_LIMITE_ATENCION} min)`;
 }
 
 /** Motivo visible de la cancelación de MI parte del pedido (propia, del cliente o automática) */

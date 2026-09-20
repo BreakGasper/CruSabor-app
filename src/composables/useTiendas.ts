@@ -24,6 +24,13 @@ export interface Tienda extends ControlTienda {
   incluyeWhatsapp: boolean;
   facebook?: string;
   instagram?: string;
+  /**
+   * Enlace al perfil de la red, opcional (la tienda lo activa con una casilla).
+   * Se guarda ya normalizado a http/https; vacío significa "sin enlace" y
+   * entonces el perfil muestra el nombre como texto, sin `href`.
+   */
+  facebookUrl?: string;
+  instagramUrl?: string;
   metodosPago: string[];
   envioDomicilio: boolean;
   zonasEntrega: string[];

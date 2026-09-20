@@ -42,10 +42,12 @@ describe('lógica pura', () => {
     expect(evaluarCodigo({ ...base, intentos: MAX_INTENTOS }, true, AHORA.getTime())).toBe('bloqueado');
   });
 
-  it('validarPassword exige mínimo 6', () => {
+  it('validarPassword acepta de 6 a 10 caracteres', () => {
     expect(validarPassword('12345')).toMatch(/al menos 6/);
     expect(validarPassword('123456')).toBeNull();
-    expect(validarPassword('a'.repeat(80))).toMatch(/larga/);
+    expect(validarPassword('1234567890')).toBeNull(); // el máximo justo
+    expect(validarPassword('12345678901')).toMatch(/no puede pasar de 10/);
+    expect(validarPassword('a'.repeat(80))).toMatch(/no puede pasar de 10/);
   });
 
   it('ocultarCorreo no revela el correo completo', () => {
@@ -199,5 +201,47 @@ describe('POST /recuperar-password/cambiar', () => {
     const r = await post('/recuperar-password/cambiar', { telefono: '3751241114', codigo: CODIGO_FIJO, nuevaPassword: '123' });
     expect(r.status).toBe(400);
     expect(almacen.tree.usuarios.u1.pass).toBe('hash-viejo');
+  });
+});
+
+/**
+ * El tope de la contraseña tiene que ser el mismo en toda la app.
+ *
+ * Si el registro admite 10 pero cambiar la contraseña solo 8, alguien se queda
+ * sin poder volver a poner la suya. Y los formularios de acceso NO llevan tope:
+ * quien ya tenga una más larga debe poder seguir entrando.
+ */
+describe('Límites de contraseña, parejos en toda la app', () => {
+  it('el servidor y la app usan los mismos topes', async () => {
+    const app = await import('../src/composables/usePassword');
+    const servidor = await import('../src/services/recuperacion/logica.ts');
+    expect(app.PASSWORD_MIN).toBe(servidor.PASSWORD_MIN);
+    expect(app.PASSWORD_MAX).toBe(servidor.PASSWORD_MAX);
+    expect(app.PASSWORD_MAX).toBe(10);
+  });
+
+  it('errorLongitudPassword acepta de 6 a 10', async () => {
+    const { errorLongitudPassword } = await import('../src/composables/usePassword');
+    expect(errorLongitudPassword('12345')).toMatch(/al menos 6/);
+    expect(errorLongitudPassword('123456')).toBeNull();
+    expect(errorLongitudPassword('1234567890')).toBeNull();
+    expect(errorLongitudPassword('12345678901')).toMatch(/no puede pasar de 10/);
+  });
+
+  it('ninguna pantalla de ACCESO recorta la contraseña', async () => {
+    const fs = require('node:fs') as typeof import('node:fs');
+    const logins = [
+      'src/modules/home/components/Login.vue',
+      'src/modules/store/views/StoreLogin.vue',
+      'src/modules/admin/views/AdminLogin.vue',
+    ];
+    for (const ruta of logins) {
+      const sfc = fs.readFileSync(ruta, 'utf8');
+      // se aísla el input de contraseña y se comprueba que no traiga maxlength
+      const i = sfc.indexOf("'text' : 'password'");
+      expect(i, `${ruta}: no se encontró el campo de contraseña`).toBeGreaterThan(-1);
+      const campo = sfc.slice(sfc.lastIndexOf('<input', i), sfc.indexOf('/>', i));
+      expect(campo, `${ruta} recorta la contraseña al entrar`).not.toMatch(/maxlength/);
+    }
   });
 });

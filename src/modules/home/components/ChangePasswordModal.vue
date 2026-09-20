@@ -12,7 +12,7 @@
             :type="showNewPassword ? 'text' : 'password'"
             v-model="nuevaContrasena"
             placeholder="Nueva contraseña"
-            maxlength="8"
+            :maxlength="PASSWORD_MAX"
           />
           <button
             type="button"
@@ -29,7 +29,7 @@
             :type="showConfirmPassword ? 'text' : 'password'"
             v-model="confirmarContrasena"
             placeholder="Confirmar contraseña"
-            maxlength="8"
+            :maxlength="PASSWORD_MAX"
           />
           <button
             type="button"
@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
-import { hashPassword } from "@/composables/usePassword";
+import { hashPassword, PASSWORD_MAX } from "@/composables/usePassword";
 import { updateUserPassword } from "@/composables/useAuth";
 import {
   cerrarSesion,

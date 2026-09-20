@@ -4,6 +4,26 @@ import bcrypt from "bcryptjs";
 const SALT_ROUNDS = 10;
 
 /**
+ * Largo permitido de una contraseña, en un solo lugar.
+ *
+ * Vive aquí y no en cada pantalla porque los límites tienen que coincidir entre
+ * crear la cuenta, cambiarla y recuperarla: si el registro admite 10 y el cambio
+ * solo 8, alguien se queda sin poder volver a poner su propia contraseña.
+ * Los formularios de acceso NO llevan tope: si mañana sube el máximo, quien ya
+ * tenga una más larga debe poder seguir entrando.
+ */
+export const PASSWORD_MIN = 6;
+export const PASSWORD_MAX = 10;
+
+/** El error de longitud, o null si la contraseña sirve */
+export function errorLongitudPassword(valor: unknown): string | null {
+  const p = String(valor ?? '');
+  if (p.length < PASSWORD_MIN) return `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres`;
+  if (p.length > PASSWORD_MAX) return `La contraseña no puede pasar de ${PASSWORD_MAX} caracteres`;
+  return null;
+}
+
+/**
  * Encripta una contraseña en texto plano.
  * @param password Texto plano de la contraseña
  * @returns Contraseña encriptada

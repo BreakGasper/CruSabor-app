@@ -11,6 +11,9 @@ import { sessionUser } from '@/utils/sessionUser';
 import {
   resumenStock,
   ventaBloqueada,
+  variantesConStock,
+  normalizarStock,
+  actualizarStockArticulo,
   pausarVentaArticulo,
   darDeBajaArticulo,
   useArticulos,
@@ -157,7 +160,7 @@ describe('CampanaTienda', () => {
     expect(filas()).toHaveLength(2);
     expect(filas()[0].textContent).toContain('agotado');
 
-    // Pausar venta desde la campana (segundo botón: Editar · Pausar · Dar de baja)
+    // Pausar venta desde la campana (segundo botón: Actualizar stock · Pausar · Dar de baja)
     (filas()[0].querySelectorAll('.accion')[1] as HTMLElement).click();
     await flushPromises();
     expect(__getAt('articulos/agotado/ventaPausada')).toBe(true);
@@ -174,5 +177,97 @@ describe('CampanaTienda', () => {
     (panel().querySelector('.link') as HTMLElement).click();
     expect(routerMock.push).toHaveBeenCalledWith(`/store/pedidos/${T}`);
     w.unmount();
+  });
+});
+
+/**
+ * Resurtir desde la campana: el botón ya no manda al formulario completo, pide
+ * las piezas en un diálogo y escribe solo el stock.
+ */
+describe('Actualizar stock', () => {
+  describe('variantesConStock (regla pura)', () => {
+    it('lista las variantes que se cuentan, con su etiqueta y lo que tienen hoy', () => {
+      const p = {
+        variantes: [
+          { sku: 'S1', stock: 4, color: 'Rojo', tamano: 'Ch' },
+          { sku: 'S2', stock: 0, detalle: 'Producto Base' },
+        ],
+      } as any;
+      expect(variantesConStock(p)).toEqual([
+        { indice: 0, etiqueta: 'Rojo · Ch', stock: 4, sku: 'S1' },
+        { indice: 1, etiqueta: 'Producto Base', stock: 0, sku: 'S2' },
+      ]);
+    });
+
+    it('deja fuera lo que no se cuenta: stock ilimitado y bajo pedido', () => {
+      expect(variantesConStock({ variantes: [{ sku: 'S1', stock: -1 }] } as any)).toEqual([]);
+      expect(variantesConStock({ porPedido: true, variantes: [{ sku: 'S1', stock: 3 }] } as any)).toEqual([]);
+      expect(variantesConStock(null)).toEqual([]);
+    });
+  });
+
+  describe('normalizarStock (regla pura)', () => {
+    it('acepta enteros desde cero', () => {
+      expect(normalizarStock('0')).toBe(0);
+      expect(normalizarStock('12')).toBe(12);
+      expect(normalizarStock(7)).toBe(7);
+    });
+    it('rechaza lo que no son piezas', () => {
+      for (const malo of ['', '  ', 'x', '-1', '2.5', null, undefined]) {
+        expect(normalizarStock(malo)).toBeNull();
+      }
+    });
+  });
+
+  describe('actualizarStockArticulo', () => {
+    it('fija las piezas y deja el artículo bajo control de stock', async () => {
+      await actualizarStockArticulo('agotado', { 0: 25 });
+      expect(__getAt('articulos/agotado/variantes/0/stock')).toBe(25);
+      expect(__getAt('articulos/agotado/variantes/0/tieneStock')).toBe(true);
+    });
+
+    it('escribe varias variantes de una vez, sin tocar el resto del artículo', async () => {
+      __reset({
+        articulos: {
+          multi: {
+            nombre: 'Multi', tiendaId: T, precio: 10, ventaPausada: true,
+            variantes: [{ sku: 'S1', stock: 1 }, { sku: 'S2', stock: 2 }],
+          },
+        },
+      });
+      await actualizarStockArticulo('multi', { 0: 10, 1: 20 });
+
+      expect(__getAt('articulos/multi/variantes/0/stock')).toBe(10);
+      expect(__getAt('articulos/multi/variantes/1/stock')).toBe(20);
+      // lo demás queda igual: se escribe por ruta, no se reemplaza el artículo
+      expect(__getAt('articulos/multi/nombre')).toBe('Multi');
+      expect(__getAt('articulos/multi/ventaPausada')).toBe(true);
+      expect(__getAt('articulos/multi/variantes/0/sku')).toBe('S1');
+    });
+
+    it('un valor inválido no se escribe', async () => {
+      await actualizarStockArticulo('agotado', { 0: -5 as any });
+      expect(__getAt('articulos/agotado/variantes/0/stock')).toBe(0); // sin cambios
+    });
+  });
+
+  describe('desde la campana', () => {
+    it('el botón dice "Actualizar stock", cierra el aviso y abre el diálogo', async () => {
+      const w = mount(CampanaTienda, { props: { tiendaId: T }, attachTo: document.body });
+      await flushPromises();
+      await w.find('.campana').trigger('click');
+      await flushPromises();
+      expect(document.body.querySelector('.panel-fondo')).not.toBeNull();
+
+      const boton = document.body.querySelector('.accion.resurtir') as HTMLElement;
+      expect(boton.textContent).toContain('Actualizar stock');
+      boton.click();
+      await flushPromises();
+
+      // el panel de notificaciones se oculta y queda solo el diálogo
+      expect(document.body.querySelector('.panel-fondo')).toBeNull();
+      expect(document.body.querySelector('.stock-panel')).not.toBeNull();
+      w.unmount();
+    });
   });
 });

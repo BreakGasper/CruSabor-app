@@ -27,6 +27,12 @@
       </button>
     </div>
 
+    <!-- La ventana para cancelar es corta; se recuerda donde el cliente busca
+         sus pedidos, no solo en el diálogo del momento de la compra -->
+    <p v-if="props.showHeader" class="aviso-cancelacion">
+      ⏱ {{ MENSAJE_LIMITE_CANCELACION }}
+    </p>
+
     <!-- Filtros desplegables -->
     <transition name="slide-fade" v-if="props.showHeader">
       <div v-show="showFiltros" class="filtros">
@@ -174,6 +180,7 @@ import {
   textoCancelacion,
   cancelacionesPorTienda,
   tieneArticulosPorPedido,
+  MENSAJE_LIMITE_CANCELACION,
   ESTATUS_LABEL,
   type Pedido,
   type EstatusPedido,
@@ -829,5 +836,17 @@ function onImageError(event: Event) {
     align-items: flex-start;
     gap: 2px;
   }
+}
+
+/* Aviso de la ventana para cancelar: informativo, no alarmante */
+.aviso-cancelacion {
+  margin: 0 0.75rem 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 </style>

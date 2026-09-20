@@ -1,6 +1,6 @@
 import { db } from '../index';
 import type { CarritoItem } from '../index';
-import { sessionUser } from '@/utils/sessionUser';
+import { idCarritoActual } from '../carritoInvitado';
 
 export function useCarrito() {
   // Agregar un ítem al carrito
@@ -25,32 +25,29 @@ export function useCarrito() {
 
 
   async function vaciarCarritoPorUsuario() {
-      if (!sessionUser.value?.id) return;
-
-      // Borra solo los ítems cuyo id_usuario coincida con el usuario actual
+      // Borra solo los ítems del dueño actual del carrito (cliente o invitado)
       await db.Carrito
         .where("id_usuario")
-        .equals(sessionUser.value.id)
+        .equals(idCarritoActual())
         .delete();
 
       console.log("Carrito del usuario vaciado");
 }
   /** Quita del carrito del usuario solo los artículos indicados (los ya comprados) */
   async function quitarArticulosDelCarrito(idsArticulo: string[]) {
-    if (!sessionUser.value?.id || !idsArticulo.length) return;
+    if (!idsArticulo.length) return;
     const ids = new Set(idsArticulo.map(String));
     await db.Carrito
       .where('id_usuario')
-      .equals(sessionUser.value.id)
+      .equals(idCarritoActual())
       .filter((i) => ids.has(String(i.id_articulo)))
       .delete();
   }
 
   async function obtenerCarritoByUser(): Promise<CarritoItem[]> {
-  if (!sessionUser.value?.id) return []; // evita errores si no hay usuario
   return await db.Carrito
     .where("id_usuario")
-    .equals(sessionUser.value.id)
+    .equals(idCarritoActual())
     .toArray();
 }
 

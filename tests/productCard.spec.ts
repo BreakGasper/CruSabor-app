@@ -9,6 +9,7 @@ const flushPromises = async () => { await fp(); await new Promise((r) => setTime
 import { __reset } from './mocks/firebaseDb';
 import { routerMock } from './setup';
 import { db } from '@/db';
+import { ID_INVITADO } from '@/db/carritoInvitado';
 import { sessionUser } from '@/utils/sessionUser';
 import { __setEnvioPorTienda } from '@/composables/useEnvioTienda';
 import ProductCard from '@/modules/home/components/ProductCard.vue';
@@ -92,12 +93,18 @@ describe('ProductCard', () => {
     expect(routerMock.push).toHaveBeenCalledWith('/producto/a1');
   });
 
-  it('sin sesión: no hay corazón y Agregar manda al login', async () => {
+  it('sin sesión: no hay corazón, pero Agregar sí llena el carrito del invitado', async () => {
     sessionUser.value = null;
     const w = await montar();
+    // los favoritos siguen siendo de clientes con sesión
     expect(w.find('.heart-icon').exists()).toBe(false);
+
     await w.find('.btn-agregar').trigger('click');
-    expect(routerMock.push).toHaveBeenCalledWith('/login');
-    expect(await db.Carrito.count()).toBe(0);
+    await flushPromises();
+
+    const items = await db.Carrito.toArray();
+    expect(items).toHaveLength(1);
+    expect(items[0].id_usuario).toBe(ID_INVITADO);
+    expect(routerMock.push).not.toHaveBeenCalledWith('/login');
   });
 });

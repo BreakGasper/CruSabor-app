@@ -11,6 +11,8 @@ import { sessionUser } from '@/utils/sessionUser';
 import CartView from '@/modules/home/components/CartView.vue';
 import { routerMock } from './setup';
 import { flush } from './helpers';
+import { ID_INVITADO, adoptarCarritoInvitado } from '@/db/carritoInvitado';
+import { sincronizando } from '@/db/sync';
 
 beforeEach(async () => {
   await db.Carrito.clear();
@@ -50,5 +52,73 @@ describe('CartView → Continuar Compra', () => {
     // Lo que rompía: un Proxy no se puede clonar
     expect(() => structuredClone(arg.state)).not.toThrow();
     wrapper.unmount();
+  });
+});
+
+/**
+ * Al iniciar sesión estando en el carrito, la lista debe aparecer sola.
+ *
+ * El dueño del carrito cambia al instante, pero adoptar lo del invitado tarda
+ * (va y viene a Firebase). Con una lectura única la pantalla se quedaba en
+ * "carrito vacío" hasta salir y volver a entrar.
+ */
+describe('CartView al iniciar sesión', () => {
+  const montar = async () => {
+    const w = mount(CartView, { global: { stubs: { FontAwesomeIcon: true, ArrowBack: true } } });
+    await flush();
+    await flush();
+    await w.vm.$nextTick();
+    return w;
+  };
+
+  const lineaInvitado = (id: string) => ({
+    id_articulo: id, id_usuario: ID_INVITADO, sku: 's-' + id, cantidad: 1, precio: 30,
+    nombre: 'Galleta ' + id, url: '', detalle: '', id_tienda: 't-1', nombre_tienda: 'Pastelería Uno',
+  });
+
+  it('muestra el carrito del invitado sin sesión', async () => {
+    await db.Carrito.clear();
+    sessionUser.value = null;
+    await db.Carrito.bulkAdd([lineaInvitado('x') as any]);
+
+    const w = await montar();
+    expect(w.findAll('.cart-item')).toHaveLength(1);
+  });
+
+  it('al entrar, la lista se llena sola cuando la adopción escribe: sin salir y volver', async () => {
+    await db.Carrito.clear();
+    sessionUser.value = null;
+    await db.Carrito.bulkAdd([lineaInvitado('x') as any, lineaInvitado('y') as any]);
+
+    const w = await montar();
+    expect(w.findAll('.cart-item')).toHaveLength(2);
+
+    // inicia sesión: el dueño del carrito cambia antes de que se adopte nada
+    sessionUser.value = { id: 'cliente-9' };
+    await flush();
+    await w.vm.$nextTick();
+
+    // la adopción ocurre después (como en la app, tras bajar la copia remota)
+    await adoptarCarritoInvitado('cliente-9');
+    await flush();
+    await flush();
+    await w.vm.$nextTick();
+
+    // la pantalla se actualizó sola, sin volver a montarla
+    expect(w.findAll('.cart-item')).toHaveLength(2);
+  });
+
+  it('mientras se acomoda el carrito no anuncia que está vacío', async () => {
+    await db.Carrito.clear();
+    sessionUser.value = { id: 'cliente-9' };
+    sincronizando.value = true;
+
+    const w = await montar();
+    expect(w.text()).toContain('Cargando tu carrito');
+    expect(w.text()).not.toContain('Aún no has agregado productos');
+
+    sincronizando.value = false;
+    await w.vm.$nextTick();
+    expect(w.text()).toContain('Aún no has agregado productos');
   });
 });

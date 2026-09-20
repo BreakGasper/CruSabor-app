@@ -15,7 +15,7 @@
     <!-- El panel se monta en <body> para que ningún contenedor con overflow lo recorte -->
     <Teleport to="body">
       <transition name="ptr-panel">
-        <div v-if="abierta" class="panel-fondo" @click.self="abierta = false">
+        <div v-if="abierta" class="panel-fondo" @click.self="cerrarAvisos">
           <section class="panel" role="dialog" aria-modal="true" aria-label="Avisos de la tienda">
             <header class="panel-head">
               <div>
@@ -24,7 +24,7 @@
                   {{ total === 0 ? 'Todo en orden' : `${total} ${total === 1 ? 'pendiente' : 'pendientes'}` }}
                 </p>
               </div>
-              <button type="button" class="cerrar" aria-label="Cerrar" @click="abierta = false">✕</button>
+              <button type="button" class="cerrar" aria-label="Cerrar" @click="cerrarAvisos">✕</button>
             </header>
 
             <div class="panel-cuerpo">
@@ -71,7 +71,15 @@
                       </span>
                     </div>
                     <div class="acciones">
-                      <button type="button" class="accion" title="Editar stock" @click="editar(a.articulo)">✏️ Editar</button>
+                      <button
+                        type="button"
+                        class="accion resurtir"
+                        title="Actualizar las piezas disponibles"
+                        :disabled="ocupado === a.articulo.articuloId"
+                        @click="actualizarStock(a.articulo)"
+                      >
+                        📦 Actualizar stock
+                      </button>
                       <button
                         type="button"
                         class="accion"
@@ -93,6 +101,15 @@
         </div>
       </transition>
     </Teleport>
+
+    <!-- Va fuera del panel a propósito: al abrirlo se cierra el aviso de
+         notificaciones, y este diálogo debe seguir en pie -->
+    <ModalStock
+      v-if="articuloEnStock"
+      :articulo="articuloEnStock"
+      @cerrar="articuloEnStock = null"
+      @guardado="alGuardarStock"
+    />
   </div>
 </template>
 
@@ -102,11 +119,12 @@
  * con acciones rápidas para pausar la venta o dar de baja mientras resurte.
  * El panel se teleporta a <body>: en móvil es una hoja inferior, en escritorio un diálogo.
  */
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useAlertasTienda } from '@/composables/useAlertasTienda';
 import { pausarVentaArticulo, darDeBajaArticulo } from '@/composables/useArticulos';
+import ModalStock from './ModalStock.vue';
 import { fechaPedido, tiempoRestanteAtencion, formatoTiempoRestante, type Pedido } from '@/composables/usePedidos';
 import { imagenUrl } from '@/constants/firebase_util';
 import defaultImg from '@/assets/icons/default_articulo.png';
@@ -137,14 +155,52 @@ function esUrgente(p: Pedido): boolean {
   return ms !== null && ms < 30 * 60_000;
 }
 
-function irAPedidos() {
+/** Cerrar el aviso de notificaciones. Lo usan la ✕, el fondo y cada acción. */
+function cerrarAvisos() {
   abierta.value = false;
+}
+
+function irAPedidos() {
+  cerrarAvisos();
   router.push(`/store/pedidos/${props.tiendaId}`);
 }
-function editar(a: Producto) {
-  abierta.value = false;
-  router.push(`/store/product/edit/${a.articuloId}`);
+/**
+ * Resurtir sin salir de la campana.
+ *
+ * Al abrir el diálogo se cierra el aviso de notificaciones: son dos capas sobre
+ * la misma pantalla y el panel detrás solo estorba. El diálogo vive fuera del
+ * panel, así que cerrarlo no lo desmonta.
+ */
+const articuloEnStock = ref<Producto | null>(null);
+
+function actualizarStock(a: Producto) {
+  cerrarAvisos();
+  articuloEnStock.value = a;
 }
+
+/**
+ * Invariante: el aviso y el diálogo nunca conviven.
+ *
+ * No basta con cerrarlo en `actualizarStock`: si mañana el diálogo se abre desde
+ * otro punto, ese punto tendría que acordarse de cerrarlo. Aquí la regla se
+ * cumple sola, venga de donde venga.
+ */
+watch(articuloEnStock, (articulo) => {
+  if (articulo) cerrarAvisos();
+});
+
+function alGuardarStock() {
+  articuloEnStock.value = null;
+  Swal.fire({
+    toast: true,
+    position: 'bottom',
+    timer: 1800,
+    showConfirmButton: false,
+    icon: 'success',
+    title: 'Stock actualizado',
+  });
+}
+
 function onImgError(e: Event) {
   (e.target as HTMLImageElement).src = defaultImg;
 }

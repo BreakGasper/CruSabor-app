@@ -55,11 +55,20 @@ export const MENSAJE_ESTADO: Record<Exclude<EstadoCodigo, 'ok'>, string> = {
   incorrecto: 'Código incorrecto.',
 };
 
-/** Valida la contraseña nueva. Devuelve el error o null si es válida. */
+/**
+ * Valida la contraseña nueva. Devuelve el error o null si es válida.
+ *
+ * Los mismos topes que los formularios (ver PASSWORD_MIN/MAX en usePassword.ts),
+ * repetidos aquí a propósito: esto corre en el servidor, que no comparte código
+ * con la app y es el único que decide qué se guarda. Si cambian allá, cambian aquí.
+ */
+export const PASSWORD_MIN = 6;
+export const PASSWORD_MAX = 10;
+
 export function validarPassword(p: unknown): string | null {
   const s = String(p ?? '');
-  if (s.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
-  if (s.length > 72) return 'La contraseña es demasiado larga'; // límite de bcrypt
+  if (s.length < PASSWORD_MIN) return `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres`;
+  if (s.length > PASSWORD_MAX) return `La contraseña no puede pasar de ${PASSWORD_MAX} caracteres`;
   return null;
 }
 

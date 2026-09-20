@@ -99,7 +99,7 @@
 import { ref, reactive } from 'vue';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
-import { uploadImage } from '@/composables/useCloudinary';
+import { uploadImage, eliminarImagenReemplazada } from '@/composables/useCloudinary';
 import {
   useBannersAdmin,
   crearBanner,
@@ -116,6 +116,8 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const subiendo = ref(false);
 const guardando = ref(false);
 const editandoId = ref<string | null>(null);
+/** Imagen con la que se abrió la edición: si se reemplaza, la vieja se borra */
+const imagenAlEditar = ref('');
 
 const formVacio = () => ({
   imagenUrl: '',
@@ -158,6 +160,8 @@ async function guardar() {
   try {
     if (editandoId.value) {
       await actualizarBanner(editandoId.value, { ...form });
+      // Ya guardada la nueva: la anterior queda sin uso
+      void eliminarImagenReemplazada(imagenAlEditar.value, form.imagenUrl);
       Swal.fire({ toast: true, position: 'bottom', timer: 1500, showConfirmButton: false, icon: 'success', title: 'Banner actualizado' });
     } else {
       await crearBanner({ ...form });
@@ -173,6 +177,7 @@ async function guardar() {
 
 function editar(b: Banner) {
   editandoId.value = b.id;
+  imagenAlEditar.value = b.imagenUrl || ''; // para borrarla si la cambian
   Object.assign(form, {
     imagenUrl: b.imagenUrl,
     titulo: b.titulo || '',

@@ -523,8 +523,57 @@ export async function actualizarEstatusTienda(
   return { ...pedido, ...cambios };
 }
 
+/* ---------------- Ventana para que el cliente cancele ---------------- */
+
 /**
- * El cliente cancela su pedido completo. Solo si ninguna tienda lo ha enviado.
+ * Minutos que tiene el cliente para cancelar su pedido por su cuenta.
+ *
+ * Pasada la ventana la tienda ya puede estar comprando insumos o cocinando, así
+ * que cancelar deja de ser gratis para ella: de ahí en adelante se cancela
+ * hablando con la tienda, no con un botón.
+ */
+export const MINUTOS_LIMITE_CANCELACION_CLIENTE = 5;
+export const MS_LIMITE_CANCELACION_CLIENTE = MINUTOS_LIMITE_CANCELACION_CLIENTE * 60_000;
+
+/** La leyenda, en un solo lugar, para que todas las pantallas digan lo mismo */
+export const MENSAJE_LIMITE_CANCELACION = `Solo puedes cancelar tu pedido durante los primeros ${MINUTOS_LIMITE_CANCELACION_CLIENTE} minutos. Después, comunícate con la tienda para cancelarlo.`;
+export const MENSAJE_CANCELACION_VENCIDA = `Pasaron más de ${MINUTOS_LIMITE_CANCELACION_CLIENTE} minutos desde que hiciste el pedido. Comunícate con la tienda para cancelarlo.`;
+
+/**
+ * Milisegundos que le quedan al cliente para cancelar (negativo si ya venció).
+ * null cuando la regla no aplica: pedidos anteriores a ella, sin `fecha_creacion`
+ * ISO, cuya fecha en texto no es confiable para medir tiempo.
+ */
+export function tiempoRestanteCancelacionCliente(p: Pedido, ahora: Date = new Date()): number | null {
+  if (!p.fecha_creacion) return null;
+  const creado = fechaPedido(p);
+  if (!creado) return null;
+  return creado + MS_LIMITE_CANCELACION_CLIENTE - ahora.getTime();
+}
+
+/** ¿Sigue abierta la ventana de 5 minutos? (true también para pedidos sin fecha confiable) */
+export function dentroDeVentanaCancelacion(p: Pedido, ahora: Date = new Date()): boolean {
+  const restante = tiempoRestanteCancelacionCliente(p, ahora);
+  return restante === null || restante > 0;
+}
+
+/**
+ * ¿El cliente puede cancelar este pedido ahora mismo?
+ * Dos condiciones: que ninguna tienda haya empezado a atender o enviar, y que
+ * siga dentro de la ventana de minutos.
+ */
+export function clientePuedeCancelar(p: Pedido, ahora: Date = new Date()): boolean {
+  if (!puedeTransicionar(p.estatus, 'Cancelado', 'cliente')) return false;
+  const alguna = tiendasDelPedido(p).some(
+    (t) => !puedeTransicionar(estatusDeTienda(p, t), 'Cancelado', 'cliente'),
+  );
+  if (alguna) return false;
+  return dentroDeVentanaCancelacion(p, ahora);
+}
+
+/**
+ * El cliente cancela su pedido completo. Solo si ninguna tienda lo ha enviado
+ * y dentro de los primeros MINUTOS_LIMITE_CANCELACION_CLIENTE minutos.
  * Devuelve el stock de todos los items.
  */
 export async function cancelarPedidoCliente(pedido: Pedido, motivo?: string): Promise<Pedido> {
@@ -538,6 +587,11 @@ export async function cancelarPedidoCliente(pedido: Pedido, motivo?: string): Pr
   const bloqueado = Object.values(porTiendaActual).some((e) => !puedeTransicionar(e, 'Cancelado', 'cliente'));
   if (bloqueado || !puedeTransicionar(pedido.estatus, 'Cancelado', 'cliente')) {
     throw new Error('La tienda ya está atendiendo tu pedido; contáctala para cancelarlo.');
+  }
+  // La ventana se revisa aquí, no solo en la pantalla: el botón puede quedar
+  // visible si la vista lleva rato abierta.
+  if (!dentroDeVentanaCancelacion(pedido)) {
+    throw new Error(MENSAJE_CANCELACION_VENCIDA);
   }
 
   const porTienda: Record<string, EstatusPedido> = {};
@@ -561,11 +615,11 @@ export async function cancelarPedidoCliente(pedido: Pedido, motivo?: string): Pr
  *  CANCELACIÓN AUTOMÁTICA POR FALTA DE ATENCIÓN
  * ========================================================================= */
 
-/** Horas que tiene una tienda para atender su parte del pedido (sacarlo de Preparacion: Atendiendo o Enviado) */
-export const HORAS_LIMITE_ATENCION = 2;
-export const MS_LIMITE_ATENCION = HORAS_LIMITE_ATENCION * 60 * 60_000;
+/** Minutos que tiene una tienda para atender su parte del pedido (sacarlo de Preparacion: Atendiendo o Enviado) */
+export const MINUTOS_LIMITE_ATENCION = 40;
+export const MS_LIMITE_ATENCION = MINUTOS_LIMITE_ATENCION * 60_000;
 
-export const NOTA_CANCELACION_SIN_ATENDER = `Cancelado automáticamente: la tienda no atendió el pedido en ${HORAS_LIMITE_ATENCION} horas`;
+export const NOTA_CANCELACION_SIN_ATENDER = `Cancelado automáticamente: la tienda no atendió el pedido en ${MINUTOS_LIMITE_ATENCION} minutos`;
 
 /**
  * Milisegundos que le quedan a la tienda para atender el pedido (negativo si ya venció).

@@ -165,6 +165,7 @@ import { ref } from "vue";
 import { findUserByPhone } from "@/composables/useAuth";
 import TopBarFija from "@/components/TopBarFija.vue";
 import router from "@/router";
+import { useRoute } from "vue-router";
 import { validatePasswordHash } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
 import CustomToast from "@/components/CustomToast.vue";
@@ -265,6 +266,18 @@ const eleccion = ref<{ user: any; admin: Admin } | null>(null);
 const entrando = ref(false);
 const errorEleccion = ref("");
 
+const route = useRoute();
+
+/**
+ * A dónde ir tras entrar. `?redirect=` lo manda quien pidió la sesión (por
+ * ejemplo el carrito al ir a pagar) para volver justo ahí. Solo se aceptan
+ * rutas internas: un valor externo mandaría al cliente fuera de la app.
+ */
+function destinoTrasEntrar(): string {
+  const destino = route.query.redirect;
+  return typeof destino === "string" && /^\/(?!\/)/.test(destino) ? destino : "/";
+}
+
 function abrirSesionCliente(user: any) {
   // Una sola sesión activa: se cierran las de tienda y administrador
   localStorage.removeItem("tiendas");
@@ -282,7 +295,7 @@ function abrirSesionCliente(user: any) {
     codigpostal: user.codigoPostal,
     estado: user.estado,
   });
-  router.replace("/");
+  router.replace(destinoTrasEntrar());
 }
 
 function entrarComoCliente() {

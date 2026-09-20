@@ -2,7 +2,7 @@
   <div class="register-container">
     <!-- Header -->
     <div class="register-header">
-      <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="$router.back()" />
+      <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="intentarSalir" />
       <h1 class="title">{{ isEdit ? 'Editar Artículo' : 'Registrar Artículo' }}</h1>
       <p class="subtitle">Rápido y fácil ✨</p>
       <div class="step-indicator">
@@ -50,7 +50,7 @@
             />
             <div v-if="form.url" class="image-preview-wrapper">
               <img :src="form.url" class="image-preview" />
-              <button class="remove-btn" @click.stop="form.url = ''">
+              <button class="remove-btn" @click.stop="quitarImagenProducto">
                 &times;
               </button>
             </div>
@@ -469,6 +469,7 @@ import {
   type CategoriaData,
 } from '@/composables/useCategorias';
 import { uploadArticuloImagen } from '@/composables/useStorage'; // ajusta ruta
+import { eliminarImagenes } from '@/composables/useCloudinary';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import { useRoute, useRouter } from 'vue-router';
@@ -523,6 +524,70 @@ const form = ref<Omit<Producto, 'articuloId'>>({
   variantes: [],
 });
 
+/**
+ * Imágenes que tenía el artículo al abrirlo.
+ *
+ * Al cambiar una foto se sube la nueva y la vieja se quedaba en Cloudinary para
+ * siempre. Con esta foto de partida se sabe, al guardar, cuáles dejaron de estar
+ * referenciadas y se piden borrar.
+ */
+const urlsOriginales = ref<string[]>([]);
+
+/** Todas las imágenes que usa un artículo: la principal y las de sus variantes */
+function urlsDelArticulo(url: unknown, variantes: unknown): string[] {
+  const lista = Array.isArray(variantes) ? variantes : Object.values(variantes || {});
+  const todas = [url, ...lista.map((v: any) => v?.url)];
+  return [
+    ...new Set(
+      todas.filter((u): u is string => typeof u === 'string' && u.trim() !== '' && !u.startsWith('blob:')),
+    ),
+  ];
+}
+
+/**
+ * Salir sin guardar.
+ *
+ * La flecha de la cabecera hacía `$router.back()` directo, así que un toque
+ * en el paso 3, con todo capturado, tiraba el trabajo sin avisar. Ahora se
+ * compara el formulario contra un retrato tomado al abrir la pantalla: si hay
+ * algo escrito, se pide confirmación antes de salir.
+ */
+const estadoInicial = ref('');
+
+/** Retrato del formulario. Los File (imagen principal y de cada variante) se
+ *  representan por nombre y tamaño, porque JSON.stringify los deja vacíos. */
+function instantanea(): string {
+  return JSON.stringify(
+    { datos: form.value, precio: precioDisplay.value, imagen: imagenFile.value },
+    (_clave, valor) =>
+      typeof File !== 'undefined' && valor instanceof File ? `${valor.name}:${valor.size}` : valor,
+  );
+}
+
+const hayCambiosSinGuardar = () => instantanea() !== estadoInicial.value;
+
+async function intentarSalir() {
+  if (guardando.value) return; // a media subida, mejor no soltar la pantalla
+  if (!hayCambiosSinGuardar()) {
+    router.back();
+    return;
+  }
+  const { isConfirmed } = await Swal.fire({
+    icon: 'warning',
+    title: '¿Salir sin guardar?',
+    text: isEdit.value
+      ? 'Se perderán los cambios que hiciste en este artículo.'
+      : 'Se perderá el producto que llevas capturado.',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, salir',
+    cancelButtonText: 'Seguir aquí',
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#0165d8',
+    reverseButtons: true,
+  });
+  if (isConfirmed) router.back();
+}
+
 const colores = ref([
   { nombre: 'Rojo', codigo: '#FF0000' },
   { nombre: 'Azul', codigo: '#0000FF' },
@@ -571,6 +636,21 @@ function imagenValida(file: File): boolean {
   return true;
 }
 
+/**
+ * Las variantes que no tienen foto propia muestran la del producto.
+ *
+ * Al guardar esto ya pasaba (`v.isDefault → urlFinal`), pero la vista previa del
+ * paso 3 se quedaba con la imagen anterior: se veía una y se guardaba otra.
+ * Esta función replica exactamente la regla del guardado, para que lo que se ve
+ * sea lo que se va a guardar.
+ */
+function sincronizarImagenVariantes(url: string) {
+  for (const v of form.value.variantes as any[]) {
+    if (v._file) continue; // tiene su propia foto recién elegida: no se pisa
+    if (v.isDefault || !v.url || String(v.url).startsWith('blob:')) v.url = url;
+  }
+}
+
 const onImageSelected = (e: Event) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -581,7 +661,15 @@ const onImageSelected = (e: Event) => {
   }
   imagenFile.value = file; // guardar archivo real
   form.value.url = URL.createObjectURL(file); // preview
+  sincronizarImagenVariantes(form.value.url); // el paso 3 debe reflejarlo
 };
+
+/** Quitar la foto del producto: las variantes que la seguían se quedan sin ella */
+function quitarImagenProducto() {
+  form.value.url = '';
+  imagenFile.value = null;
+  sincronizarImagenVariantes('');
+}
 
 const showDropdown = ref(false);
 // Nuevo ref para controlar el checkbox
@@ -783,6 +871,8 @@ async function verificarMembresia(idTienda: string): Promise<boolean> {
 
 onMounted(async () => {
   categorias.value = await obtenerCategorias();
+  // Retrato de partida, por si se sale antes de cargar el artículo
+  estadoInicial.value = instantanea();
 
   // Alta de producto: se revisa la membresía antes de mostrar el formulario
   if (!isEdit.value && props.tiendaId && !(await verificarMembresia(String(props.tiendaId)))) return;
@@ -800,8 +890,14 @@ onMounted(async () => {
 
       // cargar variantes
       form.value.variantes = data.variantes || [];
+
+      // Qué imágenes tenía al abrir: al guardar, las que dejen de usarse se borran
+      urlsOriginales.value = urlsDelArticulo(data.url, data.variantes);
     }
   }
+
+  // Punto de partida definitivo: en edición, lo ya publicado no cuenta como cambio
+  estadoInicial.value = instantanea();
 });
 // Función para forzar dos decimales en precio
 
@@ -987,6 +1083,14 @@ async function submitForm() {
     } else {
       await push(dbRef(db, 'articulos'), payload);
     }
+
+    // DESPUÉS de guardar, nunca antes: si se borrara primero y el guardado
+    // fallara, el artículo se quedaría sin foto. Las que siguen en uso no se
+    // tocan (una variante puede compartir la imagen del producto).
+    const enUso = new Set(urlsDelArticulo(urlFinal, variantesFinal));
+    const aBorrar = urlsOriginales.value.filter((u) => !enUso.has(u));
+    void eliminarImagenes(aBorrar); // sin await: no debe retrasar el aviso
+    urlsOriginales.value = [...enUso];
 
     await Swal.fire({
       icon: 'success',

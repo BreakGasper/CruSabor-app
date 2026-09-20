@@ -4,7 +4,8 @@
       <!-- Banner / Galería principal -->
       <div class="store-banner">
         <div class="back-btn" v-if="!esDuenoTienda">
-          <arrow-back @click="$router.back()" />
+          <!-- volverOInicio, no back(): este perfil suele abrirse desde un enlace compartido -->
+          <arrow-back @click="volver()" />
         </div>
         <!-- Dueña o dueño: campana con pedidos por atender y alertas de stock -->
         <CampanaTienda v-if="esDuenoTienda && store.tiendaId" class="campana-tienda" :tienda-id="store.tiendaId" />
@@ -148,18 +149,33 @@
         >
           <strong>Redes Sociales:</strong>
           <div class="menu-icons">
+            <!-- Con enlace el icono y el nombre llevan a la red (pestaña nueva o
+                 la app del teléfono); sin enlace se queda en texto, no en un <a>
+                 muerto como antes. `rel` evita que la página destino toque esta. -->
             <div v-if="store.facebook" class="icon-with-label">
-              <a target="_blank">
+              <component
+                :is="enlaceDe(store.facebookUrl) ? 'a' : 'span'"
+                :href="enlaceDe(store.facebookUrl) || undefined"
+                :target="enlaceDe(store.facebookUrl) ? '_blank' : undefined"
+                :rel="enlaceDe(store.facebookUrl) ? 'noopener noreferrer' : undefined"
+                class="red-enlace-perfil"
+              >
                 <img src="@/assets/icons/facebook.png" alt="Facebook" />
-              </a>
-              <span>{{ store.facebook }}</span>
+                <span>{{ store.facebook }}</span>
+              </component>
             </div>
 
             <div v-if="store.instagram" class="icon-with-label">
-              <a target="_blank">
+              <component
+                :is="enlaceDe(store.instagramUrl) ? 'a' : 'span'"
+                :href="enlaceDe(store.instagramUrl) || undefined"
+                :target="enlaceDe(store.instagramUrl) ? '_blank' : undefined"
+                :rel="enlaceDe(store.instagramUrl) ? 'noopener noreferrer' : undefined"
+                class="red-enlace-perfil"
+              >
                 <img src="@/assets/icons/instagram.png" alt="Instagram" />
-              </a>
-              <span>{{ store.instagram }}</span>
+                <span>{{ store.instagram }}</span>
+              </component>
             </div>
           </div>
         </div>
@@ -457,8 +473,16 @@ import { useCalificaciones } from '@/composables/useCalificaciones';
 import CampanaTienda from '@/modules/store/components/CampanaTienda.vue';
 import BotonCompartir from '@/components/BotonCompartir.vue';
 import { urlPerfilTienda, textoCompartirTienda } from '@/composables/useCompartir';
+import { volverOInicio } from '@/utils/navegacion';
+import { normalizarEnlace } from '@/utils/enlaces';
 
 const router = useRouter();
+
+/** Regresar; si se llegó por un enlace compartido no hay atrás, así que va a la portada */
+const volver = () => volverOInicio(router);
+
+/** El enlace de una red, solo si es seguro ponerlo en un href (http/https) */
+const enlaceDe = (url?: string | null) => normalizarEnlace(url);
 
 /* Calificación de la tienda por los clientes (la dueña o dueño solo la ve) */
 const { resumenDe: resumenTienda, miVoto: miVotoTienda, calificar: calificarTiendaVoto } = useCalificaciones('tiendas');
@@ -1808,5 +1832,21 @@ body {
     bottom: 16px;
     transform: none;
   }
+}
+
+/* Red social del perfil: con enlace es un <a>, sin enlace un <span> */
+.red-enlace-perfil {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: inherit;
+  text-decoration: none;
+}
+a.red-enlace-perfil span {
+  color: var(--brand-blue-text);
+  text-decoration: underline;
+}
+a.red-enlace-perfil:hover span {
+  opacity: 0.8;
 }
 </style>

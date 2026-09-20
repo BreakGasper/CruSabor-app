@@ -105,6 +105,25 @@
               <input v-model="form.instagram" type="text" placeholder="@usuario" />
             </label>
           </div>
+
+          <!-- Enlace opcional: con él, el icono del perfil lleva a la red -->
+          <label v-if="form.facebook.trim()" class="se-check">
+            <input v-model="form.conEnlaceFacebook" type="checkbox" />
+            <span>Agregar enlace a mi página de Facebook</span>
+          </label>
+          <label v-if="form.conEnlaceFacebook && form.facebook.trim()" class="se-campo">
+            <input v-model="form.facebookUrl" type="url" inputmode="url" placeholder="facebook.com/mi-tienda" />
+            <em v-if="errores.facebookUrl" class="se-error">{{ errores.facebookUrl }}</em>
+          </label>
+
+          <label v-if="form.instagram.trim()" class="se-check">
+            <input v-model="form.conEnlaceInstagram" type="checkbox" />
+            <span>Agregar enlace a mi perfil de Instagram</span>
+          </label>
+          <label v-if="form.conEnlaceInstagram && form.instagram.trim()" class="se-campo">
+            <input v-model="form.instagramUrl" type="url" inputmode="url" placeholder="instagram.com/mi-tienda" />
+            <em v-if="errores.instagramUrl" class="se-error">{{ errores.instagramUrl }}</em>
+          </label>
         </section>
 
         <!-- ============ UBICACIÓN ============ -->
@@ -248,6 +267,8 @@ import { obtenerCategorias, type CategoriaData } from '@/composables/useCategori
 import { obtenerMunicipios, obtenerPueblosPorMunicipio, tieneAlcance, type MunicipioData } from '@/composables/useLugar';
 import { buscarPorCP, coloniasPorMunicipio } from '@/composables/useCodigoPostal';
 import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
+import { eliminarImagenes } from '@/composables/useCloudinary';
+import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
 
 /**
  * Edición de los datos de la tienda por su dueña o dueño.
@@ -353,6 +374,10 @@ const form = reactive({
   email: '',
   facebook: '',
   instagram: '',
+  conEnlaceFacebook: false,
+  facebookUrl: '',
+  conEnlaceInstagram: false,
+  instagramUrl: '',
   calle: '',
   numero: '',
   colonia: '',
@@ -376,6 +401,11 @@ function cargarDesde(t: Tienda) {
   form.email = t.email || '';
   form.facebook = t.facebook || '';
   form.instagram = t.instagram || '';
+  // La casilla se marca sola si la tienda ya tenía enlace guardado
+  form.facebookUrl = (t as any).facebookUrl || '';
+  form.conEnlaceFacebook = !!form.facebookUrl;
+  form.instagramUrl = (t as any).instagramUrl || '';
+  form.conEnlaceInstagram = !!form.instagramUrl;
   form.calle = t.calle || '';
   form.numero = String(t.numero || '');
   form.colonia = t.colonia || '';
@@ -446,6 +476,11 @@ function validar(): TabId | null {
   if (form.nombreTienda.trim().length < 3) marca('nombreTienda', 'El nombre debe tener al menos 3 caracteres.', 'datos');
   if (!/^\d{10}$/.test(form.telefono)) marca('telefono', 'El teléfono debe tener 10 dígitos.', 'contacto');
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) marca('email', 'Correo no válido.', 'contacto');
+  // El enlace acaba en un href público: si lo pide, tiene que servir
+  if (form.conEnlaceFacebook && form.facebook.trim() && !esEnlaceValido(form.facebookUrl))
+    marca('facebookUrl', 'Escribe una dirección válida (ej. facebook.com/mi-tienda).', 'contacto');
+  if (form.conEnlaceInstagram && form.instagram.trim() && !esEnlaceValido(form.instagramUrl))
+    marca('instagramUrl', 'Escribe una dirección válida (ej. instagram.com/mi-tienda).', 'contacto');
 
   const dir: Array<[keyof typeof form, string]> = [['calle', 'calle'], ['numero', 'número'], ['colonia', 'colonia'], ['municipio', 'municipio'], ['estado', 'estado']];
   const faltan = dir.filter(([k]) => !String(form[k]).trim()).map(([, n]) => n);
@@ -487,6 +522,8 @@ async function guardar() {
       email: form.email.trim(),
       facebook: form.facebook.trim(),
       instagram: form.instagram.trim(),
+      facebookUrl: form.conEnlaceFacebook ? normalizarEnlace(form.facebookUrl) || '' : '',
+      instagramUrl: form.conEnlaceInstagram ? normalizarEnlace(form.instagramUrl) || '' : '',
       calle: form.calle.trim(),
       numero: form.numero.trim(),
       colonia: form.colonia.trim(),
@@ -499,10 +536,21 @@ async function guardar() {
       zonasEntrega: form.envioDomicilio ? [...form.zonasEntrega] : [],
       horario: JSON.parse(JSON.stringify(form.horario)),
     };
+    // Se recuerda lo que había para borrarlo DESPUÉS de guardar lo nuevo
+    const logoAnterior = props.tienda.logoUrl;
+    const bannerAnterior = props.tienda.bannerUrl;
     if (logoFile.value) cambios.logoUrl = await uploadStoreLogo(logoFile.value, id);
     if (bannerFile.value) cambios.bannerUrl = await uploadStoreBanner(bannerFile.value, id);
 
     await actualizarTienda(id, cambios);
+
+    // Ya guardado: la imagen vieja ya no la referencia nadie. Si se borrara
+    // antes y el guardado fallara, la tienda se quedaría sin logo.
+    void eliminarImagenes([
+      cambios.logoUrl && cambios.logoUrl !== logoAnterior ? logoAnterior : null,
+      cambios.bannerUrl && cambios.bannerUrl !== bannerAnterior ? bannerAnterior : null,
+    ]);
+
     emit('saved', cambios);
   } catch (e: any) {
     errorGeneral.value = e?.message || 'No se pudieron guardar los cambios.';
@@ -678,5 +726,21 @@ watch(
   .se-imagenes { grid-template-columns: 1fr 90px; }
   .se-logo { width: 84px; height: 84px; }
   .se-dia { grid-template-columns: 80px 1fr auto 1fr auto; }
+}
+
+/* Casilla "Agregar enlace" de las redes */
+.se-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.se-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0165d8;
 }
 </style>

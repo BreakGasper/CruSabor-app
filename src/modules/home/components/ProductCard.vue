@@ -21,7 +21,12 @@
 
     <div class="info">
       <h3 :title="producto.nombre">{{ producto.nombre }}</h3>
-      <p class="subcategoria">{{ producto.subcategoria || producto.categoria || "General" }}</p>
+      <!-- Categoría y tienda, igual que en /productos: en un marketplace importa
+           tanto qué es como quién lo vende -->
+      <p class="meta">
+        <span>{{ producto.categoria || "General" }}</span>
+        <span v-if="producto.tiendaNombre" class="tienda">· {{ producto.tiendaNombre }}</span>
+      </p>
       <StarRating
         size="sm"
         editable
@@ -180,13 +185,16 @@ function onImgError(e: Event) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.subcategoria {
+.meta {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.meta .tienda {
+  opacity: 0.85;
 }
 .fila-precio {
   display: flex;

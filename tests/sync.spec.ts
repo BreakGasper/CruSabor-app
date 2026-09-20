@@ -8,6 +8,7 @@ import { __reset, __getAt } from './mocks/firebaseDb';
 import { db } from '@/db';
 import { sessionUser } from '@/utils/sessionUser';
 import { iniciarSincronizacion, bajar, subir, __resetSync } from '@/db/sync';
+import { ID_INVITADO } from '@/db/carritoInvitado';
 
 const espera = (ms = 600) => new Promise((r) => setTimeout(r, ms));
 const item = (id: string, uid = 'u1') => ({
@@ -112,5 +113,69 @@ describe('sync', () => {
     // subir ignora usuarios que no son el activo del observador
     await subir('otro');
     expect(__getAt('usuarios/otro')).toBeUndefined();
+  });
+});
+
+describe('sync · carrito del invitado al iniciar sesión', () => {
+  const invitado = (id: string) => ({ ...item(id, ID_INVITADO) });
+
+  it('lo agregado sin sesión se adopta y se respalda junto con lo que ya tenía', async () => {
+    // el cliente ya tenía un artículo guardado en Firebase de otro dispositivo
+    __reset({
+      usuarios: {
+        u1: { sync: { carrito: { 'a__s-a': { ...item('a'), id_usuario: 'u1' } } } },
+      },
+    });
+    // y en ESTE dispositivo llenó el carrito antes de entrar
+    await db.Carrito.add(invitado('z') as any);
+
+    iniciarSincronizacion();
+    sessionUser.value = { id: 'u1' };
+    await espera();
+
+    // nada queda a nombre del invitado
+    expect(await db.Carrito.where('id_usuario').equals(ID_INVITADO).toArray()).toHaveLength(0);
+
+    // local: lo remoto y lo del invitado juntos
+    const local = await db.Carrito.where('id_usuario').equals('u1').toArray();
+    expect(local.map((i) => i.id_articulo).sort()).toEqual(['a', 'z']);
+
+    // y lo adoptado quedó respaldado, sin esperar a otro cambio
+    const remoto = __getAt('usuarios/u1/sync');
+    expect(Object.keys(remoto.carrito).sort()).toEqual(['a__s-a', 'z__s-z']);
+  });
+
+  it('el orden importa: adoptar después de bajar, para que la copia remota no lo borre', async () => {
+    // remoto con un artículo; si se adoptara ANTES de bajar, `bajar` borraría lo adoptado
+    __reset({
+      usuarios: {
+        u1: { sync: { carrito: { 'a__s-a': { ...item('a'), id_usuario: 'u1' } } } },
+      },
+    });
+    await db.Carrito.add(invitado('z') as any);
+
+    iniciarSincronizacion();
+    sessionUser.value = { id: 'u1' };
+    await espera();
+
+    const local = await db.Carrito.where('id_usuario').equals('u1').toArray();
+    expect(local.find((i) => i.id_articulo === 'z')).toBeTruthy(); // sobrevivió
+  });
+
+  it('si el mismo artículo y variante estaba en las dos partes, se suman', async () => {
+    __reset({
+      usuarios: {
+        u1: { sync: { carrito: { 'a__s-a': { ...item('a'), id_usuario: 'u1', cantidad: 2 } } } },
+      },
+    });
+    await db.Carrito.add({ ...invitado('a'), cantidad: 3 } as any);
+
+    iniciarSincronizacion();
+    sessionUser.value = { id: 'u1' };
+    await espera();
+
+    const local = await db.Carrito.where('id_usuario').equals('u1').toArray();
+    expect(local).toHaveLength(1);
+    expect(local[0].cantidad).toBe(5);
   });
 });

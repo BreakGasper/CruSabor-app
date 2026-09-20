@@ -101,3 +101,61 @@ describe('Carrusel "Ver más"', () => {
     expect(routerMock.push).toHaveBeenCalledWith('/productos');
   });
 });
+
+/**
+ * La pantalla de una categoría usa la MISMA tarjeta que la portada y /productos.
+ * Antes tenía su propia versión, con lógica de carrito duplicada que además
+ * exigía sesión: el invitado veía los productos pero no podía agregarlos.
+ */
+describe('ArticulosCategorias · usa la tarjeta compartida', () => {
+  it('muestra los artículos de la categoría con ProductCard', async () => {
+    const ArticulosCategorias = (await import('@/modules/home/components/ArticulosCategorias.vue')).default;
+    const ProductCard = (await import('@/modules/home/components/ProductCard.vue')).default;
+
+    // escenario propio: el fixture compartido no trae categoriaId
+    __reset({
+      articulos: {
+        a1: { nombre: 'Pay', precio: 50, url: '', tiendaId: 't1', categoria: 'Postres', categoriaId: 'cat-1', variantes: [{ sku: 'S1', stock: 5, precio: 50 }] },
+        a2: { nombre: 'Flan', precio: 30, url: '', tiendaId: 't1', categoria: 'Postres', categoriaId: 'cat-1', variantes: [{ sku: 'S2', stock: 5, precio: 30 }] },
+        otro: { nombre: 'Silla', precio: 90, url: '', tiendaId: 't1', categoria: 'Muebles', categoriaId: 'cat-9', variantes: [{ sku: 'S3', stock: 5, precio: 90 }] },
+      },
+      tiendas: { t1: { nombreTienda: 'Lola', envioDomicilio: true } },
+    });
+
+    const w = mount(ArticulosCategorias, {
+      props: { id: 'cat-1', categoriaNombre: 'Postres' },
+      global: { stubs: { FontAwesomeIcon: true, PageHeader: true, StarRating: true } },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const tarjetas = w.findAllComponents(ProductCard);
+    expect(tarjetas).toHaveLength(2); // solo los de cat-1, la silla queda fuera
+    // solo los de esa categoría
+    for (const t of tarjetas) {
+      expect((t.props('producto') as any).categoriaId).toBe('cat-1');
+    }
+    w.unmount();
+  });
+
+  it('la tarjeta muestra la categoría y la tienda, no la subcategoría', async () => {
+    const ProductCard = (await import('@/modules/home/components/ProductCard.vue')).default;
+    const w = mount(ProductCard, {
+      props: {
+        producto: {
+          articuloId: 'a1', nombre: 'Pay', precio: 50, url: '',
+          categoria: 'Postres', subcategoria: 'Pasteles', tiendaNombre: 'Lola',
+          variantes: [{ sku: 'S1', stock: 5, precio: 50 }],
+        } as any,
+      },
+      global: { stubs: { FontAwesomeIcon: true, StarRating: true } },
+    });
+    await flushPromises();
+
+    const meta = w.find('.meta').text();
+    expect(meta).toContain('Postres');
+    expect(meta).toContain('Lola');
+    expect(meta).not.toContain('Pasteles');
+    w.unmount();
+  });
+});

@@ -299,9 +299,9 @@
               :type="showPassword ? 'text' : 'password'"
               class="form-input password-field"
               :class="{ 'input-error': errors.password }"
-              maxlength="10"
+              :maxlength="PASSWORD_MAX"
               autocomplete="new-password"
-              placeholder="Máx. 10 caracteres"
+              :placeholder="`Máx. ${PASSWORD_MAX} caracteres`"
             />
             <button
               type="button"
@@ -391,7 +391,7 @@ import GOther from "@/assets/icons/g-other.png";
 import AvatarIcon from "@/assets/icons/user_back_profile.png";
 import { uploadUserImage } from "@/composables/useStorage";
 import TopBarFija from "@/components/TopBarFija.vue";
-import { hashPassword } from "@/composables/usePassword";
+import { hashPassword, errorLongitudPassword, PASSWORD_MAX } from "@/composables/usePassword";
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
 const router = useRouter();
@@ -585,8 +585,8 @@ async function validateStep3() {
   if (!password.value) {
     errors.password = "La contraseña es obligatoria";
     valid = false;
-  } else if (password.value.length > 10) {
-    errors.password = "Máx. 10 caracteres";
+  } else if (errorLongitudPassword(password.value)) {
+    errors.password = errorLongitudPassword(password.value)!;
     valid = false;
   } else {
     errors.password = "";

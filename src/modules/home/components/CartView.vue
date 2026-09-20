@@ -8,7 +8,13 @@
     <!-- Lista de productos scrollable -->
     <div class="cart-items">
       <div
-        v-if="carritoItems.length === 0"
+        v-if="acomodandoCarrito"
+        style="text-align: center; color: var(--text-muted); margin-top: 2rem"
+      >
+        Cargando tu carrito…
+      </div>
+      <div
+        v-else-if="carritoItems.length === 0"
         style="text-align: center; color: var(--text-muted); margin-top: 2rem"
       >
         Aún no has agregado productos al carrito
@@ -133,11 +139,14 @@ import { reactive, ref, computed, onMounted, onUnmounted } from "vue";
 import { useHorarioTiendas } from "@/composables/useHorarioTienda";
 import { useEstadoTiendas } from "@/composables/useMembresia";
 import { db } from "@/db";
+import { liveQuery, type Subscription } from "dexie";
+import { sincronizando } from "@/db/sync";
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import defaultImg from "@/assets/icons/default_articulo.png";
 import { FontAwesomeIcon } from "@/plugins/fontawesome";
 import PageHeader from "@/components/PageHeader.vue";
-import { sessionUser } from "@/utils/sessionUser"; // asegúrate de importar
+import { sessionUser, sessionUsuarioValidation } from "@/utils/sessionUser";
+import { idCarritoActual } from "@/db/carritoInvitado";
 import { watch } from "vue";
 import { useRouter } from "vue-router";
 
@@ -148,27 +157,38 @@ const verDetalle = (producto: any) => {
   router.push(`/producto/${producto.id_articulo}`);
 };
 
-const sincronizarCarrito = async () => {
-  if (!sessionUser.value?.id) {
-    carritoItems.splice(0, carritoItems.length); // vacía el carrito si no hay usuario
-    return;
-  }
+/**
+ * La lista sigue a la tabla en vivo (Dexie liveQuery), no un vistazo suelto.
+ *
+ * Al iniciar sesión, el dueño del carrito cambia al instante pero la adopción de
+ * lo del invitado tarda (va y viene a Firebase). Con una lectura única la
+ * pantalla se quedaba vacía hasta salir y volver a entrar; suscrita, se llena
+ * sola en cuanto la adopción escribe.
+ */
+let subCarrito: Subscription | null = null;
 
-  const items = await db.Carrito.where("id_usuario")
-    .equals(sessionUser.value.id)
-    .toArray();
+function suscribirCarrito(idDueno: string) {
+  subCarrito?.unsubscribe();
+  subCarrito = liveQuery(() =>
+    db.Carrito.where("id_usuario").equals(idDueno).toArray(),
+  ).subscribe({
+    next: (items) => carritoItems.splice(0, carritoItems.length, ...items),
+    error: (e) => console.error("CartView liveQuery:", e),
+  });
+}
 
-  carritoItems.splice(0, carritoItems.length, ...items);
-};
-watch(
-  () => sessionUser.value?.id,
-  () => sincronizarCarrito(), // se vuelve a cargar el carrito al cambiar de usuario
+// Sin sesión se muestra el carrito del invitado: se llena antes de entrar
+watch(() => idCarritoActual(), suscribirCarrito, { immediate: true });
+onUnmounted(() => subCarrito?.unsubscribe());
+
+/** Mientras se acomoda el carrito del recién llegado no se anuncia que está vacío */
+const acomodandoCarrito = computed(
+  () => sincronizando.value && carritoItems.length === 0,
 );
-onMounted(() => sincronizarCarrito());
 
 const aumentarCantidad = async (item: any) => {
   const dbItem = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals([item.id_articulo, sessionUser.value.id])
+    .equals([item.id_articulo, idCarritoActual()])
     .first();
 
   if (dbItem) {
@@ -179,7 +199,7 @@ const aumentarCantidad = async (item: any) => {
 
 const disminuirCantidad = async (item: any) => {
   const dbItem = await db.Carrito.where("[id_articulo+id_usuario]")
-    .equals([item.id_articulo, sessionUser.value.id])
+    .equals([item.id_articulo, idCarritoActual()])
     .first();
 
   if (!dbItem) return;
@@ -267,6 +287,12 @@ const totalArticulos = computed(() =>
   itemsDisponibles.value.reduce((sum, item) => sum + item.cantidad, 0),
 );
 const ContinuarCompra = () => {
+  // Un pedido pertenece a un cliente: aquí sí hace falta entrar. Al hacerlo, el
+  // carrito del invitado se adopta solo y estos mismos artículos siguen ahí.
+  if (!sessionUsuarioValidation()) {
+    router.push({ path: "/login", query: { redirect: "/cart" } });
+    return;
+  }
   router.push({
     path: "/checkout",
     state: {

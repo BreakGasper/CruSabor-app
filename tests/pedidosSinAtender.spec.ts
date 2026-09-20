@@ -1,6 +1,6 @@
 /**
  * Cancelación automática: si una tienda no atiende su parte del pedido (sigue en
- * Preparacion) en HORAS_LIMITE_ATENCION, el sistema la cancela y devuelve el stock.
+ * Preparacion) en MINUTOS_LIMITE_ATENCION (40 min), el sistema la cancela y devuelve el stock.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { __reset, __getAt } from './mocks/firebaseDb';

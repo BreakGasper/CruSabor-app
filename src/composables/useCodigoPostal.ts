@@ -9,6 +9,8 @@
  * funcionar, cambiar CP_API / COL_API y/o el parseo de `extraer()`; el resto no depende
  * de la forma exacta de la respuesta.
  */
+import { coloniasLocales } from './coloniasLocales';
+
 const CP_API = (cp: string) => `https://api-sepomex.hckdrk.mx/query/info_cp/${cp}`;
 
 export interface InfoCP {
@@ -56,9 +58,14 @@ const COL_API = (m: string) =>
 
 /**
  * Lista de colonias de un municipio (para el desplegable al elegir municipio).
- * Mejor esfuerzo: consulta la API, filtra por municipio y quita duplicados.
- * Si la API no responde o no soporta la consulta, devuelve [] y el formulario sigue
- * con captura por código postal o texto libre.
+ *
+ * Primero mira el catálogo local (`coloniasLocales.ts`): hay municipios que la
+ * API no cubre —San Martín de Hidalgo no devuelve nada, ni por nombre ni por
+ * C.P.— y para esos la lista guardada es la buena, así que ni se consulta.
+ *
+ * Para el resto, mejor esfuerzo: consulta la API, filtra por municipio y quita
+ * duplicados. Si la API no responde, devuelve [] y el formulario sigue con
+ * captura por código postal o texto libre.
  */
 export async function coloniasPorMunicipio(
   municipio: string,
@@ -66,6 +73,10 @@ export async function coloniasPorMunicipio(
 ): Promise<string[]> {
   const m = String(municipio || '').trim();
   if (!m) return [];
+
+  const locales = coloniasLocales(m);
+  if (locales.length) return locales;
+
   const set = new Set<string>();
   try {
     const r = await fetchImpl(COL_API(m), {

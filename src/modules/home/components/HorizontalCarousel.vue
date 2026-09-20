@@ -40,7 +40,7 @@
 
           <p class="nombre">{{ p.nombre }}</p>
           <p class="subtitulo">
-            Subcategoría: {{ p.subcategoria || 'General' }}
+            Categoría: {{ p.categoria || 'General' }}
           </p>
 
           <div class="precio-agregar">

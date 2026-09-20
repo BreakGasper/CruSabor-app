@@ -1,8 +1,9 @@
-import { watch } from 'vue';
+import { ref, watch } from 'vue';
 import { liveQuery, type Subscription } from 'dexie';
 import { ref as dbRef, get, set } from 'firebase/database';
 import { db as firebase } from '@/firebase';
 import { db, type CarritoItem, type FavoritoItem, type TiendaFavoritaItem } from './index';
+import { adoptarCarritoInvitado } from './carritoInvitado';
 import { sessionUser } from '@/utils/sessionUser';
 
 /**
@@ -28,6 +29,13 @@ type Remoto = {
 const claveSegura = (s: string) => String(s).replace(/[.#$\[\]\/]/g, '_');
 
 const rutaSync = (uid: string) => dbRef(firebase, `usuarios/${uid}/sync`);
+
+/**
+ * true mientras se acomoda el carrito al iniciar sesión (bajar la copia remota
+ * y adoptar lo del invitado). Las pantallas lo usan para no anunciar "carrito
+ * vacío" en ese hueco: todavía no se sabe qué tiene el cliente.
+ */
+export const sincronizando = ref(false);
 
 let subs: Subscription[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -141,9 +149,28 @@ export function iniciarSincronizacion() {
     async (uid) => {
       detener();
       usuarioActivo = uid ?? null;
-      if (!uid) return;
-      await bajar(uid);
-      if (usuarioActivo === uid) observar(uid);
+      if (!uid) {
+        sincronizando.value = false;
+        return;
+      }
+      sincronizando.value = true;
+      try {
+        await bajar(uid);
+        // Después de bajar, nunca antes: `bajar` reemplaza lo local del usuario
+        // con la copia remota, así que adoptar primero borraría lo del invitado.
+        // Aquí el carrito remoto ya está puesto y lo del invitado se le suma.
+        const adoptados = await adoptarCarritoInvitado(uid).catch((e) => {
+          console.error('Sync: no se pudo adoptar el carrito del invitado', e);
+          return 0;
+        });
+        if (usuarioActivo !== uid) return;
+        observar(uid);
+        // `observar` se salta la primera emisión de cada tabla, así que lo adoptado
+        // no viajaría solo: se sube a mano para que quede respaldado de inmediato.
+        if (adoptados) subir(uid).catch((e) => console.error('Sync: no se pudo subir', e));
+      } finally {
+        if (usuarioActivo === uid) sincronizando.value = false;
+      }
     },
     { immediate: true },
   );
@@ -155,4 +182,5 @@ export function __resetSync() {
   usuarioActivo = null;
   pausado = false;
   iniciado = false;
+  sincronizando.value = false;
 }

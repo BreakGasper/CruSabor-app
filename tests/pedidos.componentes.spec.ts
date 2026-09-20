@@ -306,3 +306,181 @@ describe('CLIENTE · PedidoDetalle', () => {
     w.unmount();
   });
 });
+
+/**
+ * Los artículos del detalle van agrupados por tienda, con el estatus y el total
+ * de cada una: un pedido puede repartirse entre varias y cada una avanza sola.
+ */
+describe('CLIENTE · PedidoDetalle agrupado por tienda', () => {
+  async function montar(id: string) {
+    routeMock.params = { id };
+    const w = mount(PedidoDetalle, { global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    return w;
+  }
+
+  it('hay un bloque por tienda, con su nombre y sus artículos', async () => {
+    const id = await crearPedidoMixto();
+    const w = await montar(id);
+
+    const grupos = w.findAll('.grupo-tienda');
+    expect(grupos).toHaveLength(2);
+    expect(grupos[0].find('.grupo-tienda-nombre').text()).toContain(`Tienda ${TIENDA_A}`);
+    expect(grupos[1].find('.grupo-tienda-nombre').text()).toContain(`Tienda ${TIENDA_B}`);
+
+    // cada bloque lleva solo sus artículos
+    expect(grupos[0].findAll('.pedido-item-card')).toHaveLength(1);
+    expect(grupos[0].text()).toContain('Chocoflan');
+    expect(grupos[1].text()).toContain('Café');
+    expect(grupos[1].text()).not.toContain('Chocoflan');
+    w.unmount();
+  });
+
+  it('cada tienda muestra su propio total y aparte la suma de todas', async () => {
+    const id = await crearPedidoMixto();
+    const w = await montar(id);
+
+    const totales = w.findAll('.grupo-total');
+    expect(totales).toHaveLength(2);
+    // Chocoflan: 2 x $45 = $90
+    expect(totales[0].text()).toContain('2 artículos');
+    expect(totales[0].text()).toContain('$90.00');
+    // Café: 1 x $30 = $30
+    expect(totales[1].text()).toContain('1 artículo');
+    expect(totales[1].text()).toContain('$30.00');
+
+    expect(w.find('.total-tiendas').text()).toContain('$120.00');
+    w.unmount();
+  });
+
+  it('cada bloque lleva el estatus de SU tienda, no el global', async () => {
+    const id = await crearPedidoMixto();
+    // solo la tienda A avanza a "Enviado"
+    const { actualizarEstatusTienda, getPedidoById } = await import('@/composables/usePedidos');
+    await actualizarEstatusTienda((await getPedidoById(id))!, TIENDA_A, 'Enviado');
+    const w = await montar(id);
+
+    const grupos = w.findAll('.grupo-tienda');
+    expect(grupos[0].find('.badge').text()).toBe('En camino');
+    expect(grupos[1].find('.badge').text()).toBe('En preparación');
+    w.unmount();
+  });
+
+  it('con una sola tienda no se repite la suma total', async () => {
+    sessionUser.value = { id: CLIENTE, nombre: 'Carlos Cliente' };
+    const id = await guardarPedidos(
+      [{ id_articulo: 'art-1', sku: 'CHO-1', cantidad: 2, id_tienda: TIENDA_A, precio: 45, nombre: 'Chocoflan', url: '' }],
+      'Efectivo',
+      domicilio,
+    );
+    const w = await montar(id);
+
+    expect(w.findAll('.grupo-tienda')).toHaveLength(1);
+    expect(w.find('.grupo-total').text()).toContain('$90.00');
+    expect(w.find('.total-tiendas').exists()).toBe(false);
+    w.unmount();
+  });
+});
+
+/**
+ * El total sigue al pedido: `total_compra` es lo que se pidió el primer día, y
+ * deja de decir la verdad en cuanto una tienda cancela o entrega su parte.
+ *   - abierto → lo que falta por llegar
+ *   - cerrado (nada en proceso) → lo que realmente se entregó
+ */
+describe('CLIENTE · PedidoDetalle, el total refleja el estado real', () => {
+  async function montar(id: string) {
+    routeMock.params = { id };
+    const w = mount(PedidoDetalle, { global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    return w;
+  }
+
+  /** Mueve la parte de una tienda al estatus pedido */
+  async function mover(id: string, tienda: string, estatus: any, nota?: string) {
+    const { actualizarEstatusTienda, getPedidoById } = await import('@/composables/usePedidos');
+    await actualizarEstatusTienda((await getPedidoById(id))!, tienda, estatus, nota);
+  }
+
+  const etiqueta = (w: any) => w.find('.total-label').text();
+  const monto = (w: any) => w.find('.total-amount').text();
+
+  it('recién hecho, todo está por llegar', async () => {
+    const id = await crearPedidoMixto(); // A: 2x$45=$90, B: 1x$30=$30
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('POR LLEGAR');
+    expect(monto(w)).toBe('$120.00');
+    w.unmount();
+  });
+
+  it('lo ya entregado deja de contar: solo suma lo que falta', async () => {
+    const id = await crearPedidoMixto();
+    await mover(id, TIENDA_A, 'Enviado');
+    await mover(id, TIENDA_A, 'Entregado');
+
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('POR LLEGAR');
+    expect(monto(w)).toBe('$30.00'); // solo la tienda B, que sigue en proceso
+    w.unmount();
+  });
+
+  it('lo cancelado tampoco cuenta mientras el pedido sigue abierto', async () => {
+    const id = await crearPedidoMixto();
+    await mover(id, TIENDA_B, 'Cancelado', 'Sin ingredientes');
+
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('POR LLEGAR');
+    expect(monto(w)).toBe('$90.00'); // solo la tienda A
+    w.unmount();
+  });
+
+  it('cerrado (una entregó, otra canceló): muestra solo lo entregado', async () => {
+    const id = await crearPedidoMixto();
+    await mover(id, TIENDA_A, 'Enviado');
+    await mover(id, TIENDA_A, 'Entregado');
+    await mover(id, TIENDA_B, 'Cancelado', 'Sin ingredientes');
+
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('TOTAL ENTREGADO');
+    expect(monto(w)).toBe('$90.00');
+    w.unmount();
+  });
+
+  it('cerrado con todo entregado: el total es el del pedido completo', async () => {
+    const id = await crearPedidoMixto();
+    for (const t of [TIENDA_A, TIENDA_B]) {
+      await mover(id, t, 'Enviado');
+      await mover(id, t, 'Entregado');
+    }
+
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('TOTAL ENTREGADO');
+    expect(monto(w)).toBe('$120.00');
+    w.unmount();
+  });
+
+  it('cerrado con todo cancelado: no se entregó nada', async () => {
+    const id = await crearPedidoMixto();
+    await mover(id, TIENDA_A, 'Cancelado', 'Sin stock');
+    await mover(id, TIENDA_B, 'Cancelado', 'Sin ingredientes');
+
+    const w = await montar(id);
+    expect(etiqueta(w)).toBe('TOTAL ENTREGADO');
+    expect(monto(w)).toBe('$0.00');
+    w.unmount();
+  });
+
+  it('la suma de abajo dice lo mismo que el total de arriba', async () => {
+    const id = await crearPedidoMixto();
+    await mover(id, TIENDA_B, 'Cancelado', 'Sin ingredientes');
+
+    const w = await montar(id);
+    const abajo = w.find('.total-tiendas').text();
+    expect(abajo).toContain('Total por llegar');
+    expect(abajo).toContain('$90.00');
+    expect(monto(w)).toBe('$90.00');
+    w.unmount();
+  });
+});

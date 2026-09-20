@@ -3,6 +3,7 @@ import { db } from '@/firebase';
 import { ref as dbRef, onValue, push, update, get } from 'firebase/database';
 import type { CategoriaData } from '@/composables/useCategorias';
 import { uploadCategoriaIcon } from '@/composables/useStorage';
+import { eliminarImagenes } from '@/composables/useCloudinary';
 
 /**
  * Catálogo de categorías para el panel de administración.
@@ -109,6 +110,7 @@ export async function editarCategoria(id: string, datos: DatosCategoria): Promis
   if (!actual) throw new Error('La categoría ya no existe');
   const nombre = validarNombre(datos.nombre, existentes, id);
   const icono = datos.iconoFile ? await uploadCategoriaIcon(datos.iconoFile, id) : (datos.icono ?? actual.icono ?? '');
+  const iconoAnterior = actual.icono ?? '';
 
   const cambios: Record<string, any> = {
     [`categorias/${id}/nombre`]: nombre,
@@ -132,6 +134,10 @@ export async function editarCategoria(id: string, datos: DatosCategoria): Promis
     }
   }
   await update(dbRef(db), cambios);
+
+  // Ya guardado el icono nuevo: el viejo deja de usarse y se pide borrar
+  if (iconoAnterior && iconoAnterior !== icono) void eliminarImagenes([iconoAnterior]);
+
   return propagados;
 }
 

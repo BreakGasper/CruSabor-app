@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { crearRouterPagos } from "./pagos/router.ts";
 import { crearRouterRecuperacion } from "./recuperacion/router.ts";
+import { crearRouterImagenes } from "./imagenes/router.ts";
 
 console.log(">>> Iniciando main.ts");
 
@@ -13,6 +14,7 @@ console.log("SMTP_USER:", process.env.SMTP_USER);
 console.log("SMTP_PASS:", process.env.SMTP_PASS ? "Cargada ✅" : "No cargada ❌");
 console.log("BREVO_API_KEY:", process.env.BREVO_API_KEY ? "Cargada ✅ (correo por API HTTP)" : "No cargada (usa SMTP)");
 console.log("MP_ACCESS_TOKEN:", process.env.MP_ACCESS_TOKEN ? "Cargado ✅" : "No cargado ❌");
+console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "Cargada ✅ (se borran las imágenes reemplazadas)" : "No cargada (las imágenes viejas se quedan)");
 console.log("MP_WEBHOOK_SECRET:", process.env.MP_WEBHOOK_SECRET ? "Cargado ✅" : "No cargado ❌");
 console.log("API_PUBLIC_URL:", process.env.API_PUBLIC_URL || "(vacía: Mercado Pago no podrá avisar los pagos)");
 
@@ -30,6 +32,9 @@ app.use("/recuperar-password", crearRouterRecuperacion());
 
 // Pago automático de membresías con Mercado Pago (crear pago + webhook)
 app.use("/pagos", crearRouterPagos());
+
+// Borrar de Cloudinary la imagen que se reemplazó (la api_secret vive aquí, no en la app)
+app.use("/imagenes", crearRouterImagenes());
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

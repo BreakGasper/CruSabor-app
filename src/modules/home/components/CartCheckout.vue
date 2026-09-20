@@ -188,7 +188,7 @@ import { sessionUser } from "@/utils/sessionUser";
 import { useRouter } from "vue-router";
 import TopBarFija from "@/components/TopBarFija.vue";
 import { useCarrito } from "@/db/composables/useCarrito";
-import { guardarPedidos } from "@/composables/usePedidos";
+import { guardarPedidos, MENSAJE_LIMITE_CANCELACION } from "@/composables/usePedidos";
 import { tiendasCerradas } from "@/composables/useHorarioTienda";
 import DireccionForm from "@/components/DireccionForm.vue";
 import {
@@ -337,7 +337,9 @@ const siguientePaso = async () => {
 
     Swal.fire({
       title: "¡Gracias por tu compra! 🎉",
-      text: "Podrás ver tu pedido en tu perfil.",
+      // La ventana para cancelar es corta: se avisa aquí, recién hecho el pedido,
+      // que es cuando todavía se está a tiempo de usarla.
+      html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong>`,
       icon: "success",
       confirmButtonText: "Aceptar",
       confirmButtonColor: "#0165d8",

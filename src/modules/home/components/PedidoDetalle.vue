@@ -34,9 +34,11 @@
             {{ pedido.metodo_pago }}
           </p>
         </div>
+        <!-- El total sigue al pedido: lo que falta por llegar mientras haya algo
+             en proceso, y lo realmente entregado una vez cerrado -->
         <div class="info-right">
-          <p class="total-label">TOTAL</p>
-          <p class="total-amount">${{ pedido.total_compra }}</p>
+          <p class="total-label">{{ etiquetaTotal }}</p>
+          <p class="total-amount">${{ totalMostrado.toFixed(2) }}</p>
         </div>
       </div>
 
@@ -106,6 +108,13 @@
         >
           {{ cancelando ? 'Cancelando...' : 'Cancelar pedido' }}
         </button>
+        <p v-if="puedeCancelar" class="hint aviso-cancelacion">
+          ⏱ {{ MENSAJE_LIMITE_CANCELACION }}
+          <span v-if="minutosParaCancelar"> Te quedan {{ minutosParaCancelar }} min.</span>
+        </p>
+        <p v-else-if="cancelacionVencida" class="hint aviso-cancelacion">
+          ⏱ {{ MENSAJE_CANCELACION_VENCIDA }}
+        </p>
         <p v-else-if="pedido.estatus === 'Enviado'" class="hint">
           Tu pedido ya va en camino. Para cancelarlo contacta a la tienda.
         </p>
@@ -122,29 +131,69 @@
         <p>{{ pedido.domicilio.municipio }}, {{ pedido.domicilio.estado }}</p>
       </div>
 
-      <!-- Items -->
+      <!-- Items: un bloque por tienda, con su estatus y su total.
+           Un pedido puede repartirse entre varias tiendas y cada una avanza a su
+           ritmo, así que el cliente necesita ver qué le compró a quién. -->
       <div class="pedido-items">
         <h3>Artículos</h3>
-        <div
-          v-for="item in pedido.items"
-          :key="item.id_articulo"
-          class="pedido-item-card"
+
+        <section
+          v-for="grupo in gruposPorTienda"
+          :key="grupo.tiendaId"
+          class="grupo-tienda"
         >
-          <img
-            loading="lazy"
-            :src="imagenUrl(item.url_image) || defaultImage"
-            @error="onImgError"
-            class="producto-img"
-          />
-          <div>
-            <p class="nombre">
-              {{ item.nombreProducto }}
-              <span v-if="item.porPedido" class="tag-bajo-pedido">bajo pedido</span>
-            </p>
-            <p class="cantidad">Cantidad: {{ item.cantidad }}</p>
-            <p class="precio">Precio: ${{ item.precio }}</p>
+          <header class="grupo-header">
+            <button
+              class="grupo-tienda-nombre"
+              type="button"
+              :disabled="!grupo.tiendaId"
+              :title="grupo.tiendaId ? 'Ver tienda' : ''"
+              @click="verTienda(grupo.tiendaId)"
+            >
+              🏪 {{ grupo.nombre }}
+            </button>
+            <span :class="['badge', getEstatusClass(grupo.estatus)]">
+              {{ ESTATUS_LABEL[grupo.estatus] || grupo.estatus }}
+            </span>
+          </header>
+
+          <p v-if="grupo.motivo" class="grupo-motivo">✖ {{ grupo.motivo }}</p>
+
+          <div
+            v-for="item in grupo.items"
+            :key="item.id_articulo + '-' + (item.sku_code || '')"
+            class="pedido-item-card"
+          >
+            <img
+              loading="lazy"
+              :src="imagenUrl(item.url_image) || defaultImage"
+              @error="onImgError"
+              class="producto-img"
+            />
+            <div>
+              <p class="nombre">
+                {{ item.nombreProducto }}
+                <span v-if="item.porPedido" class="tag-bajo-pedido">bajo pedido</span>
+              </p>
+              <p class="cantidad">Cantidad: {{ item.cantidad }}</p>
+              <p class="precio">Precio: ${{ item.precio }}</p>
+            </div>
           </div>
-        </div>
+
+          <p class="grupo-total">
+            <span>
+              {{ grupo.cantidad }} {{ grupo.cantidad === 1 ? "artículo" : "artículos" }}
+            </span>
+            <strong>${{ grupo.subtotal.toFixed(2) }}</strong>
+          </p>
+        </section>
+
+        <!-- Con una sola tienda su subtotal ya lo dice todo. Con varias, la suma
+             usa la misma regla que el total de arriba para no contradecirlo. -->
+        <p v-if="gruposPorTienda.length > 1" class="total-tiendas">
+          <span>{{ pedidoCerrado ? "Total entregado" : "Total por llegar" }}</span>
+          <strong>${{ totalMostrado.toFixed(2) }}</strong>
+        </p>
       </div>
     </div>
 
@@ -153,8 +202,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import {
   getPedidoById,
@@ -165,11 +214,15 @@ import {
   motivoCancelacion,
   textoCancelacion,
   tieneArticulosPorPedido,
+  clientePuedeCancelar,
+  tiempoRestanteCancelacionCliente,
+  MENSAJE_LIMITE_CANCELACION,
+  MENSAJE_CANCELACION_VENCIDA,
   ESTATUS_LABEL,
   ACTOR_LABEL,
   type EstatusPedido,
 } from "@/composables/usePedidos";
-import type { Pedido } from "@/composables/usePedidos";
+import type { Pedido, PedidoItem } from "@/composables/usePedidos";
 import { useTiendas } from "@/composables/useTiendas";
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import PageHeader from "@/components/PageHeader.vue";
@@ -178,6 +231,7 @@ import moneyIcon from "@/assets/icons/money.png";
 import cardIcon from "@/assets/icons/trasfer.png";
 
 const route = useRoute();
+const router = useRouter();
 const pedido = ref<Pedido | null>(null);
 const defaultImage = userDefaultImage;
 
@@ -195,13 +249,125 @@ const nombresTienda = ref<Record<string, string>>({});
 const { obtenerTienda } = useTiendas();
 const nombreTienda = (id: string) => nombresTienda.value[id] || "Tienda";
 
-const puedeCancelar = computed(() => {
+interface GrupoPedido {
+  tiendaId: string;
+  nombre: string;
+  estatus: EstatusPedido;
+  motivo: string | null;
+  items: PedidoItem[];
+  cantidad: number;
+  subtotal: number;
+}
+
+/**
+ * Artículos del pedido agrupados por tienda, cada uno con su estatus y su total.
+ *
+ * Un pedido puede repartirse entre varias tiendas y cada una avanza por su
+ * cuenta (`estatusPorTienda`), así que una lista plana con un solo total no
+ * dejaba ver qué se le compró a quién ni cuánto le toca a cada una.
+ *
+ * El nombre sale del mapa vivo y, si no llegó, del que quedó guardado en el
+ * pedido (`item.nombreTienda`): un pedido es un registro y conserva el nombre
+ * que la tienda tenía ese día.
+ */
+const gruposPorTienda = computed<GrupoPedido[]>(() => {
+  const p = pedido.value;
+  if (!p) return [];
+  const grupos = new Map<string, GrupoPedido>();
+  for (const item of p.items || []) {
+    const id = String(item.proveedor || "");
+    if (!grupos.has(id)) {
+      const estatus = id ? estatusDeTienda(p, id) : p.estatus;
+      grupos.set(id, {
+        tiendaId: id,
+        nombre: nombresTienda.value[id] || item.nombreTienda || (id ? "Tienda" : "Sin tienda"),
+        estatus,
+        motivo: estatus === "Cancelado" ? motivoDe(id || undefined) : null,
+        items: [],
+        cantidad: 0,
+        subtotal: 0,
+      });
+    }
+    const g = grupos.get(id)!;
+    g.items.push(item);
+    g.cantidad += item.cantidad;
+    g.subtotal += item.precio * item.cantidad;
+  }
+  return [...grupos.values()];
+});
+
+/**
+ * El total sigue al pedido, no se queda en lo que se pidió el primer día.
+ *
+ * `total_compra` es lo que se pidió al principio; si una tienda cancela su parte
+ * o ya entregó, ese número deja de decir la verdad. Aquí se muestra:
+ *
+ *  - Pedido **abierto** (alguna tienda todavía en proceso): lo que falta por
+ *    llegar. Lo ya entregado y lo cancelado no se suman.
+ *  - Pedido **cerrado** (ninguna en proceso: todo entregado o cancelado): lo
+ *    que realmente se entregó.
+ *
+ * Todo sale de los mismos grupos, así que el total nunca contradice a los
+ * subtotales de cada tienda.
+ */
+const ESTATUS_EN_PROCESO: EstatusPedido[] = ["Preparacion", "Atendiendo", "Enviado"];
+
+const suma = (grupos: GrupoPedido[]) => grupos.reduce((acc, g) => acc + g.subtotal, 0);
+
+/** Tiendas que aún deben algo: ni entregaron ni cancelaron */
+const gruposEnProceso = computed(() =>
+  gruposPorTienda.value.filter((g) => ESTATUS_EN_PROCESO.includes(g.estatus)),
+);
+const gruposEntregados = computed(() =>
+  gruposPorTienda.value.filter((g) => g.estatus === "Entregado"),
+);
+
+/** Ya no queda nada en proceso: el pedido se cerró */
+const pedidoCerrado = computed(
+  () => gruposPorTienda.value.length > 0 && gruposEnProceso.value.length === 0,
+);
+
+const totalMostrado = computed(() =>
+  pedidoCerrado.value ? suma(gruposEntregados.value) : suma(gruposEnProceso.value),
+);
+const etiquetaTotal = computed(() => (pedidoCerrado.value ? "TOTAL ENTREGADO" : "POR LLEGAR"));
+
+const verTienda = (tiendaId: string) => {
+  if (tiendaId) router.push(`/store/profile/${tiendaId}`);
+};
+
+/**
+ * El reloj avanza solo: la ventana para cancelar dura pocos minutos y el botón
+ * debe desaparecer aunque la pantalla lleve rato abierta.
+ */
+const ahora = ref(new Date());
+let reloj: ReturnType<typeof setInterval> | undefined;
+onMounted(() => { reloj = setInterval(() => (ahora.value = new Date()), 10_000); });
+onUnmounted(() => clearInterval(reloj));
+
+/** Ninguna tienda empezó a atender: lo único que faltaría es que no se venza el tiempo */
+const nadieAtendioAun = computed(() => {
   const p = pedido.value;
   if (!p) return false;
   return (
     puedeTransicionar(p.estatus, "Cancelado", "cliente") &&
     tiendas.value.every((t) => puedeTransicionar(estatusDeTienda(p, t), "Cancelado", "cliente"))
   );
+});
+
+const puedeCancelar = computed(() =>
+  pedido.value ? clientePuedeCancelar(pedido.value, ahora.value) : false,
+);
+
+/** Se acabaron los minutos, pero la tienda todavía no lo atiende: toca llamarle */
+const cancelacionVencida = computed(() => nadieAtendioAun.value && !puedeCancelar.value);
+
+/** Minutos que quedan para poder cancelar (null si la regla no aplica) */
+const minutosParaCancelar = computed(() => {
+  const p = pedido.value;
+  if (!p || !puedeCancelar.value) return null;
+  const ms = tiempoRestanteCancelacionCliente(p, ahora.value);
+  return ms === null ? null : Math.max(1, Math.ceil(ms / 60_000));
 });
 
 const cancelando = ref(false);
@@ -602,6 +768,74 @@ function onImgError(e: Event) {
   gap: 0.75rem;
 }
 
+/* ---------- Un bloque por tienda ---------- */
+.grupo-tienda {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.grupo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.grupo-tienda-nombre {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-blue-text);
+  text-align: left;
+  cursor: pointer;
+}
+.grupo-tienda-nombre:disabled {
+  color: var(--text);
+  cursor: default;
+}
+.grupo-motivo {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #c62828;
+}
+/* Total de la tienda: separado de sus artículos por una línea */
+.grupo-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.grupo-total strong {
+  font-size: 1rem;
+  color: var(--text);
+}
+/* Suma de todas las tiendas; solo aparece cuando hay más de una */
+.total-tiendas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.25rem 0 0;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
+}
+.total-tiendas strong {
+  font-size: 1.1rem;
+  color: var(--brand-navy-text);
+}
+
 .pedido-item-card {
   display: flex;
   gap: 1rem;
@@ -632,5 +866,17 @@ function onImgError(e: Event) {
   margin: 0;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+/* Aviso de la ventana para cancelar, junto al botón */
+.aviso-cancelacion {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 </style>

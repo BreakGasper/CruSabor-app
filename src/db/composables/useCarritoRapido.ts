@@ -1,8 +1,8 @@
 import { reactive, watch, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { db, type CarritoItem } from '../index';
 import type { Producto } from '@/types/Producto';
-import { sessionUser, sessionUsuarioValidation } from '@/utils/sessionUser';
+import { sessionUser } from '@/utils/sessionUser';
+import { idCarritoActual } from '@/db/carritoInvitado';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 import Swal from 'sweetalert2';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
@@ -18,7 +18,6 @@ import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulo
  * para que las cantidades coincidan entre pantallas.
  */
 export function useCarritoRapido() {
-  const router = useRouter();
   const cantidadEnCarrito = reactive<Record<string, number>>({});
   const { sinEnvio } = useEnvioTienda();
   const { noPuedeVender } = useEstadoTiendas();
@@ -58,9 +57,8 @@ export function useCarritoRapido() {
 
   const sincronizar = async () => {
     limpiar();
-    if (!sessionUser.value?.id) return;
     const items = await db.Carrito.where('id_usuario')
-      .equals(sessionUser.value.id)
+      .equals(idCarritoActual())
       .toArray();
     for (const item of items) {
       cantidadEnCarrito[item.id_articulo] =
@@ -68,20 +66,14 @@ export function useCarritoRapido() {
     }
   };
 
-  /** Si no hay sesión de cliente, manda al login y devuelve false. */
-  const requiereSesion = () => {
-    if (sessionUsuarioValidation()) return true;
-    router.push('/login');
-    return false;
-  };
-
   const buscarItem = (producto: Producto) =>
     db.Carrito.where('[id_articulo+id_usuario+sku]')
-      .equals([producto.articuloId, sessionUser.value.id, skuDe(producto)])
+      .equals([producto.articuloId, idCarritoActual(), skuDe(producto)])
       .first();
 
   const aumentar = async (producto: Producto) => {
-    if (!requiereSesion()) return;
+    // Sin sesión también se puede llenar el carrito: queda a nombre del invitado
+    // y se adopta al entrar. La sesión se pide al pagar, no al elegir.
     if (tiendaNoDisponible(producto)) {
       Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: '#0165d8' });
       return;
@@ -94,7 +86,7 @@ export function useCarritoRapido() {
       Swal.fire({ icon: 'info', title: 'Venta pausada', text: MENSAJE_VENTA_PAUSADA, confirmButtonColor: '#0165d8' });
       return;
     }
-    if (!sessionPedidoId.value) generarNuevoPedidoId(sessionUser.value.id);
+    if (!sessionPedidoId.value) generarNuevoPedidoId(idCarritoActual());
 
     const stock = stockDe(producto);
     const actual = cantidadEnCarrito[producto.articuloId] || 0;
@@ -108,7 +100,7 @@ export function useCarritoRapido() {
       const nuevo: CarritoItem = {
         sku: skuDe(producto),
         id_articulo: producto.articuloId,
-        id_usuario: sessionUser.value.id,
+        id_usuario: idCarritoActual(),
         id_pedido: sessionPedidoId.value!,
         almacen: v?.almacen || producto.almacen || '',
         anticipo: producto.anticipo || 0,
@@ -133,7 +125,6 @@ export function useCarritoRapido() {
   };
 
   const disminuir = async (producto: Producto) => {
-    if (!sessionUser.value?.id) return;
     const item = await buscarItem(producto);
     if (!item) return;
 

@@ -60,6 +60,101 @@ export async function darDeBajaArticulo(articuloId: string, baja: boolean) {
   });
 }
 
+/* ---------------- Resurtir: capturar el stock disponible ---------------- */
+
+/** Una variante a la que se le puede poner un número de piezas */
+export interface VarianteStock {
+  /** posición en `variantes[]`: es por donde se escribe */
+  indice: number;
+  /** cómo nombrarla en el diálogo ("Producto Base", "Rojo · Ch"...) */
+  etiqueta: string;
+  /** lo que tiene registrado hoy */
+  stock: number;
+  /** código de la variante: con esto se compara lo que se escanea */
+  sku: string;
+}
+
+/**
+ * Variantes cuyo stock se lleva por número, listas para pedirlo en un diálogo.
+ *
+ * Quedan fuera las que no se cuentan: `stock === -1` (ilimitado) y los artículos
+ * bajo pedido, que se elaboran cuando el cliente los pide.
+ */
+export function variantesConStock(
+  p: Pick<Producto, "variantes" | "porPedido"> | null | undefined,
+): VarianteStock[] {
+  if (!p || p.porPedido) return [];
+  const lista: any[] = Array.isArray(p.variantes) ? p.variantes : Object.values(p.variantes || {});
+  return lista
+    .map((v, indice) => ({ v, indice }))
+    .filter(({ v }) => Number(v?.stock) !== -1)
+    .map(({ v, indice }) => ({
+      indice,
+      etiqueta:
+        [v?.color, v?.tamano, v?.material, v?.marca].filter(Boolean).join(" · ") ||
+        v?.detalle ||
+        v?.sku ||
+        `Variante ${indice + 1}`,
+      stock: Math.max(0, Number(v?.stock) || 0),
+      sku: String(v?.sku || ""),
+    }));
+}
+
+/** Compara códigos sin castigar por espacios ni mayúsculas */
+const codigoNormalizado = (s: unknown) => String(s ?? "").trim().toUpperCase();
+
+/**
+ * Qué variante corresponde a un código escaneado, por su SKU.
+ *
+ * Se usa al contar inventario con la cámara: cada lectura que coincide suma una
+ * pieza a esa variante. La comparación ignora espacios y mayúsculas, pero exige
+ * el código completo: parecerse no basta, o se sumaría a la variante equivocada.
+ *
+ * @returns el índice de la variante, o null si el código no es de este artículo
+ */
+export function indicePorCodigo(variantes: VarianteStock[], codigo: string): number | null {
+  const buscado = codigoNormalizado(codigo);
+  if (!buscado) return null;
+  const encontrada = variantes.find((v) => v.sku && codigoNormalizado(v.sku) === buscado);
+  return encontrada ? encontrada.indice : null;
+}
+
+/**
+ * Piezas válidas: entero, no negativo. Devuelve null si el texto no sirve.
+ *
+ * El campo vacío se rechaza aparte: `Number("")` es 0, así que sin esta guarda
+ * borrar la caja guardaría "0 piezas" en silencio en vez de pedir el dato.
+ */
+export function normalizarStock(valor: unknown): number | null {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return null;
+  const n = Number(texto);
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return null;
+  return n;
+}
+
+/**
+ * Fija las piezas disponibles de una o varias variantes.
+ *
+ * Se escribe por ruta (`variantes/{i}/stock`) en vez de reemplazar el arreglo
+ * completo, para no pisar cambios que la tienda haya hecho desde otra pantalla.
+ * `tieneStock` queda en true: si hay número, es porque se cuenta.
+ */
+export async function actualizarStockArticulo(
+  articuloId: string,
+  stockPorIndice: Record<number, number>,
+): Promise<void> {
+  const cambios: Record<string, unknown> = {};
+  for (const [indice, piezas] of Object.entries(stockPorIndice)) {
+    const n = normalizarStock(piezas);
+    if (n === null) continue;
+    cambios[`variantes/${indice}/stock`] = n;
+    cambios[`variantes/${indice}/tieneStock`] = true;
+  }
+  if (!Object.keys(cambios).length) return;
+  await update(dbRef(db, `articulos/${articuloId}`), cambios);
+}
+
 
 
 

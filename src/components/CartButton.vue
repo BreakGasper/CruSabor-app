@@ -18,7 +18,8 @@ import { useRouter } from 'vue-router';
 import { liveQuery, type Subscription } from 'dexie';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { db } from '@/db';
-import { sessionUser, sessionUsuarioValidation } from '@/utils/sessionUser';
+import { sessionUser } from '@/utils/sessionUser';
+import { idCarritoActual } from '@/db/carritoInvitado';
 
 /**
  * Botón de carrito con contador de artículos del usuario logueado.
@@ -29,14 +30,13 @@ const router = useRouter();
 const total = ref(0);
 let sub: Subscription | null = null;
 
-function suscribir(idUsuario?: string) {
+function suscribir(idDueno: string) {
   sub?.unsubscribe();
   sub = null;
   total.value = 0;
-  if (!idUsuario) return;
 
   sub = liveQuery(() =>
-    db.Carrito.where('id_usuario').equals(idUsuario).toArray(),
+    db.Carrito.where('id_usuario').equals(idDueno).toArray(),
   ).subscribe({
     next: (items) => {
       total.value = items.reduce((acc, i) => acc + (i.cantidad || 0), 0);
@@ -45,11 +45,13 @@ function suscribir(idUsuario?: string) {
   });
 }
 
-watch(() => sessionUser.value?.id, suscribir, { immediate: true });
+// Se sigue al dueño del carrito: el invitado antes de entrar, el cliente después
+watch(() => idCarritoActual(), suscribir, { immediate: true });
 onUnmounted(() => sub?.unsubscribe());
 
 function irAlCarrito() {
-  router.push(sessionUsuarioValidation() ? '/cart' : '/login');
+  // El invitado también tiene carrito; la sesión se pide al pagar
+  router.push('/cart');
 }
 </script>
 

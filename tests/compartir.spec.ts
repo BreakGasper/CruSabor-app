@@ -24,7 +24,7 @@ import StoreProfile from '@/modules/store/views/StoreProfile.vue';
 import { __reset } from './mocks/firebaseDb';
 import { __setEnvioPorTienda } from '@/composables/useEnvioTienda';
 import { sessionUser } from '@/utils/sessionUser';
-import { routeMock } from './setup';
+import { routeMock, routerMock } from './setup';
 
 vi.mock('@/composables/useAuth', () => ({ fetchUsuarioById: vi.fn(async () => null) }));
 
@@ -274,6 +274,83 @@ describe('BotonCompartir hereda el scope del padre', () => {
     expect(boton).toBeTruthy();
     const scopeDeLaPantalla = scopes(card)[0];
     expect(scopes(boton)).toContain(scopeDeLaPantalla);
+    w.unmount();
+  });
+});
+
+/* =========================================================================
+ *  SALIDA DESDE UN ENLACE COMPARTIDO
+ * ========================================================================= */
+
+describe('Las pantallas que se comparten tienen salida', () => {
+  /**
+   * Quien abre el enlace entra directo a la pantalla, sin historial propio.
+   * Con `router.back()` se quedaba atrapado; ahora la flecha lleva a la portada.
+   */
+  const TIENDA = 'tienda-1';
+
+  /** Simula cómo llegó la persona: por un enlace de fuera, o navegando en la app */
+  function llegarDe(anterior: string | null) {
+    window.history.replaceState(anterior ? { back: anterior } : null, '');
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    __reset({
+      tiendas: { [TIENDA]: { nombreTienda: 'Pastelería Lola', envioDomicilio: true, telefono: '1', metodosPago: ['Efectivo'], horario: {} } },
+      articulos: {},
+      pedidos: {},
+    });
+    __setEnvioPorTienda(null);
+    routerMock.back.mockClear();
+    routerMock.replace.mockClear();
+  });
+
+  afterEach(() => llegarDe(null));
+
+  const stubs = { FontAwesomeIcon: true, ArrowBack: true, PageHeader: true, CartButton: true, transition: false };
+
+  async function montarPerfil() {
+    routeMock.params = { id: TIENDA };
+    const w = mount(StoreProfile, { attachTo: document.body, global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    return w;
+  }
+
+  it('perfil de tienda abierto desde el enlace: la flecha lleva a la portada', async () => {
+    llegarDe(null);
+    const w = await montarPerfil();
+
+    await w.get('.back-btn arrow-back-stub').trigger('click');
+    expect(routerMock.replace).toHaveBeenCalledWith('/');
+    expect(routerMock.back).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  it('perfil de tienda alcanzado navegando: la flecha regresa como siempre', async () => {
+    llegarDe('/tiendas');
+    const w = await montarPerfil();
+
+    await w.get('.back-btn arrow-back-stub').trigger('click');
+    expect(routerMock.back).toHaveBeenCalledTimes(1);
+    expect(routerMock.replace).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  it('detalle de producto abierto desde el enlace: la flecha lleva a la portada', async () => {
+    llegarDe(null);
+    const producto = {
+      articuloId: 'p1', nombre: 'Pastel', url: '', precio: 120, descripcion: 'rico',
+      tiendaId: TIENDA, tiendaNombre: 'Pastelería Lola', categoria: 'Postres',
+      variantes: [{ sku: 'S-1', stock: 5, precio: 120, url: '', detalle: 'd' }],
+    } as any;
+    const w = mount(ProductDetail, { props: { producto }, attachTo: document.body, global: { stubs } });
+    await flushPromises();
+
+    await w.get('arrow-back-stub.back').trigger('click');
+    expect(routerMock.replace).toHaveBeenCalledWith('/');
+    expect(routerMock.back).not.toHaveBeenCalled();
     w.unmount();
   });
 });

@@ -10,10 +10,17 @@
           :alt="producto.nombre"
           class="detalle-img"
         />
+        <!-- La portada va recortada (cover); aquí se pide la foto entera -->
+        <VisorImagen
+          class="detalle-ver-completa"
+          :src="FIREBASE_STORAGE_BASE_URL + imagenUrl(imagenActual) || defaultImg"
+          :alt="producto.nombre"
+        />
       </div>
 
       <!-- Botón volver  con SVG -->
-      <ArrowBack class="btn-icon back" @click="$router.back()" />
+      <!-- volverOInicio, no back(): este detalle suele abrirse desde un enlace compartido -->
+      <ArrowBack class="btn-icon back" @click="volver()" />
 
       <!-- Carrito -->
       <CartButton v-if="!esTienda" class="btn-icon cart" />
@@ -140,7 +147,8 @@
 
     <!-- Footer con botón agregar -->
     <div class="detalle-footer">
-      <div v-if="sessionUsuarioValidation() && !esTienda">
+      <!-- El invitado también agrega: su carrito se adopta al iniciar sesión -->
+      <div v-if="!esTienda">
         <p
           v-if="
             stockActual !== Infinity &&
@@ -196,13 +204,6 @@
           {{ etiquetaBotonAgregar }}
         </button>
       </div>
-      <button
-        v-else-if="!esTienda"
-        class="btn-agregar"
-        @click.prevent="$router.push('/login')"
-      >
-        Iniciar Sesión
-      </button>
     </div>
   </div>
 </template>
@@ -219,6 +220,9 @@ import CartButton from '@/components/CartButton.vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { sessionPedidoId, generarNuevoPedidoId } from '@/utils/sessionPedido';
 import { sessionUsuarioValidation, sessionUser } from '@/utils/sessionUser';
+import { volverOInicio } from '@/utils/navegacion';
+import { idCarritoActual } from '@/db/carritoInvitado';
+import VisorImagen from '@/components/VisorImagen.vue';
 import { useRouter, useRoute } from 'vue-router';
 
 import { useTiendas } from '@/composables/useTiendas';
@@ -266,6 +270,10 @@ const { toggleFavoritoLocal, favoritosIds } = useHorizontalCarousel();
 
 const router = useRouter();
 const route = useRoute();
+
+/** Regresar; si se llegó por un enlace compartido no hay atrás, así que va a la portada */
+const volver = () => volverOInicio(router);
+
 const tiendaUrl = ref('');
 
 // Solo se puede comprar a tiendas con envío a domicilio
@@ -330,9 +338,9 @@ const cantidadEnCarrito = reactive<Record<string, number>>({});
 
 // Sincronizar con Dexie
 const sincronizarCarrito = async () => {
-  if (!props.producto || !sessionUser.value?.id) return;
+  if (!props.producto) return;
   const items = await db.Carrito.where('id_usuario')
-    .equals(sessionUser.value.id)
+    .equals(idCarritoActual())
     .toArray();
 
   for (const key in cantidadEnCarrito) delete cantidadEnCarrito[key];
@@ -402,11 +410,11 @@ const aumentarCantidad = async (producto: Producto) => {
     return;
   }
   if (!sessionPedidoId.value) {
-    generarNuevoPedidoId(sessionUser.value.id);
+    generarNuevoPedidoId(idCarritoActual());
   }
 
   const variante = varianteSeleccionada.value;
-  const key = [producto.articuloId, sessionUser.value.id, variante?.sku];
+  const key = [producto.articuloId, idCarritoActual(), variante?.sku];
   const clave = `${producto.articuloId}-${variante?.sku || 'default'}`;
 
   const cantidadActual = cantidadEnCarrito[clave] || 0;
@@ -418,7 +426,7 @@ const aumentarCantidad = async (producto: Producto) => {
   }
 
   const item = await db.Carrito.where('[id_articulo+id_usuario+sku]')
-    .equals([producto.articuloId, sessionUser.value.id, variante?.sku])
+    .equals([producto.articuloId, idCarritoActual(), variante?.sku])
     .first();
   if (item) {
     await db.Carrito.update(item.id!, { cantidad: item.cantidad + 1 });
@@ -432,7 +440,7 @@ const aumentarCantidad = async (producto: Producto) => {
       // 🔑 IDENTIDAD
       sku: variante?.sku || 'default',
       id_articulo: producto.articuloId,
-      id_usuario: sessionUser.value.id,
+      id_usuario: idCarritoActual(),
       id_pedido: sessionPedidoId.value!,
 
       // 📦 PRODUCTO BASE (obligatorio en tu modelo)
@@ -468,7 +476,7 @@ const disminuirCantidad = async (producto: Producto) => {
   const item = await db.Carrito.where('[id_articulo+id_usuario+sku]')
     .equals([
       producto.articuloId,
-      sessionUser.value.id,
+      idCarritoActual(),
       variante?.sku || 'default',
     ])
     .first();
@@ -573,6 +581,16 @@ function onImgError(e: Event) {
   object-position: center;
   display: block;
   background: var(--surface-2);
+}
+
+/* Abajo al centro: a la derecha está el corazón y a la izquierda la esquina
+   redondeada de 60px; en medio no estorba a nada */
+.detalle-ver-completa {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
 }
 
 .btn-icon {

@@ -42,7 +42,7 @@
             :type="verPass ? 'text' : 'password'"
             v-model="nuevaContrasena"
             placeholder="Nueva contraseña"
-            maxlength="8"
+            :maxlength="PASSWORD_MAX"
           />
           <button type="button" class="eye-btn" @click="verPass = !verPass">
             <component :is="verPass ? Eye : EyeOff" class="eye-icon" />
@@ -52,7 +52,7 @@
           :type="verPass ? 'text' : 'password'"
           v-model="confirmarContrasena"
           placeholder="Confirmar contraseña"
-          maxlength="8"
+          :maxlength="PASSWORD_MAX"
         />
 
         <p v-if="mensaje" class="mensaje" style="font-size: 12px; color: red">{{ mensaje }}</p>
@@ -70,6 +70,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { PASSWORD_MAX } from "@/composables/usePassword";
 import { Eye, EyeOff } from "lucide-vue-next";
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "");
