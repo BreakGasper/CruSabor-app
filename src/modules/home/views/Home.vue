@@ -59,6 +59,12 @@
 
       <ul class="sidebar-menu">
         <li>
+          <a href="#" @click.prevent="irAlInicio">
+            <Home class="icon" />
+            Home
+          </a>
+        </li>
+        <li>
           <a href="#" @click.prevent="$router.push('/cart')">
             <ShoppingCart class="icon" />
             Carrito
@@ -144,10 +150,12 @@
     <section class="destacados">
       <h2 class="title">Productos</h2>
       <div class="grid">
-        <template v-for="p in categoriasFiltradas" :key="p.articuloId">
-          <ProductListItem v-if="isMobile" :producto="p" />
-          <ProductCard v-else :producto="p" @verDetalle="verDetalle" />
-        </template>
+        <ProductCard
+          v-for="p in categoriasFiltradas"
+          :key="p.articuloId"
+          :producto="p"
+          @verDetalle="verDetalle"
+        />
       </div>
     </section>
 
@@ -176,8 +184,7 @@ import CategoriasScroll from "../components/CategoriasScroll.vue";
 import TiendasDestacadas from "../components/TiendasDestacadas.vue";
 import ProductCard from "../components/ProductCard.vue";
 import ProductDetail from "../components/ProductDetail.vue";
-import ProductListItem from "../components/ProductListItem.vue";
-import { useIsMobile } from "@/composables/useIsMobile";
+
 import { useArticulos, fechaArticulo } from "@/composables/useArticulos";
 import {
   cerrarSesion,
@@ -191,13 +198,13 @@ const { articulos } = useArticulos();
 const productoSeleccionado = ref<any | null>(null);
 const busqueda = ref("");
 const router = useRouter();
-const { isMobile } = useIsMobile();
 const menuAbierto = ref(false);
 const showScrollTop = ref(false);
 const showConfirmLogout = ref(false);
 // Importar iconos Lucide
 import {
   Grid,
+  Home,
   Search,
   User,
   Star,
@@ -267,6 +274,18 @@ function cerrarSesionLogin() {
   CerrarSessionHome();
   menuAbierto.value = false;
 }
+/**
+ * "Home" del menú: cierra el menú y sube al principio.
+ *
+ * No navega a ningún lado porque el menú solo existe en esta pantalla: quien lo
+ * abre ya está en el inicio. Si no se cerrara, se tocaría la opción y la página
+ * subiría detrás del menú abierto, que se siente como que no pasó nada.
+ */
+function irAlInicio() {
+  menuAbierto.value = false;
+  scrollToTop();
+}
+
 function handleScroll() {
   // La barra superior siempre queda visible; solo se controla el botón de subir
   showScrollTop.value = window.scrollY > 200;
@@ -412,11 +431,13 @@ onBeforeUnmount(() => {
   margin: 1rem 0;
 }
 
+/* Teléfono: dos tarjetas por renglón, como en las tiendas en línea. Se probó
+   con una fila por producto y la foto quedaba demasiado chica para antojar. */
 @media (max-width: 480px) {
   .grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    padding: 0.75rem 0;
   }
 } /* Lista de enlaces sin puntos y expandida */
 .sidebar ul {
@@ -437,7 +458,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: var(--text); /* texto negro por defecto */
+  color: var(--text); /* sigue el tema: oscuro en claro, claro en oscuro */
   font-size: 1.1rem;
   font-weight: 500;
   padding: 0.5rem 1rem;
@@ -457,7 +478,7 @@ onBeforeUnmount(() => {
 .sidebar ul li a svg {
   width: 20px;
   height: 20px;
-  color: var(--text); /* negro por defecto */
+  color: var(--text); /* mismo color que el texto del enlace */
   transition: color 0.3s;
 }
 
@@ -485,16 +506,20 @@ onBeforeUnmount(() => {
 
 /* Drawer lateral compacto */
 .sidebar {
+  /* Fondo propio del menú: blanco hueso en claro, superficie del tema en oscuro.
+     Estaba fijo en #f5f1eb y el texto en var(--text): en modo oscuro quedaban
+     letras casi blancas sobre un fondo casi blanco, o sea invisibles. */
+  --sidebar-bg: #f5f1eb;
   position: fixed;
   top: 20%; /* centrado verticalmente */
   left: -220px; /* fuera de pantalla inicialmente */
   width: 220px; /* ancho del drawer */
   height: 60%; /* altura compacta */
-  background: #f5f1eb; /* blanco hueso */
-  color: var(--text); /* texto negro */
+  background: var(--sidebar-bg);
+  color: var(--text);
   z-index: 20;
   padding: 2rem 1.5rem;
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 4px 0 12px var(--color-shadow);
   border-top-right-radius: 20px;
   border-bottom-right-radius: 20px;
   transition: left 0.4s ease, background 0.3s;
@@ -507,38 +532,17 @@ onBeforeUnmount(() => {
   left: 0;
 }
 
-/* Enlaces dentro del drawer */
-.sidebar ul li a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: var(--text); /* texto negro por defecto */
-  font-size: 1.1rem;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  transition: background 0.3s, color 0.3s;
-}
-
-/* Hover / selección: azul y texto blanco */
-.sidebar ul li a:hover,
-.sidebar ul li a.active {
-  background-color: var(--color-bg-blue-dark); /* azul que ya tenías */
-  color: #fff;
-}
-
-/* Iconos Lucide */
-.sidebar ul li a svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text); /* negro por defecto */
-  transition: color 0.3s;
-}
-
-.sidebar ul li a:hover svg,
-.sidebar ul li a.active svg {
-  color: #fff; /* icono blanco al hover/selección */
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    --sidebar-bg: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 0; /* el drawer sale del borde izquierdo de la pantalla */
+  }
+  /* Sobre fondo oscuro, el azul marino de marca casi no se distingue */
+  .sidebar ul li a:hover,
+  .sidebar ul li a.active {
+    background-color: var(--color-bg-blue-ligth);
+  }
 }
 
 /* Overlay */

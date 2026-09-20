@@ -104,14 +104,26 @@
       <div class="card-section">
         <h2>Datos de la empresa</h2>
         <div class="info-row telefono-row">
-          <!-- Icono WhatsApp al lado del teléfono -->
+          <!-- La fila siempre lleva icono, como las de correo y dirección:
+               WhatsApp si el número lo tiene, y si no el del teléfono, que
+               marca desde el celular. Antes, sin WhatsApp, no se veía nada. -->
           <a
             v-if="store.incluyeWhatsapp"
-            :href="`https://wa.me/${store.telefono}`"
+            :href="enlaceWhatsAppTienda"
             target="_blank"
-            class="whatsapp-icon"
+            rel="noopener noreferrer"
+            class="contacto-icon"
+            title="Escribir por WhatsApp"
           >
             <img src="@/assets/icons/whatsapp.png" alt="WhatsApp" />
+          </a>
+          <a
+            v-else
+            :href="`tel:${store.telefono}`"
+            class="contacto-icon"
+            title="Llamar"
+          >
+            <img src="@/assets/icons/smartphone.png" alt="Teléfono" />
           </a>
           <strong> {{ store.telefono }} </strong>
         </div>
@@ -514,6 +526,15 @@ const textoCompartir = computed(() =>
   textoCompartirTienda(store.value?.nombreTienda || '', store.value?.categoria),
 );
 
+/* wa.me exige el número completo con lada de país: con los 10 dígitos que se
+   guardan, el enlace abría WhatsApp sin contacto. Las tiendas son de México, así
+   que a los de 10 dígitos se les antepone 52; si alguien guardó el número ya con
+   lada, se respeta tal cual. */
+const enlaceWhatsAppTienda = computed(() => {
+  const digitos = (store.value?.telefono || '').replace(/\D/g, '');
+  return `https://wa.me/${digitos.length === 10 ? `52${digitos}` : digitos}`;
+});
+
 // Productos de la tienda + carrito rápido.
 // useArticulos carga todos los artículos; filtramos por tienda para no depender
 // de qué suscripción de Firebase responde primero. Se incluyen los de tiendas
@@ -905,7 +926,9 @@ body {
   justify-content: center;
   padding: 30px 20px;
   font-family: 'Poppins', sans-serif;
-  background: #f5f7fa;
+  /* El fondo de la pantalla estaba fijo en #f5f7fa: con el menú ya siguiendo el
+     tema, en oscuro quedaban botones oscuros sobre una pantalla clara. */
+  background: var(--bg-page);
   min-height: 100vh;
 }
 .store-card {
@@ -1241,14 +1264,14 @@ body {
   gap: 10px;
 }
 
-.whatsapp-icon img {
+.contacto-icon img {
   width: 22px;
   height: 22px;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
 
-.whatsapp-icon img:hover {
+.contacto-icon img:hover {
   transform: scale(1.2);
 }
 
@@ -1364,8 +1387,9 @@ body {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #0d1b2a;
-  color: white;
+  background: var(--color-bg-blue-dark);
+  color: #fff;
+  box-shadow: 0 4px 10px var(--color-shadow);
   margin-left: 10px;
   display: flex;
   align-items: center;
@@ -1401,8 +1425,8 @@ body {
   height: 50px;
   border-radius: 50%;
 
-  border: none;
-  background: #f1f1f1;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
 
   display: flex;
   align-items: center;
@@ -1411,19 +1435,13 @@ body {
   font-size: 18px;
   cursor: pointer;
 
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 10px var(--color-shadow);
   transition: transform 0.2s;
   flex-shrink: 0;
 }
 
 .menu-item:hover {
   transform: scale(1.1);
-}
-
-/* BOTÓN ACTIVO (como el azul de tu imagen) */
-.menu-item:nth-child(2) {
-  background: #0d1b2a;
-  color: white;
 }
 
 /* BOTÓN PELIGRO */
@@ -1449,7 +1467,7 @@ body {
   font-weight: 500;
   color: var(--text);
 
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px var(--color-shadow);
 
   opacity: 0;
   transform: translateX(-10px);
@@ -1461,6 +1479,14 @@ body {
 .side-menu.open .menu-label {
   opacity: 1;
   transform: translateX(0);
+}
+
+/* En tema oscuro el azul marino de marca se pierde contra el fondo de la
+   pantalla (son casi el mismo color): el botón ☰ pasa al azul claro. */
+@media (prefers-color-scheme: dark) {
+  .menu-toggle {
+    background: var(--color-bg-blue-ligth);
+  }
 }
 
 

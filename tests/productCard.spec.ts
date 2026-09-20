@@ -1,6 +1,7 @@
 /**
- * ProductCard (Home escritorio): botón Agregar → contador con menos / más,
- * respeta stock y envío a domicilio, favorito real y clic abre el detalle.
+ * ProductCard: la tarjeta de la lista del inicio, la misma en teléfono (dos por
+ * renglón) y en escritorio. Botón Agregar → contador con menos / más, respeta
+ * stock y envío a domicilio, favorito real y clic abre el detalle.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises as fp } from '@vue/test-utils';

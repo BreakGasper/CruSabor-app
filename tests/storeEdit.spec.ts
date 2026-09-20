@@ -169,6 +169,56 @@ describe('StoreEditModal', () => {
     expect(emitido.password).toBeUndefined();
   });
 
+  /**
+   * El C.P. sigue a la colonia: en los municipios con catálogo guardado
+   * (San Martín de Hidalgo) el código postal se corrige solo al cambiar de
+   * localidad, que era justo lo que quedaba mal al mudarse de colonia.
+   */
+  it('al elegir otra colonia, el C.P. se corrige solo', async () => {
+    const w = montarModal({ municipio: 'San Martín de Hidalgo', colonia: 'Ipazoltic', cp: '46770' });
+    await flushPromises();
+
+    const colonia = w.findAll('.se-section')[2].findAll('input')[3];
+    await colonia.trigger('focus');
+    const opcion = w.findAll('.se-autocomplete li').find((li: any) => li.text() === 'Lagunillas');
+    await opcion!.trigger('mousedown');
+    await flushPromises();
+
+    const vm = w.vm as any;
+    expect(vm.form.colonia).toBe('Lagunillas');
+    expect(vm.form.cp).toBe('46794');
+  });
+
+  it('escribir la colonia completa también corrige el C.P., en cualquier municipio', async () => {
+    const w = montarModal({ municipio: 'San Martín de Hidalgo', colonia: 'Ipazoltic', cp: '46770' });
+    await flushPromises();
+    const vm = w.vm as any;
+
+    await w.findAll('.se-section')[2].findAll('input')[3].setValue('trapiche de abra');
+    await flushPromises();
+    expect(vm.form.cp).toBe('46776');
+
+    // la tienda de Ameca: el catálogo cubre los 125 municipios de Jalisco
+    const otra = montarModal();
+    await flushPromises();
+    const vmOtra = otra.vm as any;
+    await otra.findAll('.se-section')[2].findAll('input')[3].setValue('Ameca Centro');
+    await flushPromises();
+    expect(vmOtra.form.cp).toBe('46600');
+  });
+
+  it('con una colonia que no está en el catálogo, el C.P. se queda como estaba', async () => {
+    const w = montarModal(); // Ameca, C.P. 46798
+    await flushPromises();
+    const vm = w.vm as any;
+
+    await w.findAll('.se-section')[2].findAll('input')[3].setValue('Fraccionamiento nuevo sin padrón');
+    await flushPromises();
+
+    expect(vm.form.colonia).toBe('Fraccionamiento nuevo sin padrón');
+    expect(vm.form.cp).toBe('46798');
+  });
+
   it('desactivar envío a domicilio limpia las zonas de entrega', async () => {
     const w = montarModal();
     await flushPromises();

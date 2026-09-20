@@ -121,26 +121,33 @@ describe('colonias por código postal', () => {
     expect(info).toMatchObject({ colonias: ['Centro'], municipio: 'Guadalajara' });
   });
 
+  // Jalisco ya no pasa por aquí: sale del catálogo guardado en la app. Este
+  // camino queda para municipios de otros estados, si algún día hay alcance ahí.
   it('coloniasPorMunicipio dedup, ordena y filtra por municipio; tolera fallos', async () => {
     const fetchOk = vi.fn(async () => ({
       ok: true,
       json: async () => ({
         zip_codes: [
-          { d_asenta: 'Centro', d_mnpio: 'Guadalajara' },
-          { d_asenta: 'Americana', d_mnpio: 'Guadalajara' },
-          { d_asenta: 'Centro', d_mnpio: 'Guadalajara' }, // duplicado
-          { d_asenta: 'OtraCiudad', d_mnpio: 'Zapopan' }, // otro municipio: se ignora
+          { d_asenta: 'Centro', d_mnpio: 'Tepic' },
+          { d_asenta: 'Americana', d_mnpio: 'Tepic' },
+          { d_asenta: 'Centro', d_mnpio: 'Tepic' }, // duplicado
+          { d_asenta: 'OtraCiudad', d_mnpio: 'Xalisco' }, // otro municipio: se ignora
         ],
         meta: { pagination: { total_pages: 1 } },
       }),
     }));
-    const cols = await coloniasPorMunicipio('Guadalajara', fetchOk as any);
+    const cols = await coloniasPorMunicipio('Tepic', fetchOk as any);
     expect(cols).toEqual(['Americana', 'Centro']);
 
     const fetchCaido = vi.fn(async () => {
       throw new Error('sin red');
     });
-    expect(await coloniasPorMunicipio('Guadalajara', fetchCaido as any)).toEqual([]);
+    expect(await coloniasPorMunicipio('Tepic', fetchCaido as any)).toEqual([]);
     expect(await coloniasPorMunicipio('', fetchOk as any)).toEqual([]);
+
+    // un municipio de Jalisco ni toca la red
+    const fetchNunca = vi.fn();
+    expect((await coloniasPorMunicipio('Guadalajara', fetchNunca as any)).length).toBeGreaterThan(100);
+    expect(fetchNunca).not.toHaveBeenCalled();
   });
 });

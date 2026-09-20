@@ -6,9 +6,11 @@
  * nuevo a submitStore y, como crearTienda hace push(), generaba OTRA tienda con
  * un id distinto. De ahí salían 3 o 4 tiendas con el mismo nombre.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { flush } from './helpers';
+import { coloniasDeMunicipio } from '@/composables/coloniasLocales';
+import { coloniasPorMunicipioConOrigen } from '@/composables/useCodigoPostal';
 
 // --- Dobles de las dependencias pesadas de la pantalla ---
 // vi.hoisted porque vi.mock se eleva por encima de las declaraciones normales.
@@ -29,10 +31,13 @@ vi.mock('@/composables/usePassword', async (original) => ({
 vi.mock('@/router', () => ({ default: { replace, push: vi.fn(), back: vi.fn() } }));
 vi.mock('@/composables/useCodigoPostal', () => ({
   buscarPorCP: vi.fn(async () => null),
-  coloniasPorMunicipio: vi.fn(async () => []),
+  coloniasPorMunicipioConOrigen: vi.fn(async () => ({ colonias: [], origen: 'ninguna' })),
 }));
 vi.mock('@/composables/useLugar', () => ({
-  obtenerMunicipios: vi.fn(async () => [{ id: 'm1', municipio: 'Guadalajara', alcance: true }]),
+  obtenerMunicipios: vi.fn(async () => [
+    { id: 'm1', municipio: 'Guadalajara', alcance: true },
+    { id: 'm2', municipio: 'San Martín de Hidalgo', estado: 'Jalisco', alcance: true },
+  ]),
   obtenerPueblosPorMunicipio: vi.fn(async () => []),
   obtenerTodosPueblos: vi.fn(async () => []),
   tieneAlcance: () => true,
@@ -226,5 +231,99 @@ describe('StoreRegister · enlace a redes sociales', () => {
 
     const datos = crearTienda.mock.calls[0][0] as any;
     expect(datos.facebookUrl).toBe('');
+  });
+});
+
+/**
+ * El C.P. sigue a la colonia.
+ *
+ * El catálogo guardado en la app trae el código postal de cada colonia de los
+ * 125 municipios de Jalisco, así que al elegirla ya no hay que buscarlo: antes
+ * casi todas las tiendas terminaban con el C.P. de la cabecera. Es la dirección
+ * contraria al autocompletado por C.P., que sigue apagado porque dependía de una
+ * API que se cayó.
+ */
+describe('StoreRegister · el C.P. sigue a la colonia', () => {
+  beforeEach(() => {
+    // el composable entrega el catálogo del municipio (no llama a la API)
+    vi.mocked(coloniasPorMunicipioConOrigen).mockImplementation(async (m: string) => ({
+      colonias: await coloniasDeMunicipio(m),
+      origen: 'catalogo' as const,
+    }));
+  });
+  afterEach(() => {
+    vi.mocked(coloniasPorMunicipioConOrigen).mockImplementation(async () => ({
+      colonias: [],
+      origen: 'ninguna' as const,
+    }));
+  });
+
+  /** Deja la pantalla en el paso de dirección, con el municipio ya elegido */
+  async function montarEnDireccion(municipio = 'San Martín de Hidalgo') {
+    const wrapper = mount(StoreRegister, { global: { stubs: { TopBarFija: true } } });
+    await flush();
+    const vm = wrapper.vm as any;
+    vm.step = 2;
+    await vm.seleccionarMunicipio({ id: 'm2', municipio, estado: 'Jalisco', alcance: true });
+    await flush();
+    return { wrapper, vm };
+  }
+
+  it('al elegir la colonia de la lista, escribe su C.P.', async () => {
+    const { wrapper, vm } = await montarEnDireccion();
+
+    await wrapper.find('#pueblo').trigger('focus');
+    const opcion = wrapper.findAll('.autocomplete-list li').find((li) => li.text() === 'Lagunillas');
+    await opcion!.trigger('click');
+    await flush();
+
+    expect(vm.form.colonia).toBe('Lagunillas');
+    expect(vm.form.cp).toBe('46794');
+    expect((wrapper.find('#cp').element as HTMLInputElement).value).toBe('46794');
+  });
+
+  it('funciona en cualquier municipio, no solo en San Martín', async () => {
+    const { vm } = await montarEnDireccion('Ameca');
+
+    vm.seleccionarPueblo('Ameca Centro');
+    await flush();
+    expect(vm.form.cp).toBe('46600');
+
+    // la misma colonia en otro municipio tiene otro C.P., y se respeta
+    vm.seleccionarPueblo('Lagunillas');
+    await flush();
+    expect(vm.form.cp).toBe('46719'); // la Lagunillas de Ameca, no la de San Martín
+  });
+
+  it('si se cambia de colonia, el C.P. cambia con ella', async () => {
+    const { vm } = await montarEnDireccion();
+
+    vm.seleccionarPueblo('Lagunillas');
+    await flush();
+    expect(vm.form.cp).toBe('46794');
+
+    vm.seleccionarPueblo('Venustiano Carranza'); // se equivocó y corrige
+    await flush();
+    expect(vm.form.cp).toBe('46777');
+  });
+
+  it('escribir el nombre completo, sin abrir la lista, también llena el C.P.', async () => {
+    const { wrapper, vm } = await montarEnDireccion();
+
+    await wrapper.find('#pueblo').setValue('trapiche de abra'); // como lo teclee, sin acentos ni mayúsculas
+    await flush();
+
+    expect(vm.form.cp).toBe('46776');
+  });
+
+  it('si el padrón le da varios C.P. a esa colonia, no toca el que capturó la tienda', async () => {
+    const { vm } = await montarEnDireccion('Guadalajara');
+    vm.form.cp = '44100';
+
+    vm.seleccionarPueblo('San Antonio'); // está en 44170, 44257 y 44800
+    await flush();
+
+    expect(vm.form.colonia).toBe('San Antonio');
+    expect(vm.form.cp).toBe('44100'); // lo suyo se respeta: adivinar sería peor
   });
 });

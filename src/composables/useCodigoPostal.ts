@@ -9,7 +9,7 @@
  * funcionar, cambiar CP_API / COL_API y/o el parseo de `extraer()`; el resto no depende
  * de la forma exacta de la respuesta.
  */
-import { coloniasLocales } from './coloniasLocales';
+import { coloniasDeMunicipio, tieneCatalogo } from './coloniasLocales';
 
 const CP_API = (cp: string) => `https://api-sepomex.hckdrk.mx/query/info_cp/${cp}`;
 
@@ -56,27 +56,44 @@ export function extraer(data: any): InfoCP | null {
 const COL_API = (m: string) =>
   `https://api-sepomex.hckdrk.mx/query/get_colonia_por_municipio/${encodeURIComponent(m)}`;
 
+/** De dónde salió la lista de colonias, que no es lo mismo para validar */
+export type OrigenColonias = 'catalogo' | 'api' | 'ninguna';
+
 /**
- * Lista de colonias de un municipio (para el desplegable al elegir municipio).
+ * Lista de colonias de un municipio (para el desplegable al elegir municipio),
+ * junto con el origen del dato.
  *
- * Primero mira el catálogo local (`coloniasLocales.ts`): hay municipios que la
- * API no cubre —San Martín de Hidalgo no devuelve nada, ni por nombre ni por
- * C.P.— y para esos la lista guardada es la buena, así que ni se consulta.
+ * Primero el catálogo guardado en la app (`coloniasLocales.ts`), que cubre todo
+ * Jalisco: es lo único que funciona con la API caída, y ni se consulta la red.
  *
- * Para el resto, mejor esfuerzo: consulta la API, filtra por municipio y quita
- * duplicados. Si la API no responde, devuelve [] y el formulario sigue con
- * captura por código postal o texto libre.
+ * Si el municipio no está en el catálogo (otro estado), mejor esfuerzo por API:
+ * se filtra por municipio y se quitan duplicados. Si no responde, [] y el
+ * formulario sigue con captura por código postal o texto libre.
  */
+export async function coloniasPorMunicipioConOrigen(
+  municipio: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ colonias: string[]; origen: OrigenColonias }> {
+  const m = String(municipio || '').trim();
+  if (!m) return { colonias: [], origen: 'ninguna' };
+
+  if (await tieneCatalogo(m)) {
+    return { colonias: await coloniasDeMunicipio(m), origen: 'catalogo' };
+  }
+
+  const colonias = await porApi(m, fetchImpl);
+  return { colonias, origen: colonias.length ? 'api' : 'ninguna' };
+}
+
+/** Solo los nombres, para quien no necesita saber de dónde salieron */
 export async function coloniasPorMunicipio(
   municipio: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string[]> {
-  const m = String(municipio || '').trim();
-  if (!m) return [];
+  return (await coloniasPorMunicipioConOrigen(municipio, fetchImpl)).colonias;
+}
 
-  const locales = coloniasLocales(m);
-  if (locales.length) return locales;
-
+async function porApi(m: string, fetchImpl: typeof fetch): Promise<string[]> {
   const set = new Set<string>();
   try {
     const r = await fetchImpl(COL_API(m), {

@@ -1,19 +1,23 @@
 /**
- * Colonias y localidades guardadas en la app, para municipios que la API no cubre.
+ * Catálogo de colonias de Jalisco guardado en la app: el nombre de cada
+ * asentamiento y su código postal, para los 125 municipios del estado.
  *
- * La API de SEPOMEX no devuelve nada para San Martín de Hidalgo —ni por nombre ni
- * por código postal—, así que quien registra su tienda ahí se queda sin lista y
- * tiene que escribir a mano. Esta tabla la suple.
+ * Por qué vive aquí y no se pide a una API: ya se cayeron dos (Icalia y
+ * api-sepomex.hckdrk.mx), y mientras están caídas nadie puede elegir su colonia
+ * ni se le llena el C.P. El padrón de SEPOMEX cambia poco, así que guardarlo
+ * sale más barato que depender de un servicio gratuito.
  *
- * Es deliberadamente una tabla y no un caso especial: agregar otro municipio es
- * añadir una entrada aquí, sin tocar la lógica. Los municipios que no estén en la
- * tabla siguen exactamente igual que antes (API, y texto libre si falla).
+ * El dato sale de `src/data/coloniasJalisco.json`, que genera
+ * `scripts/generar-colonias-jalisco.mjs` desde el padrón. PARA EDITARLO no se
+ * toca el JSON a mano: se agrega el ajuste en ese script (ahí queda escrito qué
+ * es oficial y qué se corrigió) y se vuelve a correr.
  *
- * PARA EDITAR: añade o quita nombres en el arreglo del municipio. Es la única
- * fuente; no hay copias en otros archivos.
+ * El JSON son ~160 KB, así que se carga solo cuando hace falta (`import()`
+ * dinámico, un chunk aparte) y se queda en memoria para las siguientes
+ * consultas. De ahí que estas funciones sean asíncronas.
  */
 
-/** Compara nombres de municipio sin castigar acentos, mayúsculas, "de" ni espacios */
+/** Compara nombres sin castigar acentos, mayúsculas, "de" ni espacios */
 export function claveMunicipio(nombre: unknown): string {
   return String(nombre ?? '')
     .normalize('NFD')
@@ -23,52 +27,82 @@ export function claveMunicipio(nombre: unknown): string {
     .replace(/[^a-z0-9]/g, ''); // espacios y signos fuera: "SanMartinHidalgo" también entra
 }
 
-/**
- * Localidades de San Martín de Hidalgo, Jalisco.
- *
- * Cabecera municipal y sus delegaciones y agencias. **Conviene que alguien de la
- * zona la revise**: se armó sin poder consultar la API (está caída) y es mejor
- * que sobre un nombre a que a una tienda le falte el suyo. Si falta alguno, el
- * formulario sigue aceptando texto libre, así que nadie se queda bloqueado.
- */
-const SAN_MARTIN_DE_HIDALGO = [
-  'San Martín de Hidalgo (Cabecera)',
-  'El Tepehuaje de Morelos',
-  'Santa Cruz de las Flores',
-  'Ipazoltic',
-  'Camajapita',
-  'Lagunillas',
-  'El Crucero',
-  'Buenavista',
-  'Cofradía',
-  'Los Guerrero',
-  'Labor de Medina',
-  'El Salitre',
-  'Trapiche',
-  'Jesús María',
-  'Santa Rita',
-  'La Estancia',
-  'El Tecolote',
-  'Arroyo Hondo',
-  'La Providencia',
-  'Presa de Trigomil',
-];
+/** Una colonia del catálogo: su nombre como lo escribe el padrón, y su C.P. */
+export interface ColoniaCp {
+  nombre: string;
+  cp: string;
+}
 
-/** Municipios con lista propia, por clave normalizada */
-const CATALOGO: Record<string, string[]> = {
-  [claveMunicipio('San Martín de Hidalgo')]: SAN_MARTIN_DE_HIDALGO,
-};
+/** Forma del JSON generado: municipio -> pares [nombre, C.P.] */
+type CatalogoCrudo = Record<string, [string, string][]>;
 
-/** ¿Este municipio tiene lista guardada en la app? */
-export function tieneColoniasLocales(municipio: unknown): boolean {
-  return Boolean(CATALOGO[claveMunicipio(municipio)]);
+interface MunicipioCatalogo {
+  /** Nombres únicos y ordenados, para el desplegable */
+  colonias: string[];
+  /** clave de colonia -> C.P. que el padrón le da (puede ser más de uno) */
+  cps: Map<string, string[]>;
+}
+
+function construir(datos: CatalogoCrudo): Map<string, MunicipioCatalogo> {
+  const mapa = new Map<string, MunicipioCatalogo>();
+  for (const [municipio, pares] of Object.entries(datos)) {
+    const colonias: string[] = [];
+    const cps = new Map<string, string[]>();
+    for (const [nombre, cp] of pares) {
+      if (!colonias.includes(nombre)) colonias.push(nombre);
+      const clave = claveMunicipio(nombre);
+      const suyos = cps.get(clave) ?? [];
+      if (!suyos.includes(cp)) suyos.push(cp);
+      cps.set(clave, suyos);
+    }
+    colonias.sort((a, b) => a.localeCompare(b, 'es'));
+    mapa.set(claveMunicipio(municipio), { colonias, cps });
+  }
+  return mapa;
+}
+
+let catalogo: Promise<Map<string, MunicipioCatalogo>> | null = null;
+
+/** Carga el catálogo una sola vez. Si el chunk no llega, queda vacío y se reintenta después. */
+function cargar(): Promise<Map<string, MunicipioCatalogo>> {
+  if (!catalogo) {
+    catalogo = import('@/data/coloniasJalisco.json')
+      .then((m) => construir(((m as any).default ?? m) as CatalogoCrudo))
+      .catch((e) => {
+        console.error('No se pudo cargar el catálogo de colonias:', e);
+        catalogo = null; // sin conexión al cargar el chunk: que el siguiente intento lo baje
+        return new Map<string, MunicipioCatalogo>();
+      });
+  }
+  return catalogo;
+}
+
+async function buscar(municipio: unknown): Promise<MunicipioCatalogo | undefined> {
+  return (await cargar()).get(claveMunicipio(municipio));
+}
+
+/** ¿El catálogo cubre este municipio? */
+export async function tieneCatalogo(municipio: unknown): Promise<boolean> {
+  return Boolean(await buscar(municipio));
 }
 
 /**
- * Localidades guardadas de un municipio, ordenadas. Vacío si no tiene lista
- * propia: entonces el flujo normal (API / texto libre) se encarga.
+ * Colonias del municipio, ordenadas y sin repetir. Vacío si no está en el
+ * catálogo (otro estado): ahí sigue el flujo normal, API o texto libre.
  */
-export function coloniasLocales(municipio: unknown): string[] {
-  const lista = CATALOGO[claveMunicipio(municipio)];
-  return lista ? [...lista].sort((a, b) => a.localeCompare(b, 'es')) : [];
+export async function coloniasDeMunicipio(municipio: unknown): Promise<string[]> {
+  return (await buscar(municipio))?.colonias ?? [];
+}
+
+/**
+ * C.P. de una colonia, o '' si no se puede afirmar cuál es.
+ *
+ * Devuelve '' en dos casos: la colonia no está en el catálogo, o el padrón le da
+ * más de un C.P. (pasa en unas 75 colonias de Jalisco, casi todas de Guadalajara
+ * y Zapopan, donde el mismo nombre se reparte en varios códigos). Entre escribir
+ * un C.P. que puede no ser el suyo y no tocar el campo, no se toca.
+ */
+export async function cpDeColonia(municipio: unknown, colonia: unknown): Promise<string> {
+  const cps = (await buscar(municipio))?.cps.get(claveMunicipio(colonia));
+  return cps?.length === 1 ? cps[0] : '';
 }

@@ -5,7 +5,7 @@
     <main class="admin-main">
       <p class="ayuda">
         Marca los municipios donde <strong>hay alcance</strong> (cobertura). Solo esos aparecen al registrar o editar una tienda.
-        Las colonias se autocompletan por código postal en los formularios.
+        Las colonias y su código postal salen del catálogo de Jalisco guardado en la app.
       </p>
 
       <div class="barra">

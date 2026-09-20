@@ -37,15 +37,6 @@
           class="icono-corazon"
         />
       </button>
-
-      <!-- Compartir: en la misma columna flotante, debajo del corazón -->
-      <BotonCompartir
-        class="btn-compartir"
-        :class="{ 'sin-favorito': !muestraFavorito }"
-        :titulo="producto.nombre"
-        :texto="textoCompartir"
-        :url="urlCompartir"
-      />
     </div>
 
     <!-- Información del producto -->
@@ -62,6 +53,17 @@
           @rate="calificarProducto"
         />
       </div>
+
+      <!-- Compartir debajo del precio: flotando sobre la imagen tapaba la foto y
+           costaba encontrarlo. Aquí va en el flujo, como píldora con texto. -->
+      <BotonCompartir
+        class="btn-compartir"
+        mostrar-texto
+        etiqueta="Compartir producto"
+        :titulo="producto.nombre"
+        :texto="textoCompartir"
+        :url="urlCompartir"
+      />
 
       <div class="tienda-header">
         <h1
@@ -236,9 +238,6 @@ import { useCalificaciones } from '@/composables/useCalificaciones';
 import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
 
 const props = defineProps<{ producto: Producto }>();
-
-/* Sin corazón (visitante sin sesión o una tienda mirando), compartir ocupa su lugar */
-const muestraFavorito = computed(() => sessionUsuarioValidation() && !esTienda.value);
 
 /* Compartir el producto (WhatsApp y demás) */
 const urlCompartir = computed(() => urlProducto(String(props.producto.articuloId || '')));
@@ -626,20 +625,11 @@ function onImgError(e: Event) {
   right: 1rem;
 }
 
-/* Columna flotante del borde derecho: el corazón arriba y compartir debajo */
+/* Compartir va en el flujo, bajo el precio y alineado con él */
 .btn-compartir {
-  position: absolute;
-  top: calc(50vh - 30px + 62px); /* 62px = alto del corazón + separación */
-  right: 1rem;
-}
-/* El círculo vive dentro del componente: se iguala al tamaño del corazón */
-.btn-compartir :deep(.compartir-btn) {
-  width: 50px;
-  height: 50px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-.btn-compartir.sin-favorito {
-  top: calc(50vh - 30px); /* no hay corazón: compartir ocupa su lugar */
+  /* Sin display propio: el componente ya es inline-flex y así queda pegado a la
+     izquierda, bajo el precio, sin estirarse al ancho de la columna */
+  margin-bottom: 0.75rem;
 }
 .btn-fav {
   position: absolute;
@@ -951,12 +941,6 @@ function onImgError(e: Event) {
   .btn-fav {
     top: calc(42vh - 25px);
   }
-  .btn-compartir {
-    top: calc(42vh - 25px + 62px);
-  }
-  .btn-compartir.sin-favorito {
-    top: calc(42vh - 25px);
-  }
   .detalle-info {
     padding: 1.25rem 1rem;
     padding-bottom: 5rem; /* espacio para el botón fijo */
@@ -992,16 +976,6 @@ function onImgError(e: Event) {
   .btn-fav {
     top: auto;
     bottom: -25px;
-    right: 1.5rem;
-  }
-  /* Aquí el corazón cuelga del borde inferior de la imagen: debajo quedaría fuera
-     del contenedor, así que los dos van a la misma altura, compartir a su izquierda */
-  .btn-compartir {
-    top: auto;
-    bottom: -25px;
-    right: calc(1.5rem + 62px);
-  }
-  .btn-compartir.sin-favorito {
     right: 1.5rem;
   }
   .detalle-info {

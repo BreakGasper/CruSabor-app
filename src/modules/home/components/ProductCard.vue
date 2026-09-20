@@ -170,6 +170,7 @@ function onImgError(e: Event) {
 }
 
 .info {
+  flex: 1; /* con el título de una o dos líneas, la tarjeta crece por aquí */
   padding: 0.75rem;
   text-align: left;
   display: flex;
@@ -200,6 +201,7 @@ function onImgError(e: Event) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap; /* en columna angosta, la etiqueta baja en vez de desbordar */
   gap: 6px;
   margin-top: 2px;
 }
@@ -229,7 +231,8 @@ function onImgError(e: Event) {
 
 /* 🛒 Carrito */
 .acciones {
-  margin-top: 0.45rem;
+  margin-top: auto; /* pegado abajo: los botones se alinean entre tarjetas */
+  padding-top: 0.45rem;
 }
 .btn-agregar {
   width: 100%;
@@ -304,23 +307,48 @@ function onImgError(e: Event) {
   text-align: center;
 }
 
-/* Responsive */
+/* Teléfono: dos tarjetas por renglón (ver el .grid del inicio). La foto manda,
+   así que se mide contra el ancho de la columna y no con un alto fijo. */
 @media (max-width: 480px) {
   .card {
     max-width: 100%;
+    border-radius: 14px;
   }
   .card img {
-    height: 120px;
+    height: auto;
+    aspect-ratio: 4 / 3;
   }
   .info {
-    padding: 0.5rem;
+    padding: 0.55rem;
+    gap: 2px;
   }
   .info h3 {
+    font-size: 0.88rem;
+    line-height: 1.25;
+    white-space: normal; /* el nombre completo cabe en dos renglones */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .meta {
+    font-size: 0.72rem;
+  }
+  .precio {
     font-size: 0.95rem;
   }
+  .tag {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+  }
   .btn-agregar {
-    font-size: 0.78rem;
-    padding: 0.45rem 0.4rem;
+    font-size: 0.76rem;
+    padding: 0.42rem 0.3rem;
+    border-radius: 9px;
+  }
+  .btn-c {
+    width: 30px;
+    height: 30px;
   }
 }
 </style>

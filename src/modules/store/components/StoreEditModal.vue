@@ -266,6 +266,7 @@ import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { obtenerCategorias, type CategoriaData } from '@/composables/useCategorias';
 import { obtenerMunicipios, obtenerPueblosPorMunicipio, tieneAlcance, type MunicipioData } from '@/composables/useLugar';
 import { buscarPorCP, coloniasPorMunicipio } from '@/composables/useCodigoPostal';
+import { cpDeColonia } from '@/composables/coloniasLocales';
 import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
 import { eliminarImagenes } from '@/composables/useCloudinary';
 import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
@@ -338,11 +339,29 @@ async function seleccionarMunicipio(m: MunicipioData) {
 }
 function onColoniaInput() {
   mostrarColonias.value = true;
+  autocompletarCpPorColonia(); // también si escribió el nombre completo sin abrir la lista
   const val = form.colonia.toLowerCase();
   coloniasFiltradas.value = colonias.value.filter((c) => c.toLowerCase().includes(val));
 }
+
+/**
+ * Colonia elegida → C.P. escrito solo, con el catálogo guardado en la app
+ * (`coloniasLocales.ts`), que cubre los 125 municipios de Jalisco. Si de esa
+ * colonia no se puede afirmar el C.P. —no está en el catálogo, o el padrón le da
+ * varios— se respeta el que ya tenga la tienda; el campo sigue siendo editable.
+ */
+async function autocompletarCpPorColonia() {
+  const colonia = form.colonia;
+  const cp = await cpDeColonia(form.municipio, colonia);
+  // si mientras se leía el catálogo ya eligió otra, esta respuesta ya no aplica
+  if (!cp || form.colonia !== colonia) return;
+  form.cp = cp;
+  delete errores.cp;
+}
+
 function seleccionarColonia(c: string) {
   form.colonia = c;
+  autocompletarCpPorColonia();
   mostrarColonias.value = false;
 }
 async function onCpInput() {

@@ -737,7 +737,7 @@ import CustomToast from "@/components/CustomToast.vue";
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import { useTiendas } from "@/composables/useTiendas";
 import { hashPassword, errorLongitudPassword, PASSWORD_MIN, PASSWORD_MAX } from "@/composables/usePassword";
-import { buscarPorCP, coloniasPorMunicipio } from "@/composables/useCodigoPostal";
+import { buscarPorCP, coloniasPorMunicipioConOrigen } from "@/composables/useCodigoPostal";
 import router from "@/router";
 import {
   obtenerMunicipios,
@@ -754,7 +754,7 @@ import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
 import { useConfiguracion } from "@/composables/useConfiguracion";
 import { esEnlaceValido, normalizarEnlace } from "@/utils/enlaces";
-import { tieneColoniasLocales } from "@/composables/coloniasLocales";
+import { cpDeColonia } from "@/composables/coloniasLocales";
 const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
 const stepTitles = [
@@ -834,6 +834,15 @@ const mostrarListaPueblos = ref(false);
 const puebloDisabled = ref(false);
 
 const todosPueblos = ref<string[]>([]);
+/**
+ * ¿La lista de colonias que se está mostrando es padrón cerrado?
+ *
+ * Lo es cuando la curó el admin (nodo `municipios` de la base) o cuando vino de
+ * la API. El catálogo de la app no: se generó del padrón de SEPOMEX, que tiene
+ * huecos —a San Martín le faltaba La Loma—, así que ahí la lista es sugerencia y
+ * se acepta lo que la tienda escriba, para no dejar fuera a nadie.
+ */
+const listaEstricta = ref(false);
 const pueblosZonaFiltrados = ref<string[]>([]);
 const zonaSeleccionada = ref("");
 const mostrarListaZonas = ref(false);
@@ -853,11 +862,13 @@ async function seleccionarMunicipio(m: MunicipioData) {
   const guardadas = await obtenerPueblosPorMunicipio(m.municipio);
   pueblos.value = guardadas;
   pueblosFiltrados.value = [...guardadas];
+  listaEstricta.value = guardadas.length > 0;
   if (!guardadas.length) {
-    const api = await coloniasPorMunicipio(m.municipio);
-    if (api.length) {
-      pueblos.value = api;
-      pueblosFiltrados.value = [...api];
+    const { colonias, origen } = await coloniasPorMunicipioConOrigen(m.municipio);
+    if (colonias.length) {
+      pueblos.value = colonias;
+      pueblosFiltrados.value = [...colonias];
+      listaEstricta.value = origen === "api";
     }
   }
 
@@ -866,9 +877,29 @@ async function seleccionarMunicipio(m: MunicipioData) {
   puebloDisabled.value = false;
 }
 
+/**
+ * Colonia elegida → C.P. escrito solo.
+ *
+ * Es la dirección contraria a `AUTOCOMPLETAR_POR_CP` (C.P. → colonias, apagado
+ * porque depende de una API que ya se cayó dos veces): aquí el dato sale del
+ * catálogo guardado en la app, que cubre los 125 municipios de Jalisco y siempre
+ * está. Si de esa colonia no se puede afirmar el C.P. —no está en el catálogo, o
+ * el padrón le da varios— no se toca lo que la tienda haya escrito; el campo se
+ * puede corregir a mano en cualquier caso.
+ */
+async function autocompletarCpPorColonia() {
+  const colonia = form.value.colonia;
+  const cp = await cpDeColonia(form.value.municipio, colonia);
+  // si mientras se leía el catálogo ya eligió otra, esta respuesta ya no aplica
+  if (!cp || form.value.colonia !== colonia) return;
+  form.value.cp = cp;
+  errors.value.cp = "";
+}
+
 function seleccionarPueblo(pueblo: string) {
   puebloSeleccionado.value = pueblo;
   form.value.colonia = pueblo;
+  autocompletarCpPorColonia();
   pueblosFiltrados.value = [];
   mostrarListaPueblos.value = false;
 }
@@ -911,6 +942,7 @@ async function onCpInput() {
 // o escribir a mano (municipios aún sin colonias). Lo tecleado cuenta como colonia.
 function onColoniaInput() {
   form.value.colonia = puebloSeleccionado.value;
+  autocompletarCpPorColonia(); // también si escribió el nombre completo sin abrir la lista
   pueblosFiltrados.value = pueblos.value.filter((p) =>
     p.toLowerCase().includes(puebloSeleccionado.value.toLowerCase()),
   );
@@ -1064,12 +1096,11 @@ async function validateStep() {
     }
 
     // --- VALIDACIÓN DE PUEBLO / COLONIA ---
-    // Se exige estar en la lista solo cuando esa lista viene de la API, que es
-    // el padrón oficial. La lista local (`coloniasLocales.ts`) se hizo a mano y
-    // puede tener huecos: ahí se ofrece como sugerencia y se acepta lo que la
-    // tienda escriba, para no dejar fuera a una localidad que falte.
-    const listaEsOficial = pueblos.value.length > 0 && !tieneColoniasLocales(form.value.municipio);
-    if (listaEsOficial && form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
+    // Se exige estar en la lista solo cuando esa lista es padrón cerrado: la que
+    // curó el admin o la de la API. Con el catálogo de la app se acepta lo que la
+    // tienda escriba, porque el padrón de SEPOMEX tiene huecos y no se trata de
+    // dejar fuera a una colonia que falte.
+    if (listaEstricta.value && form.value.colonia && !pueblos.value.includes(form.value.colonia)) {
       errors.value.colonia = "Pueblo/Colonia no válido";
     }
   }

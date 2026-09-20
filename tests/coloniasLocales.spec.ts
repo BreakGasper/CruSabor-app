@@ -1,19 +1,20 @@
 /**
- * Colonias guardadas en la app para municipios que la API no cubre.
+ * Catálogo de colonias de Jalisco guardado en la app.
  *
- * SEPOMEX no devuelve nada para San Martín de Hidalgo (ni por nombre ni por
- * C.P.), así que su lista vive en `coloniasLocales.ts`. Los demás municipios
- * siguen igual: API, y texto libre si falla.
+ * Las dos APIs de colonias que se usaron se cayeron, así que el padrón vive en
+ * `src/data/coloniasJalisco.json` y de ahí salen la lista del desplegable y el
+ * C.P. de cada colonia. Sin red de por medio.
  */
 import { describe, it, expect, vi } from 'vitest';
 import {
   claveMunicipio,
-  coloniasLocales,
-  tieneColoniasLocales,
+  coloniasDeMunicipio,
+  cpDeColonia,
+  tieneCatalogo,
 } from '@/composables/coloniasLocales';
-import { coloniasPorMunicipio } from '@/composables/useCodigoPostal';
+import { coloniasPorMunicipioConOrigen } from '@/composables/useCodigoPostal';
 
-describe('claveMunicipio: reconocer el mismo municipio escrito de varias formas', () => {
+describe('claveMunicipio: reconocer el mismo nombre escrito de varias formas', () => {
   it('ignora acentos, mayúsculas, espacios y el "de"', () => {
     const esperado = claveMunicipio('San Martín de Hidalgo');
     for (const variante of [
@@ -33,58 +34,113 @@ describe('claveMunicipio: reconocer el mismo municipio escrito de varias formas'
   });
 });
 
-describe('Lista de San Martín de Hidalgo', () => {
-  it('tiene localidades y la cabecera entre ellas', () => {
-    const lista = coloniasLocales('San Martín de Hidalgo');
-    expect(lista.length).toBeGreaterThan(5);
-    expect(lista.some((c) => /cabecera/i.test(c))).toBe(true);
+describe('El catálogo cubre todo Jalisco', () => {
+  it('tiene los municipios del estado, no solo San Martín', async () => {
+    for (const m of ['San Martín de Hidalgo', 'Ameca', 'Guadalajara', 'Cocula', 'Zapopan']) {
+      expect(await tieneCatalogo(m)).toBe(true);
+      expect((await coloniasDeMunicipio(m)).length).toBeGreaterThan(5);
+    }
   });
 
-  it('responde igual aunque el nombre venga sin "de" o sin acentos', () => {
-    const conDe = coloniasLocales('San Martín de Hidalgo');
-    expect(coloniasLocales('San Martín Hidalgo')).toEqual(conDe);
-    expect(coloniasLocales('SanMartinHidalgo')).toEqual(conDe);
+  it('fuera de Jalisco no hay catálogo', async () => {
+    expect(await tieneCatalogo('Tepic')).toBe(false);
+    expect(await coloniasDeMunicipio('Tepic')).toEqual([]);
+    expect(await cpDeColonia('Tepic', 'Centro')).toBe('');
   });
 
-  it('viene ordenada alfabéticamente y sin repetidos', () => {
-    const lista = coloniasLocales('San Martín de Hidalgo');
-    expect(lista).toEqual([...lista].sort((a, b) => a.localeCompare(b, 'es')));
-    expect(new Set(lista).size).toBe(lista.length);
-  });
-
-  it('los demás municipios no tienen lista propia', () => {
-    expect(tieneColoniasLocales('Guadalajara')).toBe(false);
-    expect(tieneColoniasLocales('Ameca')).toBe(false);
-    expect(coloniasLocales('Guadalajara')).toEqual([]);
-    expect(tieneColoniasLocales('San Martín de Hidalgo')).toBe(true);
+  it('las listas vienen ordenadas y sin repetidos', async () => {
+    for (const m of ['Ameca', 'San Martín de Hidalgo']) {
+      const lista = await coloniasDeMunicipio(m);
+      expect(lista).toEqual([...lista].sort((a, b) => a.localeCompare(b, 'es')));
+      expect(new Set(lista).size).toBe(lista.length);
+    }
   });
 });
 
-describe('coloniasPorMunicipio usa la lista local antes que la API', () => {
-  it('para San Martín devuelve la lista guardada SIN llamar a la API', async () => {
+describe('Lista de San Martín de Hidalgo', () => {
+  it('trae las 21 localidades del municipio, con la cabecera entre ellas', async () => {
+    const lista = await coloniasDeMunicipio('San Martín de Hidalgo');
+    expect(lista).toHaveLength(21);
+    expect(lista).toContain('San Martín Hidalgo'); // cabecera municipal
+    expect(lista).toContain('San Jerónimo (Los Barbosa)'); // nombres completos, como el padrón
+    expect(lista).toContain('La Loma'); // le falta al padrón; se agregó en el generador
+    expect(lista).toContain('Río Grande'); // el padrón la escribe sin acento
+  });
+
+  it('responde igual aunque el municipio venga sin "de" o sin acentos', async () => {
+    const conDe = await coloniasDeMunicipio('San Martín de Hidalgo');
+    expect(await coloniasDeMunicipio('San Martín Hidalgo')).toEqual(conDe);
+    expect(await coloniasDeMunicipio('SanMartinHidalgo')).toEqual(conDe);
+  });
+});
+
+describe('C.P. de una colonia', () => {
+  it('lo da para cualquier municipio del estado', async () => {
+    expect(await cpDeColonia('San Martín de Hidalgo', 'San Martín Hidalgo')).toBe('46770');
+    expect(await cpDeColonia('Ameca', 'Ameca Centro')).toBe('46600');
+    expect(await cpDeColonia('Cocula', 'Cocula Centro')).toBe('48500');
+    expect(await cpDeColonia('Zapopan', 'Zapopan Centro')).toBe('45100');
+    expect(await cpDeColonia('Guadalajara', 'Americana')).toBe('44160');
+  });
+
+  it('el mismo nombre en dos municipios da el C.P. de cada uno', async () => {
+    expect(await cpDeColonia('San Martín de Hidalgo', 'Lagunillas')).toBe('46794');
+    expect(await cpDeColonia('Ameca', 'Lagunillas')).toBe('46719');
+  });
+
+  it('no castiga acentos ni mayúsculas al buscar la colonia', async () => {
+    expect(await cpDeColonia('San Martín Hidalgo', 'trapiche de abra')).toBe('46776');
+    expect(await cpDeColonia('San Martín de Hidalgo', 'JESUS MARIA (EL ZAPOTE)')).toBe('46797');
+  });
+
+  it('si el padrón le da varios C.P. a la misma colonia, no inventa uno', async () => {
+    // "San Antonio" en Guadalajara está en 44170, 44257 y 44800: cualquiera sería adivinar
+    expect(await cpDeColonia('Guadalajara', 'San Antonio')).toBe('');
+  });
+
+  it('una colonia que no está en el catálogo no devuelve nada', async () => {
+    expect(await cpDeColonia('Ameca', 'Colonia que no existe')).toBe('');
+  });
+
+  it('todos los C.P. del catálogo son de 5 dígitos', async () => {
+    for (const m of ['San Martín de Hidalgo', 'Ameca', 'Cocula']) {
+      for (const colonia of await coloniasDeMunicipio(m)) {
+        const cp = await cpDeColonia(m, colonia);
+        if (cp) expect(cp).toMatch(/^\d{5}$/);
+      }
+    }
+  });
+});
+
+describe('coloniasPorMunicipio usa el catálogo antes que la API', () => {
+  it('para un municipio de Jalisco NO llama a la API', async () => {
     const fetchFalso = vi.fn();
-    const lista = await coloniasPorMunicipio('San Martín de Hidalgo', fetchFalso as any);
+    const { colonias, origen } = await coloniasPorMunicipioConOrigen('Ameca', fetchFalso as any);
 
     expect(fetchFalso).not.toHaveBeenCalled(); // la API está caída: ni se intenta
-    expect(lista).toEqual(coloniasLocales('San Martín de Hidalgo'));
+    expect(origen).toBe('catalogo');
+    expect(colonias).toEqual(await coloniasDeMunicipio('Ameca'));
   });
 
-  it('para el resto de municipios sigue consultando la API, como antes', async () => {
+  it('fuera del catálogo sigue consultando la API, como antes', async () => {
     const fetchFalso = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ response: [{ d_asenta: 'Centro', d_mnpio: 'Ameca' }] }),
+      json: async () => ({ response: [{ d_asenta: 'Centro', d_mnpio: 'Tepic' }] }),
     }));
 
-    const lista = await coloniasPorMunicipio('Ameca', fetchFalso as any);
+    const { colonias, origen } = await coloniasPorMunicipioConOrigen('Tepic', fetchFalso as any);
 
     expect(fetchFalso).toHaveBeenCalledTimes(1);
-    expect(lista).toEqual(['Centro']);
+    expect(colonias).toEqual(['Centro']);
+    expect(origen).toBe('api');
   });
 
-  it('si la API falla en otro municipio, se sigue devolviendo vacío (texto libre)', async () => {
+  it('si la API falla, se devuelve vacío (texto libre)', async () => {
     const fetchFalso = vi.fn(async () => {
       throw new Error('API caída');
     });
-    expect(await coloniasPorMunicipio('Ameca', fetchFalso as any)).toEqual([]);
+    const { colonias, origen } = await coloniasPorMunicipioConOrigen('Tepic', fetchFalso as any);
+    expect(colonias).toEqual([]);
+    expect(origen).toBe('ninguna');
   });
 });
