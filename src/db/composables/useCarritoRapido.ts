@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import { useEnvioTienda, MENSAJE_SIN_ENVIO } from '@/composables/useEnvioTienda';
 import { useEstadoTiendas, MENSAJE_TIENDA_NO_DISPONIBLE } from '@/composables/useMembresia';
 import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
+import { usePromociones } from '@/composables/usePromociones';
 
 /**
  * Carrito "rápido" para listas de productos (tienda, categorías, perfil de tienda).
@@ -20,6 +21,7 @@ import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulo
 export function useCarritoRapido() {
   const cantidadEnCarrito = reactive<Record<string, number>>({});
   const { sinEnvio } = useEnvioTienda();
+  const { promoDeArticulo } = usePromociones();
   const { noPuedeVender } = useEstadoTiendas();
 
   /** true si la tienda del producto NO hace envíos a domicilio */
@@ -111,7 +113,9 @@ export function useCarritoRapido() {
         fecha_hora: new Date().toLocaleString(),
         metodo_pago: 'Efectivo',
         nombre: producto.nombre,
-        precio: v?.precio ?? producto.precio,
+        // Con promoción vigente manda el precio de la promoción: es un descuento
+        // sobre el artículo, y el precio se congela aquí al agregarlo al carrito.
+        precio: promoDeArticulo(producto.articuloId)?.precioPromo ?? v?.precio ?? producto.precio,
         url: v?.url || producto.url,
         cantidad: 1,
         detalle: v?.detalle || '',

@@ -236,6 +236,7 @@ import BotonCompartir from '@/components/BotonCompartir.vue';
 import { urlProducto, textoCompartirProducto } from '@/composables/useCompartir';
 import { useCalificaciones } from '@/composables/useCalificaciones';
 import { ventaBloqueada, MENSAJE_VENTA_PAUSADA } from '@/composables/useArticulos';
+import { usePromociones } from '@/composables/usePromociones';
 
 const props = defineProps<{ producto: Producto }>();
 
@@ -352,8 +353,11 @@ const sincronizarCarrito = async () => {
 // variante seleccionada
 const varianteSeleccionada = ref(props.producto?.variantes?.[0] || null);
 
-// precio dinámico
+// precio dinámico: con promoción vigente manda el precio de la promoción
+const { promoDeArticulo } = usePromociones();
+const promoDelArticulo = computed(() => promoDeArticulo(props.producto.articuloId));
 const precioActual = computed(() => {
+  if (promoDelArticulo.value) return promoDelArticulo.value.precioPromo;
   return varianteSeleccionada.value?.precio || props.producto.precio;
 });
 
@@ -454,7 +458,7 @@ const aumentarCantidad = async (producto: Producto) => {
 
       // 🎨 VARIANTE (lo que quieres diferenciar)
       nombre: producto.nombre,
-      precio: variante?.precio ?? producto.precio,
+      precio: promoDelArticulo.value?.precioPromo ?? variante?.precio ?? producto.precio,
       url: variante?.url ?? producto.url,
 
       cantidad: 1,

@@ -36,7 +36,13 @@
         @rate="(n) => calificarProducto(n)"
       />
       <div class="fila-precio">
-        <span class="precio">${{ Number(producto.precio).toFixed(2) }}</span>
+        <span class="precio" :class="{ 'con-promo': promoDeArticulo(producto.articuloId) }">
+          ${{ precioDe(producto).toFixed(2) }}
+        </span>
+        <!-- Con promoción vigente se cobra el precio con descuento y el normal va tachado -->
+        <span v-if="promoDeArticulo(producto.articuloId)" class="antes">
+          ${{ Number(producto.precio).toFixed(2) }}
+        </span>
         <span v-if="ventaPausada(producto)" class="tag agotado" title="La tienda pausó la venta por el momento">Venta pausada</span>
         <span v-else-if="esPorPedido(producto)" class="tag por-pedido" title="La tienda lo elabora cuando lo pides">Bajo pedido</span>
         <span v-else-if="sinStock(producto)" class="tag agotado">Agotado</span>
@@ -89,6 +95,7 @@ import { sessionUser, sessionUsuarioValidation } from "@/utils/sessionUser";
 import type { Producto } from "@/types/Producto";
 import StarRating from "@/components/StarRating.vue";
 import { useCalificaciones } from "@/composables/useCalificaciones";
+import { usePromociones } from "@/composables/usePromociones";
 
 const router = useRouter();
 const props = defineProps<{ producto: Producto }>();
@@ -96,6 +103,7 @@ const props = defineProps<{ producto: Producto }>();
 const { cantidadEnCarrito, aumentar, disminuir, stockDe, sinStock, sinEnvioTienda, esPorPedido, ventaPausada } = useCarritoRapido();
 const { toggleFavoritoLocal, estaFavorito } = useHorizontalCarousel();
 const { resumenDe, miVoto, calificar } = useCalificaciones("articulos");
+const { promoDeArticulo, precioDe } = usePromociones();
 
 async function calificarProducto(estrellas: number) {
   if (!(await calificar(props.producto.articuloId, estrellas))) router.push("/login");
@@ -209,6 +217,15 @@ function onImgError(e: Event) {
   color: #e74c3c;
   font-weight: 800;
   font-size: 1rem;
+}
+/* Con promoción: lo que se paga en verde y el precio de antes tachado en rojo */
+.precio.con-promo {
+  color: #2e7d4f;
+}
+.antes {
+  font-size: 0.78rem;
+  color: #c0392b;
+  text-decoration: line-through;
 }
 .tag {
   font-size: 0.68rem;

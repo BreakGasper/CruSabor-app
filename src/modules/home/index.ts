@@ -26,6 +26,12 @@ export default [
     props: true,
   },    
   {
+    path: "/promocion/:id",
+    name: "PromocionDetalle",
+    component: () => import("./views/PromocionDetalle.vue"),
+    props: true,
+  },
+  {
     path: '/cart',
     name: 'Cart',
     component: CartView, // aquí registras tu CartView

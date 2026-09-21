@@ -146,6 +146,9 @@
     <!-- Tiendas: banner, nombre, favorito y calificación -->
     <TiendasDestacadas />
 
+    <!-- Destacados: las promociones vigentes de las tiendas -->
+    <Destacados class="carrusel-div" />
+
     <!-- Lista de todos los productos -->
     <section class="destacados">
       <h2 class="title">Productos</h2>
@@ -182,6 +185,7 @@ import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import BannersCarousel from "../components/BannersCarousel.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
 import TiendasDestacadas from "../components/TiendasDestacadas.vue";
+import Destacados from "../components/Destacados.vue";
 import ProductCard from "../components/ProductCard.vue";
 import ProductDetail from "../components/ProductDetail.vue";
 

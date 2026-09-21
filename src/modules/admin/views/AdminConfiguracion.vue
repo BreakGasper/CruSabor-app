@@ -48,6 +48,19 @@
           </div>
         </section>
 
+        <!-- Promociones -->
+        <section class="card">
+          <h2>Promociones de las tiendas</h2>
+          <label class="switch">
+            <input id="cfg-promos" v-model="form.promociones.habilitadas" type="checkbox" />
+            <span>Permitir que las tiendas creen promociones</span>
+          </label>
+          <small class="hint">
+            Apagado, las tiendas dejan de ver "Crear promoción" en su menú y la sección Destacados de la
+            portada se oculta. Las promociones ya creadas no se borran: vuelven a verse al encenderlo.
+          </small>
+        </section>
+
         <!-- Mantenimiento -->
         <section class="card" :class="{ alerta: form.mantenimiento.activo }">
           <h2>Modo mantenimiento</h2>
@@ -150,6 +163,7 @@ const { configuracion, cargada, guardarConfiguracion } = useConfiguracion();
 type Form = {
   membresia: { precioMensual: string | number; precioAnual: string | number; diasGracia: string | number };
   registro: Configuracion['registro'];
+  promociones: Configuracion['promociones'];
   mantenimiento: Configuracion['mantenimiento'];
   soporte: Configuracion['soporte'];
   pagos: Configuracion['pagos'];
@@ -158,6 +172,7 @@ type Form = {
 const desdeConfig = (c: Configuracion): Form => ({
   membresia: { ...c.membresia },
   registro: { ...c.registro },
+  promociones: { ...c.promociones },
   mantenimiento: { ...c.mantenimiento },
   soporte: { ...c.soporte },
   pagos: { ...c.pagos },
@@ -185,6 +200,7 @@ const normalizado = computed(() => ({
     diasGracia: Number(form.membresia.diasGracia),
   },
   registro: { ...form.registro, mensajeCerrado: form.registro.mensajeCerrado.trim() },
+  promociones: { ...form.promociones },
   mantenimiento: { ...form.mantenimiento, mensaje: form.mantenimiento.mensaje.trim() },
   soporte: { whatsapp: form.soporte.whatsapp.replace(/\D/g, ''), email: form.soporte.email.trim() },
   pagos: {

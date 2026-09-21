@@ -21,7 +21,7 @@
         </svg>
       </div>
       <span class="badge">Panel de tiendas</span>
-      <h1 class="title">Cru - Store</h1>
+      <h1 class="title">Cru - Shop</h1>
       <p class="subtitle">Administra tus productos y pedidos</p>
     </div>
 

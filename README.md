@@ -275,6 +275,33 @@ El diálogo trae **cámara para contar escaneando**: cada lectura se compara con
 
 ---
 
+### Promociones y "Destacados" (`usePromociones.ts`)
+
+Una promoción es un **descuento con caducidad sobre un artículo que la tienda ya publicó**; no
+es un producto aparte. Vive en `promociones/{id}` y apunta a un `articuloId`: mientras está
+vigente, la app cobra `precioPromo` en lugar del precio del artículo, y el carrito congela ese
+precio al agregarlo. Así el stock, los pedidos, las calificaciones y la pantalla de detalle
+siguen siendo los mismos, sin copias.
+
+| Regla | Dónde |
+| --- | --- |
+| Dura **un mes** desde que se crea o se renueva (`vencimientoDesde`, recorta si el mes destino es más corto) | `usePromociones.ts` |
+| Al caducar **solo sale de Destacados**: el artículo se sigue vendiendo a su precio normal | `promocionVigente` |
+| La tienda puede pausarla sin borrarla, y renovar una caducada por otro mes | `/store/promociones/:id` |
+| El administrador puede apagarlas para todas las tiendas (`configuracion/promociones/habilitadas`) | `/admin/configuracion` |
+
+**Destacados** es la sección de la portada, entre las tiendas y la lista de productos: dos filas
+que se recorren de lado, con el banner arriba y, abajo, el título, las estrellas del artículo, el
+precio de promoción y cuándo se publicó. Muestra solo las vigentes, **las más recientes primero**
+y, entre las publicadas el mismo día, las mejor calificadas.
+
+Tocar una tarjeta abre `/promocion/:id`, la pantalla propia de la promoción: el banner grande, lo
+que se ahorra, hasta cuándo dura y, debajo, **el artículo al que se le aplicó**, con su enlace a la
+pantalla completa del artículo. Se compra desde ahí con el mismo carrito de las listas, así que al
+carrito va el precio de la promoción.
+
+---
+
 ## 8. Carrito, checkout y pedidos
 
 ### Carrito (`CartView.vue`, Dexie `Carrito`)
@@ -418,6 +445,7 @@ La suite corre sin tocar Firebase real: `tests/mocks/firebaseDb.ts` es un Fireba
 | `adminClientes.spec.ts` | Soporte a clientes desde el admin: búsqueda, restablecer contraseña (hash) y editar nombre/correo |
 | `admin.tiendas.spec.ts`, `admin.categorias.spec.ts`, `configuracion.spec.ts` | Panel de tiendas (incluido el interruptor de registro de tiendas), categorías y nodo `configuracion` |
 | `productForm.spec.ts`, `productCard.spec.ts`, `productosList.spec.ts` | Alta/edición de productos, la tarjeta de la lista del inicio y la lista pública |
+| `promociones.spec.ts` | Promociones: vigencia de un mes, pausar y renovar, qué muestra Destacados y en qué orden, el precio con descuento en la tarjeta y en el carrito, y el interruptor del admin |
 | `storeEdit.spec.ts`, `envio.spec.ts`, `favoritasSync.spec.ts`, `tiendasFavoritas.spec.ts`, `direcciones.spec.ts`, `sync.spec.ts` | Editar tienda, envío a domicilio, favoritas y su sincronización, libreta de direcciones, respaldo local↔Firebase |
 
 ---
@@ -502,6 +530,8 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | Municipios con `alcance` (check en /admin/municipios); registro y edición de tienda solo muestran los que tienen alcance | El admin controla la cobertura sin tocar código; `alcance` ausente = disponible, para no romper lo existente |
 | 2026-09-19 | San Martín de Hidalgo tiene su lista de localidades guardada en la app (`coloniasLocales.ts`) | SEPOMEX no devuelve nada para ese municipio, ni por nombre ni por C.P. Es una tabla por municipio, no un caso especial: agregar otro es una entrada más. Como la lista se hizo a mano y puede tener huecos, ahí se ofrece como sugerencia y se sigue aceptando texto libre; con las listas de la API, que son el padrón, la validación sigue siendo estricta |
 | 2026-09-19 | `api-sepomex.hckdrk.mx` se encontró caída por completo (HTTP 000) | Es la segunda API de colonias que se cae (antes Icalia). Mientras esté así, ningún municipio carga colonias y todos dependen del texto libre. Conviene dejar de depender de una API gratuita para esto |
+| 2026-09-20 | Las promociones son un descuento sobre un artículo existente, no un producto aparte | Un nodo `promociones` propio habría obligado a duplicar carrito, pedidos y calificaciones para que se pudieran comprar. Apuntando al `articuloId` solo cambia el precio mientras está vigente. Al caducar el artículo se sigue vendiendo a su precio normal: dejar de vender sin avisar sería peor que cobrar de más |
+| 2026-09-20 | Nuevo par de tokens `--brand-blue-soft` / `--brand-blue-soft-hover`, y con ellos los recuadros azules del perfil de tienda | Métodos de pago, horarios, zonas de entrega y avisos tenían el fondo azul clarito fijo y el texto en `--brand-blue-text`, que en oscuro se aclara: azul claro sobre azul claro. Como el fondo y ese texto solo funcionan juntos, el fondo ahora también es token y cambia con el tema. Sirve para los mismos recuadros en el resto de la app |
 | 2026-09-20 | Al **editar** un artículo aparece "Guardar" en los pasos 1 y 2, además de "Siguiente" | Para corregir un precio o cambiar la foto no tenía caso recorrer los tres pasos. Guarda el artículo completo y valida lo mismo que el botón final: si falta algo de otro paso, avisa y lleva a ese paso sin guardar. En el alta no aparece, porque todavía no hay artículo que actualizar |
 | 2026-09-20 | El menú lateral del perfil de tienda también sigue el tema (botón ☰, círculos de acciones y fondo de la pantalla) | Mismo problema que el del inicio: el ☰ era azul marino fijo y en oscuro se perdía contra el fondo (casi el mismo color), y los círculos eran gris claro fijo. En oscuro el ☰ pasa al azul claro. Se quitó una regla muerta (`.menu-item:nth-child(2)`, que nunca aplicaba porque el botón es el primer hijo de su contenedor) |
 | 2026-09-20 | El menú lateral del inicio sigue el tema: blanco hueso en claro, superficie del tema en oscuro | Su fondo estaba fijo en `#f5f1eb` mientras el texto usaba `var(--text)`; en modo oscuro quedaban letras casi blancas sobre fondo casi blanco. De paso, el azul del hover se aclara en oscuro (el azul marino de marca se perdía contra la superficie) y se quitó un bloque de estilos del menú que estaba repetido tal cual |

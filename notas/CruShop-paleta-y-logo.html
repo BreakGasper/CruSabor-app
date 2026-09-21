@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CruShop · paleta y logo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --tierra: #B8460E;
+    --agave: #1E5C4A;
+    --maiz: #E8A317;
+    --fondo: #FAF7F2;
+    --superficie: #FFFFFF;
+    --superficie2: #F1EBE2;
+    --texto: #1C1A17;
+    --suave: #6B6259;
+    --borde: #E4DCD1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: 'Karla', -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.5;
+  }
+  .hoja { max-width: 1060px; margin: 0 auto; padding: 56px 24px 80px; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(32px, 5vw, 46px); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 10px; }
+  h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(24px, 3.4vw, 30px); font-weight: 700; margin: 0 0 6px; }
+  h3 { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--suave); margin: 0 0 14px; }
+  p { margin: 0 0 14px; }
+  .intro { font-size: 17px; color: var(--suave); max-width: 62ch; }
+  section { margin-top: 56px; }
+  .sub { color: var(--suave); max-width: 62ch; margin-bottom: 24px; }
+
+  .fila { display: grid; gap: 20px; }
+  .tres { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .seis { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .cuatro { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .dos { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+  .tarjeta { border: 1px solid var(--borde); border-radius: 16px; background: var(--superficie); overflow: hidden; }
+  .muestra { height: 104px; }
+  .pie { padding: 16px 18px; }
+  .pie .nombre { font-size: 17px; font-weight: 700; }
+  .pie .hex { font-family: 'Fraunces', Georgia, serif; font-size: 15px; margin: 2px 0 6px; }
+  .pie .uso { font-size: 13px; color: var(--suave); }
+
+  .panel { border: 1px solid var(--borde); border-radius: 16px; background: var(--superficie); padding: 18px; }
+  .panel.oscuro { background: #14120F; border-color: #3A342C; }
+  .chip { display: flex; flex-direction: column; gap: 6px; }
+  .chip .caja { height: 56px; border-radius: 10px; border: 1px solid var(--borde); }
+  .panel.oscuro .chip .caja { border-color: #3A342C; }
+  .chip .et { font-size: 12px; font-weight: 700; }
+  .chip .hx { font-size: 11px; color: var(--suave); }
+  .panel.oscuro .chip .et { color: #F2EEE8; }
+  .panel.oscuro .chip .hx { color: #B3A99B; }
+
+  .nota { border-left: 3px solid var(--tierra); padding: 6px 0 6px 18px; margin: 28px 0 0; font-size: 15px; }
+  .nota.verde { border-left-color: var(--agave); }
+
+  .logo-fila { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 22px 24px; }
+  .logo-texto { flex: 1 1 280px; }
+  .wordmark { display: flex; align-items: baseline; gap: 2px; margin-bottom: 8px; }
+  .wordmark .a { font-family: 'Fraunces', Georgia, serif; font-size: 34px; font-weight: 700; }
+  .wordmark .b { font-size: 34px; font-weight: 500; }
+  .tamanos { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid var(--borde); }
+  .cual { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .logo-texto p { font-size: 13.5px; color: var(--suave); margin: 0; }
+
+  .tel { width: 380px; max-width: 100%; height: 640px; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--borde); }
+  .tel.osc { border-color: #3A342C; background: #14120F; }
+  .barra { padding: 14px; display: flex; align-items: center; gap: 10px; background: var(--superficie); border-bottom: 1px solid var(--borde); }
+  .tel.osc .barra { background: #1F1C18; border-color: #3A342C; }
+  .buscador { flex: 1; height: 32px; border-radius: 10px; background: var(--superficie2); display: flex; align-items: center; padding: 0 10px; gap: 7px; font-size: 12px; color: var(--suave); }
+  .tel.osc .buscador { background: #2A2620; color: #B3A99B; }
+  .cuerpo { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .cuerpo h4 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; margin: 0; }
+  .tel.osc .cuerpo h4 { color: #F2EEE8; }
+  .prod { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie); overflow: hidden; display: flex; flex-direction: column; }
+  .tel.osc .card { background: #1F1C18; border-color: #3A342C; }
+  .foto { height: 104px; background: var(--superficie2); display: flex; align-items: center; justify-content: center; }
+  .tel.osc .foto { background: #2A2620; }
+  .info { padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .nom { font-size: 13px; font-weight: 700; line-height: 1.25; }
+  .tel.osc .nom { color: #F2EEE8; }
+  .meta { font-size: 11px; color: var(--suave); }
+  .tel.osc .meta { color: #B3A99B; }
+  .precio { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .tel.osc .precio { color: #F2EEE8; }
+  .btn { margin-top: 8px; width: 100%; border: 0; border-radius: 9px; background: var(--tierra); color: #fff; font-family: inherit; font-size: 12px; font-weight: 700; padding: 9px 0; cursor: pointer; }
+  .tel.osc .btn { background: #E4702A; color: #14120F; }
+  .btn:disabled { background: var(--superficie2); color: #A3988A; cursor: not-allowed; }
+  .tel.osc .btn:disabled { background: #2A2620; color: #7C7265; }
+  .tag { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: #FBEAE7; color: #C0392B; }
+  .tel.osc .tag { background: #3A211C; color: #F09186; }
+  .aviso { border-radius: 12px; padding: 10px 12px; display: flex; gap: 9px; font-size: 11px; line-height: 1.45; background: #FDF3E0; border: 1px solid #F0DCB4; color: #6B4A00; }
+  .tel.osc .aviso { background: #2C2212; border-color: #4A3B1C; color: #E8C88A; }
+
+  pre { background: #14120F; color: #F2EEE8; border-radius: 14px; padding: 20px 22px; overflow-x: auto; font-size: 13px; line-height: 1.7; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  pre .c { color: #B3A99B; }
+  pre .v { color: #F0A868; }
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--borde); font-size: 14px; color: var(--suave); }
+</style>
+</head>
+<body>
+<main class="hoja">
+
+  <header>
+    <h1>CruShop · paleta y logo</h1>
+    <p class="intro">Una propuesta, no un cambio hecho. Nada del código se tocó todavía.</p>
+  </header>
+
+  <section>
+    <h2>Antes del color, el conteo</h2>
+    <p class="sub">El problema de hoy no es qué color, es cuántos. Contando los hex de todos los <code>.vue</code> y <code>.css</code>:</p>
+    <div class="fila cuatro">
+      <div class="tarjeta"><div class="pie"><div class="nombre">4 rojos</div><div class="uso" style="font-size:12px">#e74c3c · #d9534f · #c0392b · #b91c1c</div></div></div>
+      <div class="tarjeta"><div class="pie"><div class="nombre">5 verdes</div><div class="uso" style="font-size:12px">#10b981 · #059669 · #047857 · #27ae60 · #2ecc71</div></div></div>
+      <div class="tarjeta"><div class="pie"><div class="nombre">3 azules</div><div class="uso" style="font-size:12px">#0165d8 · #1f70b2 · #3498db</div></div></div>
+      <div class="tarjeta"><div class="pie"><div class="nombre">20 reglas</div><div class="uso" style="font-size:12px">con fondo claro fijo, ilegibles en modo oscuro</div></div></div>
+    </div>
+    <p class="nota">Aunque cada color por separado esté bien, juntos se ven como descuido. Lo primero es dejar <strong>uno de cada cosa</strong>; qué tono sea es la segunda decisión.</p>
+  </section>
+
+  <section>
+    <h2>La paleta</h2>
+    <p class="sub">Tierra, agave y maíz: colores de mercado, no de banco. Vendes comida de tiendas de pueblo, y el azul que tienes hoy es el mismo de cualquier app de reparto; además, sobre fotos de comida los azules apagan. El menú lateral ya usa un blanco hueso que encaja con esta familia.</p>
+
+    <h3>Marca</h3>
+    <div class="fila tres">
+      <div class="tarjeta">
+        <div class="muestra" style="background:#B8460E"></div>
+        <div class="pie">
+          <div class="nombre">Terracota</div>
+          <div class="hex" style="color:#B8460E">#B8460E</div>
+          <div class="uso">Botones de acción, "Agregar al carrito", enlaces. Blanco encima: 5.4:1.</div>
+        </div>
+      </div>
+      <div class="tarjeta">
+        <div class="muestra" style="background:#1E5C4A"></div>
+        <div class="pie">
+          <div class="nombre">Verde agave</div>
+          <div class="hex" style="color:#1E5C4A">#1E5C4A</div>
+          <div class="uso">Cabeceras, menú lateral, panel de tienda. Sustituye al azul marino. Blanco encima: 7.8:1.</div>
+        </div>
+      </div>
+      <div class="tarjeta">
+        <div class="muestra" style="background:#E8A317"></div>
+        <div class="pie">
+          <div class="nombre">Maíz</div>
+          <div class="hex" style="color:#8A5E00">#E8A317</div>
+          <div class="uso">Estrellas, insignia "Nuevo", promociones. Siempre con texto oscuro encima.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px">Neutros</h3>
+    <div class="fila dos">
+      <div class="panel">
+        <div class="fila seis" style="gap:12px">
+          <div class="chip"><div class="caja" style="background:#FAF7F2"></div><div class="et">Fondo</div><div class="hx">#FAF7F2</div></div>
+          <div class="chip"><div class="caja" style="background:#FFFFFF"></div><div class="et">Superficie</div><div class="hx">#FFFFFF</div></div>
+          <div class="chip"><div class="caja" style="background:#F1EBE2"></div><div class="et">Superficie 2</div><div class="hx">#F1EBE2</div></div>
+          <div class="chip"><div class="caja" style="background:#1C1A17"></div><div class="et">Texto</div><div class="hx">#1C1A17</div></div>
+          <div class="chip"><div class="caja" style="background:#6B6259"></div><div class="et">Texto suave</div><div class="hx">#6B6259</div></div>
+          <div class="chip"><div class="caja" style="background:#E4DCD1"></div><div class="et">Borde</div><div class="hx">#E4DCD1</div></div>
+        </div>
+      </div>
+      <div class="panel oscuro">
+        <div class="fila seis" style="gap:12px">
+          <div class="chip"><div class="caja" style="background:#14120F"></div><div class="et">Fondo</div><div class="hx">#14120F</div></div>
+          <div class="chip"><div class="caja" style="background:#1F1C18"></div><div class="et">Superficie</div><div class="hx">#1F1C18</div></div>
+          <div class="chip"><div class="caja" style="background:#2A2620"></div><div class="et">Superficie 2</div><div class="hx">#2A2620</div></div>
+          <div class="chip"><div class="caja" style="background:#F2EEE8"></div><div class="et">Texto</div><div class="hx">#F2EEE8</div></div>
+          <div class="chip"><div class="caja" style="background:#B3A99B"></div><div class="et">Texto suave</div><div class="hx">#B3A99B</div></div>
+          <div class="chip"><div class="caja" style="background:#3A342C"></div><div class="et">Borde</div><div class="hx">#3A342C</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px">Estados · uno de cada uno</h3>
+    <div class="fila cuatro">
+      <div class="tarjeta"><div class="muestra" style="height:48px;background:#2E7D4F"></div><div class="pie" style="padding:12px 14px"><div class="nombre" style="font-size:14px">Éxito · #2E7D4F</div><div class="uso" style="margin-top:2px">Hoy: 5 verdes distintos</div></div></div>
+      <div class="tarjeta"><div class="muestra" style="height:48px;background:#C77700"></div><div class="pie" style="padding:12px 14px"><div class="nombre" style="font-size:14px">Aviso · #C77700</div><div class="uso" style="margin-top:2px">Sin envío, bajo pedido</div></div></div>
+      <div class="tarjeta"><div class="muestra" style="height:48px;background:#C0392B"></div><div class="pie" style="padding:12px 14px"><div class="nombre" style="font-size:14px">Error · #C0392B</div><div class="uso" style="margin-top:2px">Hoy: 4 rojos distintos</div></div></div>
+      <div class="tarjeta"><div class="muestra" style="height:48px;background:#2563A8"></div><div class="pie" style="padding:12px 14px"><div class="nombre" style="font-size:14px">Info · #2563A8</div><div class="uso" style="margin-top:2px">Avisos, recuadros azules</div></div></div>
+    </div>
+
+    <p class="nota"><strong>El cambio que más se nota no es de color, es de uso:</strong> hoy el precio va en rojo, el mismo rojo de "Agotado" y del corazón. El precio debe ir en el color de texto normal y en negrita; el rojo se reserva para lo que sale mal.</p>
+  </section>
+
+  <section>
+    <h2>El logo · tres caminos</h2>
+    <p class="sub">Cada uno se ve completo y, al lado, en 32 y 16 px: si no aguanta el tamaño de una pestaña del navegador, no sirve.</p>
+
+    <div class="tarjeta" style="margin-bottom:16px">
+      <div class="logo-fila">
+        <svg width="88" height="88" viewBox="0 0 96 96" role="img" aria-label="Icono de toldo de mercado">
+          <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+          <path d="M18 30 L18 46 a6 6 0 0 0 12 0 L30 30 Z" fill="#FAF7F2"></path>
+          <path d="M30 30 L30 46 a6 6 0 0 0 12 0 L42 30 Z" fill="#E8A317"></path>
+          <path d="M42 30 L42 46 a6 6 0 0 0 12 0 L54 30 Z" fill="#FAF7F2"></path>
+          <path d="M54 30 L54 46 a6 6 0 0 0 12 0 L66 30 Z" fill="#E8A317"></path>
+          <path d="M66 30 L66 46 a6 6 0 0 0 12 0 L78 30 Z" fill="#FAF7F2"></path>
+          <rect x="14" y="24" width="68" height="8" rx="4" fill="#FAF7F2"></rect>
+          <rect x="30" y="60" width="36" height="22" rx="5" fill="#FAF7F2" opacity="0.9"></rect>
+        </svg>
+        <div class="logo-texto">
+          <div class="wordmark"><span class="a">Cru</span><span class="b" style="color:#B8460E">Shop</span></div>
+          <div class="cual">A · El toldo del mercado</div>
+          <p>El toldo a rayas del tianguis. Dice "aquí se vende" sin escribirlo y no se parece a ninguna app de reparto. Es el que mejor aguanta en chiquito.</p>
+        </div>
+        <div class="tamanos">
+          <svg width="32" height="32" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+            <path d="M18 30 L18 46 a6 6 0 0 0 12 0 L30 30 Z" fill="#FAF7F2"></path>
+            <path d="M30 30 L30 46 a6 6 0 0 0 12 0 L42 30 Z" fill="#E8A317"></path>
+            <path d="M42 30 L42 46 a6 6 0 0 0 12 0 L54 30 Z" fill="#FAF7F2"></path>
+            <path d="M54 30 L54 46 a6 6 0 0 0 12 0 L66 30 Z" fill="#E8A317"></path>
+            <path d="M66 30 L66 46 a6 6 0 0 0 12 0 L78 30 Z" fill="#FAF7F2"></path>
+            <rect x="14" y="24" width="68" height="8" rx="4" fill="#FAF7F2"></rect>
+            <rect x="30" y="60" width="36" height="22" rx="5" fill="#FAF7F2" opacity="0.9"></rect>
+          </svg>
+          <svg width="16" height="16" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+            <path d="M18 30 L18 46 a6 6 0 0 0 12 0 L30 30 Z" fill="#FAF7F2"></path>
+            <path d="M30 30 L30 46 a6 6 0 0 0 12 0 L42 30 Z" fill="#E8A317"></path>
+            <path d="M42 30 L42 46 a6 6 0 0 0 12 0 L54 30 Z" fill="#FAF7F2"></path>
+            <path d="M54 30 L54 46 a6 6 0 0 0 12 0 L66 30 Z" fill="#E8A317"></path>
+            <path d="M66 30 L66 46 a6 6 0 0 0 12 0 L78 30 Z" fill="#FAF7F2"></path>
+            <rect x="14" y="24" width="68" height="8" rx="4" fill="#FAF7F2"></rect>
+            <rect x="30" y="60" width="36" height="22" rx="5" fill="#FAF7F2" opacity="0.9"></rect>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta" style="margin-bottom:16px">
+      <div class="logo-fila">
+        <svg width="88" height="88" viewBox="0 0 96 96" role="img" aria-label="Icono de bolsa de mandado">
+          <rect width="96" height="96" rx="24" fill="#1E5C4A"></rect>
+          <path d="M34 42 v-6 a14 14 0 0 1 28 0 v6" stroke="#FAF7F2" stroke-width="6" fill="none" stroke-linecap="round"></path>
+          <path d="M24 42 h48 l-4 32 a7 7 0 0 1 -7 6 h-26 a7 7 0 0 1 -7 -6 z" fill="#FAF7F2"></path>
+          <circle cx="48" cy="60" r="7" fill="#E8A317"></circle>
+        </svg>
+        <div class="logo-texto">
+          <div class="wordmark"><span class="a" style="color:#1E5C4A">Cru</span><span class="b">Shop</span></div>
+          <div class="cual">B · La bolsa del mandado</div>
+          <p>Directa: compras. La entiende cualquiera de inmediato, pero es lo que usa media tienda en línea del mundo. Segura, poco memorable.</p>
+        </div>
+        <div class="tamanos">
+          <svg width="32" height="32" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#1E5C4A"></rect>
+            <path d="M34 42 v-6 a14 14 0 0 1 28 0 v6" stroke="#FAF7F2" stroke-width="6" fill="none" stroke-linecap="round"></path>
+            <path d="M24 42 h48 l-4 32 a7 7 0 0 1 -7 6 h-26 a7 7 0 0 1 -7 -6 z" fill="#FAF7F2"></path>
+            <circle cx="48" cy="60" r="7" fill="#E8A317"></circle>
+          </svg>
+          <svg width="16" height="16" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#1E5C4A"></rect>
+            <path d="M34 42 v-6 a14 14 0 0 1 28 0 v6" stroke="#FAF7F2" stroke-width="6" fill="none" stroke-linecap="round"></path>
+            <path d="M24 42 h48 l-4 32 a7 7 0 0 1 -7 6 h-26 a7 7 0 0 1 -7 -6 z" fill="#FAF7F2"></path>
+            <circle cx="48" cy="60" r="7" fill="#E8A317"></circle>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="logo-fila">
+        <svg width="88" height="88" viewBox="0 0 96 96" role="img" aria-label="Monograma C de CruShop">
+          <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+          <path d="M66 32 a22 22 0 1 0 0 32" stroke="#FAF7F2" stroke-width="11" fill="none" stroke-linecap="round"></path>
+          <circle cx="70" cy="48" r="6" fill="#E8A317"></circle>
+        </svg>
+        <div class="logo-texto">
+          <div class="wordmark"><span class="a">Cru</span><span class="a" style="font-weight:500;color:#B8460E">Shop</span></div>
+          <div class="cual">C · El monograma</div>
+          <p>Una C abierta con un punto de maíz: la inicial y, si se quiere leer así, un plato. El más barato de mantener y el mejor como icono de app, pero no cuenta nada del negocio.</p>
+        </div>
+        <div class="tamanos">
+          <svg width="32" height="32" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+            <path d="M66 32 a22 22 0 1 0 0 32" stroke="#FAF7F2" stroke-width="11" fill="none" stroke-linecap="round"></path>
+            <circle cx="70" cy="48" r="6" fill="#E8A317"></circle>
+          </svg>
+          <svg width="16" height="16" viewBox="0 0 96 96" aria-hidden="true">
+            <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+            <path d="M66 32 a22 22 0 1 0 0 32" stroke="#FAF7F2" stroke-width="11" fill="none" stroke-linecap="round"></path>
+            <circle cx="70" cy="48" r="6" fill="#E8A317"></circle>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <p class="nota"><strong>Mi voto: A, el toldo.</strong> B lo tiene cualquiera y C no dice nada. El toldo es lo único que se ve como un mercado de pueblo y no como una app genérica.</p>
+  </section>
+
+  <section>
+    <h2>Puesta en la app</h2>
+    <p class="sub">La lista del inicio con las dos tarjetas por renglón que ya tiene. Mismo componente, mismos estados: solo cambian los tokens.</p>
+
+    <div class="fila dos">
+
+      <div>
+        <h3>Tema claro</h3>
+        <div class="tel">
+          <div class="barra">
+            <svg width="30" height="30" viewBox="0 0 96 96" aria-hidden="true">
+              <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+              <path d="M18 30 L18 46 a6 6 0 0 0 12 0 L30 30 Z" fill="#FAF7F2"></path>
+              <path d="M30 30 L30 46 a6 6 0 0 0 12 0 L42 30 Z" fill="#E8A317"></path>
+              <path d="M42 30 L42 46 a6 6 0 0 0 12 0 L54 30 Z" fill="#FAF7F2"></path>
+              <path d="M54 30 L54 46 a6 6 0 0 0 12 0 L66 30 Z" fill="#E8A317"></path>
+              <path d="M66 30 L66 46 a6 6 0 0 0 12 0 L78 30 Z" fill="#FAF7F2"></path>
+              <rect x="14" y="24" width="68" height="8" rx="4" fill="#FAF7F2"></rect>
+              <rect x="30" y="60" width="36" height="22" rx="5" fill="#FAF7F2" opacity="0.9"></rect>
+            </svg>
+            <div class="buscador">Buscar producto o tienda</div>
+            <div style="width:32px;height:32px;border-radius:9px;background:#1E5C4A;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.4 11.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"></path></svg>
+            </div>
+          </div>
+          <div class="cuerpo">
+            <h4>Productos</h4>
+            <div class="prod">
+              <div class="card">
+                <div class="foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9BFB2" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.8"></circle><path d="M4 17l5-5 4 4 2-2 5 5"></path></svg></div>
+                <div class="info">
+                  <div class="nom">Chocoflán de la casa</div>
+                  <div class="meta">Postres · Lola</div>
+                  <div style="display:flex;align-items:center;gap:3px"><span style="color:#E8A317;font-size:12px;letter-spacing:1px">★★★★</span><span style="color:#D6CCBE;font-size:12px">★</span><span style="font-size:10px;color:#6B6259;margin-left:2px">(12)</span></div>
+                  <div class="precio">$45.00</div>
+                  <button class="btn" type="button">Agregar</button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9BFB2" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.8"></circle><path d="M4 17l5-5 4 4 2-2 5 5"></path></svg></div>
+                <div class="info">
+                  <div class="nom">Pay de queso</div>
+                  <div class="meta">Postres · Dulces Ana</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:5px"><span class="precio" style="margin:0">$60.00</span><span class="tag">Agotado</span></div>
+                  <button class="btn" type="button" disabled>Agregar</button>
+                </div>
+              </div>
+            </div>
+            <div class="aviso">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A5E00" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:1px" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg>
+              <span>Esta tienda no hace envíos a domicilio. Puedes recoger en el local.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Tema oscuro</h3>
+        <div class="tel osc">
+          <div class="barra">
+            <svg width="30" height="30" viewBox="0 0 96 96" aria-hidden="true">
+              <rect width="96" height="96" rx="24" fill="#B8460E"></rect>
+              <path d="M18 30 L18 46 a6 6 0 0 0 12 0 L30 30 Z" fill="#FAF7F2"></path>
+              <path d="M30 30 L30 46 a6 6 0 0 0 12 0 L42 30 Z" fill="#E8A317"></path>
+              <path d="M42 30 L42 46 a6 6 0 0 0 12 0 L54 30 Z" fill="#FAF7F2"></path>
+              <path d="M54 30 L54 46 a6 6 0 0 0 12 0 L66 30 Z" fill="#E8A317"></path>
+              <path d="M66 30 L66 46 a6 6 0 0 0 12 0 L78 30 Z" fill="#FAF7F2"></path>
+              <rect x="14" y="24" width="68" height="8" rx="4" fill="#FAF7F2"></rect>
+              <rect x="30" y="60" width="36" height="22" rx="5" fill="#FAF7F2" opacity="0.9"></rect>
+            </svg>
+            <div class="buscador">Buscar producto o tienda</div>
+            <div style="width:32px;height:32px;border-radius:9px;background:#2E8B6E;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14120F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.4 11.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"></path></svg>
+            </div>
+          </div>
+          <div class="cuerpo">
+            <h4>Productos</h4>
+            <div class="prod">
+              <div class="card">
+                <div class="foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#554E44" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.8"></circle><path d="M4 17l5-5 4 4 2-2 5 5"></path></svg></div>
+                <div class="info">
+                  <div class="nom">Chocoflán de la casa</div>
+                  <div class="meta">Postres · Lola</div>
+                  <div style="display:flex;align-items:center;gap:3px"><span style="color:#E8A317;font-size:12px;letter-spacing:1px">★★★★</span><span style="color:#4A4238;font-size:12px">★</span><span style="font-size:10px;color:#B3A99B;margin-left:2px">(12)</span></div>
+                  <div class="precio">$45.00</div>
+                  <button class="btn" type="button">Agregar</button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#554E44" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.8"></circle><path d="M4 17l5-5 4 4 2-2 5 5"></path></svg></div>
+                <div class="info">
+                  <div class="nom">Pay de queso</div>
+                  <div class="meta">Postres · Dulces Ana</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:5px"><span class="precio" style="margin:0">$60.00</span><span class="tag">Agotado</span></div>
+                  <button class="btn" type="button" disabled>Agregar</button>
+                </div>
+              </div>
+            </div>
+            <div class="aviso">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8A317" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:1px" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg>
+              <span>Esta tienda no hace envíos a domicilio. Puedes recoger en el local.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="nota verde"><strong>Fíjate en el precio:</strong> en negro y en negrita pesa más que cuando iba en rojo, y deja el rojo libre para "Agotado", que es lo que de verdad hay que notar. En oscuro la terracota se aclara a #E4702A con texto oscuro encima, porque el tono de día no contrasta lo suficiente de noche.</p>
+  </section>
+
+  <section>
+    <h2>Cómo se aplica</h2>
+    <p class="sub">Casi todo es un archivo: <code>src/assets/styles/ColorsVarCss.css</code>. Lo demás es reemplazar los hex sueltos que quedan en los <code>.vue</code>.</p>
+<pre><span class="c">/* claro */</span>
+--color-bg-blue-dark:  <span class="v">#1E5C4A</span>;  <span class="c">/* era #011f41 */</span>
+--color-bg-blue-ligth: <span class="v">#B8460E</span>;  <span class="c">/* era #0165d8 */</span>
+--bg-page:   <span class="v">#FAF7F2</span>;   --surface:   <span class="v">#FFFFFF</span>;
+--surface-2: <span class="v">#F1EBE2</span>;   --text:      <span class="v">#1C1A17</span>;
+--text-muted:<span class="v">#6B6259</span>;   --border:    <span class="v">#E4DCD1</span>;
+
+<span class="c">/* oscuro */</span>
+--color-bg-blue-ligth: <span class="v">#E4702A</span>;
+--bg-page:   <span class="v">#14120F</span>;   --surface:   <span class="v">#1F1C18</span>;
+--surface-2: <span class="v">#2A2620</span>;   --text:      <span class="v">#F2EEE8</span>;
+--text-muted:<span class="v">#B3A99B</span>;   --border:    <span class="v">#3A342C</span>;</pre>
+    <p class="nota">Y el precio: <code>.precio { color: #e74c3c }</code> pasa a <code>var(--text)</code> en las tres pantallas donde aparece. Los 4 rojos y 5 verdes sueltos se reemplazan por #C0392B y #2E7D4F.</p>
+  </section>
+
+  <footer>
+    Propuesta para CruShop · 20 de septiembre de 2026. Nada de esto está aplicado en el código todavía.
+  </footer>
+
+</main>
+</body>
+</html>

@@ -421,6 +421,11 @@
           <span class="menu-label"> Agregar articulo</span>
         </div>
 
+        <div class="menu-item-wrapper" v-if="esDuenoTienda && promocionesHabilitadas">
+          <button class="menu-item" @click="irAPromociones">🏷️</button>
+          <span class="menu-label">Crear promoción</span>
+        </div>
+
         <div class="menu-item-wrapper">
           <button class="menu-item" @click="irAArticulos">📋</button>
           <span class="menu-label">Productos</span>
@@ -544,7 +549,8 @@ const { articulos, loading: cargandoArticulos } = useArticulos({ incluirTiendasI
 /** Estado de autorización / membresía */
 const tiendaNoDisponible = computed(() => !!store.value && !tiendaPuedeVender(store.value));
 const avisoEstado = computed(() => avisoEstadoTienda(store.value));
-const { configuracion, contactoSoporte, pagoEnLineaDisponible, pagoAutomatico } = useConfiguracion();
+const { configuracion, contactoSoporte, pagoEnLineaDisponible, pagoAutomatico, promocionesHabilitadas } =
+  useConfiguracion();
 
 /** Pago de membresía con links de Mercado Pago + aviso "Ya pagué" (sin servidor) */
 const formatoMXN = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -851,6 +857,24 @@ function artsTienda() {
   });
 }
 
+/**
+ * Promociones de la tienda. Exige membresía igual que publicar un artículo: una
+ * promoción es una venta, y sin membresía la tienda no puede vender.
+ */
+function irAPromociones() {
+  if (store.value && !membresiaVigente(store.value)) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Activa tu membresía para publicar',
+      text: MENSAJE_SIN_MEMBRESIA,
+      confirmButtonColor: '#0165d8',
+    });
+    return;
+  }
+  const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
+  router.push(`/store/promociones/${tienda.id}`);
+}
+
 function onPedidos() {
   const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
 
@@ -1080,7 +1104,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #e3f2fd;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
   padding: 6px 12px;
   border-radius: 8px;
@@ -1183,7 +1207,7 @@ body {
   width: 100%;
   padding: 6px 0;
   margin-top: 5px;
-  background: #e3f2fd;
+  background: var(--brand-blue-soft);
   border: none;
   border-radius: 5px;
   color: var(--brand-blue-text);
@@ -1192,7 +1216,7 @@ body {
   transition: 0.2s;
 }
 .btn-menu:hover {
-  background: #bbdefb;
+  background: var(--brand-blue-soft-hover);
 }
 
 /* Animación */
@@ -1301,7 +1325,7 @@ body {
 }
 
 .horario-item {
-  background: #e3f2fd;
+  background: var(--brand-blue-soft);
   padding: 12px 15px;
   border-radius: 12px;
   display: flex;
@@ -1355,7 +1379,7 @@ body {
   justify-content: center;
 }
 .zona-item {
-  background: #eef6fd;
+  background: var(--brand-blue-soft);
   padding: 6px 12px;
   border-radius: 12px;
   color: var(--brand-blue-text);
@@ -1574,7 +1598,7 @@ body {
 }
 
 .aviso-info {
-  background: #eaf2fc;
+  background: var(--brand-blue-soft);
   border-color: #0165d8;
   color: var(--brand-blue-text);
 }

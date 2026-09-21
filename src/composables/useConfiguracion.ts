@@ -10,6 +10,7 @@ import { setDiasGracia } from '@/composables/useMembresia';
  *
  *   configuracion/membresia      { precioMensual, precioAnual, diasGracia }
  *   configuracion/registro       { tiendasAbierto, mensajeCerrado }
+ *   configuracion/promociones    { habilitadas }
  *   configuracion/mantenimiento  { activo, mensaje }
  *   configuracion/soporte        { whatsapp, email }
  *   configuracion/actualizadoEn, actualizadoPor
@@ -26,6 +27,10 @@ export interface Configuracion {
     /** Si es false, no se pueden registrar tiendas nuevas */
     tiendasAbierto: boolean;
     mensajeCerrado: string;
+  };
+  promociones: {
+    /** Si es false, las tiendas no ven "Crear promoción" en su menú */
+    habilitadas: boolean;
   };
   mantenimiento: {
     /** Si es true, los clientes y tiendas ven el aviso y no pueden usar la app; el admin sí */
@@ -70,6 +75,7 @@ export const CONFIG_DEFAULT: Configuracion = {
     tiendasAbierto: true,
     mensajeCerrado: 'Por el momento no estamos aceptando nuevas tiendas. Vuelve a intentarlo más adelante.',
   },
+  promociones: { habilitadas: true },
   mantenimiento: {
     activo: false,
     mensaje: 'Estamos haciendo mejoras. Volvemos en unos minutos.',
@@ -102,6 +108,9 @@ export function normalizarConfiguracion(data: any): Configuracion {
     registro: {
       tiendasAbierto: bool(data?.registro?.tiendasAbierto, d.registro.tiendasAbierto),
       mensajeCerrado: str(data?.registro?.mensajeCerrado, d.registro.mensajeCerrado) || d.registro.mensajeCerrado,
+    },
+    promociones: {
+      habilitadas: bool(data?.promociones?.habilitadas, d.promociones.habilitadas),
     },
     mantenimiento: {
       activo: bool(data?.mantenimiento?.activo, d.mantenimiento.activo),
@@ -176,6 +185,7 @@ export function __setConfiguracion(data: any | null) {
 export async function guardarConfiguracion(parcial: {
   membresia?: Partial<Configuracion['membresia']>;
   registro?: Partial<Configuracion['registro']>;
+  promociones?: Partial<Configuracion['promociones']>;
   mantenimiento?: Partial<Configuracion['mantenimiento']>;
   soporte?: Partial<Configuracion['soporte']>;
   pagos?: Partial<Configuracion['pagos']>;
@@ -207,6 +217,8 @@ export function precioPlan(config: Configuracion, plan: 'mensual' | 'anual'): nu
 export function useConfiguracion() {
   iniciarConfiguracion();
   const registroTiendasAbierto = computed(() => configuracion.value.registro.tiendasAbierto);
+  /** El admin puede apagar las promociones: las tiendas dejan de ver "Crear promoción" */
+  const promocionesHabilitadas = computed(() => configuracion.value.promociones.habilitadas);
   const contactoSoporte = computed(() => {
     const { whatsapp, email } = configuracion.value.soporte;
     const partes: string[] = [];
@@ -224,5 +236,14 @@ export function useConfiguracion() {
     return !!(c.pagos.linkMensual || c.pagos.linkAnual);
   });
   const pagoAutomatico = computed(() => configuracion.value.pagos.modo === 'automatico');
-  return { configuracion, cargada, registroTiendasAbierto, contactoSoporte, pagoEnLineaDisponible, pagoAutomatico, guardarConfiguracion };
+  return {
+    configuracion,
+    cargada,
+    registroTiendasAbierto,
+    promocionesHabilitadas,
+    contactoSoporte,
+    pagoEnLineaDisponible,
+    pagoAutomatico,
+    guardarConfiguracion,
+  };
 }

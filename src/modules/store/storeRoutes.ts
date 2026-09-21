@@ -5,6 +5,7 @@ import StoreProfile from './views/StoreProfile.vue';
 import ProductManagement from './views/ProductManagement.vue';
 import StoreArticles from './components/StoreArticles.vue';
 import StorePedidos from './views/StorePedidos.vue';
+import PromocionesTienda from './views/PromocionesTienda.vue';
 
 export default [
   { path: '/store/login', component: StoreLogin, name: 'storeLogin' }, //login para tiendas
@@ -30,6 +31,12 @@ export default [
     path: '/store/pedidos/:id_tienda',
     component: StorePedidos,
     name: 'storePedidos',
+    props: true,
+  },
+  {
+    path: '/store/promociones/:id', // Descuentos con vigencia sobre artículos ya publicados
+    component: PromocionesTienda,
+    name: 'storePromociones',
     props: true,
   },
   {

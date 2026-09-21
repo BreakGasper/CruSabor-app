@@ -67,10 +67,19 @@ body {
 :root {
   --brand-navy-text: var(--color-bg-blue-dark);
   --brand-blue-text: #1f70b2;
+
+  /* Fondo suave de marca: el de los recuadros azules (métodos de pago, horarios,
+     zonas de entrega, avisos). Va EN PAREJA con --brand-blue-text: si el fondo se
+     deja fijo y claro, en oscuro el texto se aclara y queda azul claro sobre azul
+     claro, o sea ilegible. Se usan juntos o no se usa ninguno. */
+  --brand-blue-soft: #e3f2fd;
+  --brand-blue-soft-hover: #bbdefb;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --brand-navy-text: #9cc3ff;
     --brand-blue-text: #7cb3ff;
+    --brand-blue-soft: #16304a;
+    --brand-blue-soft-hover: #1d3e5e;
   }
 }
