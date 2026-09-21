@@ -1,0 +1,28 @@
+# Variables para desarrollo local. NO subir al repositorio (.gitignore ya lo cubre).
+
+# --- Firebase (las lee la app con import.meta.env) ---
+VITE_FIREBASE_API_KEY=AIzaSyAMYLKeht6Z6paswuvYJ9pj6Gn65juMcHI
+VITE_FIREBASE_AUTH_DOMAIN=mrapp-b8d1e.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://mrapp-b8d1e-default-rtdb.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=mrapp-b8d1e
+VITE_FIREBASE_STORAGE_BUCKET=mrapp-b8d1e.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=952337608773
+VITE_FIREBASE_APP_ID=1:952337608773:web:7c7fecba7495d1c708f32c
+VITE_FIREBASE_MEASUREMENT_ID=G-R7MCKPRSN8
+
+# --- A dónde llama la app: el servidor Express local (npm run server) ---
+VITE_API_URL=http://localhost:3000
+
+# --- Servidor de correo (recuperar contraseña) ---
+SMTP_USER=backgaspar@gmail.com
+SMTP_PASS=riho avmv qenj miuk
+PORT=3000
+FRONTEND_URL=http://localhost:5174
+
+# --- Cloudinary: borrar la imagen que se reemplaza ---
+# Solo las lee el servidor (npm run server). SIN prefijo VITE_: con él acabarían
+# en el bundle público y cualquiera podría borrar las imágenes de todas las tiendas.
+# Las dos de abajo están en Cloudinary › Settings › API Keys.
+CLOUDINARY_CLOUD_NAME=dswymzhc2
+CLOUDINARY_API_KEY=559852345212866
+CLOUDINARY_API_SECRET=H569xaIGz34Xpxlt7XpZFCzGDY0
