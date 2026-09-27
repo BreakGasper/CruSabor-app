@@ -62,7 +62,8 @@ onMounted(() => {
   background: #dc3545;
 }
 .toast.info {
-  background: #007bff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 /* Animación */

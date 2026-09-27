@@ -1320,10 +1320,10 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   background-image:
     radial-gradient(circle at 15% 10%, rgba(245, 158, 11, 0.18), transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(1, 101, 216, 0.25), transparent 50%);
+    radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--color-bg-blue-ligth) 25%, transparent), transparent 50%);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   position: relative;
   padding-bottom: 2rem;
@@ -1352,7 +1352,7 @@ watch(
   padding: 3.5rem 1rem 2rem;
   text-align: center;
   color: #fff;
-  background: linear-gradient(160deg, #1b2f4b, #0f1c2e 70%);
+  background: var(--color-bg-blue-dark);
   border-bottom: 3px solid #f59e0b;
   border-radius: 0 0 40px 40px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -1786,7 +1786,7 @@ select:focus {
 }
 .btn-add {
   flex-shrink: 0;
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   color: #fff;
   border: none;
   padding: 12px 16px;
@@ -1796,7 +1796,7 @@ select:focus {
   font-family: inherit;
 }
 .btn-add:hover:not(:disabled) {
-  background: #1b2f4b;
+  background: var(--color-bg-blue-dark);
 }
 .btn-add:disabled {
   opacity: 0.5;
@@ -1903,11 +1903,11 @@ select:focus {
 .btn-secondary {
   background: var(--surface);
   color: var(--text);
-  border: 2px solid #0f1c2e;
+  border: 2px solid var(--color-bg-blue-dark);
   padding: 11px 20px;
 }
 .btn-secondary:hover {
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   color: #fff;
 }
 
@@ -1968,7 +1968,7 @@ select:focus {
 .red-check input {
   width: 1rem;
   height: 1rem;
-  accent-color: #0165d8;
+  accent-color: var(--brand-blue-text);
 }
 .red-enlace {
   margin-bottom: 0.75rem;

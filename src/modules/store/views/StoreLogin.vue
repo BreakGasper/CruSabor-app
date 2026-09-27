@@ -234,10 +234,10 @@ async function login() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   background-image:
     radial-gradient(circle at 15% 10%, rgba(245, 158, 11, 0.18), transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(1, 101, 216, 0.25), transparent 50%);
+    radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--color-bg-blue-ligth) 25%, transparent), transparent 50%);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   position: relative;
   padding-bottom: 2rem;
@@ -266,7 +266,7 @@ async function login() {
   padding: 3.5rem 1rem 2.5rem;
   text-align: center;
   color: #fff;
-  background: linear-gradient(160deg, #1b2f4b, #0f1c2e 70%);
+  background: var(--color-bg-blue-dark);
   border-bottom: 3px solid #f59e0b;
   border-radius: 0 0 40px 40px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -380,7 +380,7 @@ async function login() {
   align-items: center;
   padding: 0 12px;
   border-radius: 12px;
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   color: #fbbf24;
   font-weight: 700;
   font-size: 0.95rem;
@@ -503,19 +503,19 @@ async function login() {
   cursor: not-allowed;
 }
 .btn-outline-blue {
-  border: 2px solid #0f1c2e;
+  border: 2px solid var(--color-bg-blue-dark);
   background: var(--surface);
   color: var(--text);
 }
 .btn-outline-blue:hover:not(:disabled) {
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   color: #fff;
 }
 .spinner {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(15, 28, 46, 0.3);
-  border-top-color: #0f1c2e;
+  border-top-color: var(--color-bg-blue-dark);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

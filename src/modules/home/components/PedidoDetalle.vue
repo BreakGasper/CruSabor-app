@@ -548,7 +548,7 @@ function onImgError(e: Event) {
 }
 
 .estatus-preparacion {
-  background: #e3f2fd;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 
@@ -658,10 +658,10 @@ function onImgError(e: Event) {
 .step.done .step-dot {
   background: var(--color-bg-blue-ligth);
   border-color: var(--color-bg-blue-ligth);
-  color: #fff;
+  color: var(--on-primary);
 }
 .step.current .step-dot {
-  box-shadow: 0 0 0 4px rgba(1, 101, 216, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-bg-blue-ligth) 18%, transparent);
 }
 .step-label {
   font-size: 0.75rem;

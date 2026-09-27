@@ -162,8 +162,8 @@ function onLogoError(e: Event) {
   font-weight: 600;
 }
 .tag.envio {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--brand-blue-soft);
+  color: var(--brand-blue-text);
 }
 .tag.wa {
   background: #e8f5e9;

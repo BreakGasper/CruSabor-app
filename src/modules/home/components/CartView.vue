@@ -494,8 +494,8 @@ function onImgError(e: Event) {
 }
 
 .btn-carrito.btn-menos {
-  background-color: #3498db;
-  color: white;
+  background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 .btn-carrito.btn-basura {

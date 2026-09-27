@@ -569,11 +569,7 @@ console.log("Correo:", sessionUser.value?.email);
   width: 100%;
   padding: 2rem 1rem;
   text-align: center;
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-blue-ligth),
-    var(--color-bg-blue-dark)
-  );
+  background: var(--color-bg-blue-dark);
   color: white;
   border-radius: 0 0 40px 40px;
   margin-bottom: 1rem;

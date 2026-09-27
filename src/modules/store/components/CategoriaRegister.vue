@@ -197,7 +197,8 @@ button {
 }
 
 button:hover {
-  background-color: #2563eb;
+  background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 .success-message {

@@ -3,6 +3,8 @@ import { db } from '@/firebase';
 import { ref as dbRef, onValue, update } from 'firebase/database';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import { setDiasGracia } from '@/composables/useMembresia';
+import { esPaleta, esHex, PALETA_DEFAULT, type Paleta, type PaletaPersonalizada } from '@/composables/usePaleta';
+import { normalizarTematica, type Tematica } from '@/composables/useTematicas';
 
 /**
  * Configuración del sistema, en `configuracion/`. La escribe el administrador
@@ -13,6 +15,7 @@ import { setDiasGracia } from '@/composables/useMembresia';
  *   configuracion/promociones    { habilitadas }
  *   configuracion/mantenimiento  { activo, mensaje }
  *   configuracion/soporte        { whatsapp, email }
+ *   configuracion/apariencia     { paleta, personalizadas/{id}, tematicas/{id} }  (Admin › Apariencia)
  *   configuracion/actualizadoEn, actualizadoPor
  */
 
@@ -53,6 +56,13 @@ export interface Configuracion {
     /** Texto que ve la tienda después de pagar (a dónde mandar el comprobante, etc.) */
     instrucciones: string;
   };
+  apariencia: {
+    /** Paleta de colores de toda la app: una fija o el id de una personalizada (ver usePaleta.ts) */
+    paleta: Paleta;
+    personalizadas: Record<string, PaletaPersonalizada>;
+    /** Decoraciones de temporada (ver useTematicas.ts) */
+    tematicas: Record<string, Tematica>;
+  };
   actualizadoEn?: string;
   actualizadoPor?: string;
   /** Lo escribe la función programada `revisarMembresias` (functions/) */
@@ -88,6 +98,7 @@ export const CONFIG_DEFAULT: Configuracion = {
     instrucciones:
       'Cuando termines el pago, pulsa "Ya pagué" y escribe el número de operación. El administrador confirmará el pago y activará tu membresía.',
   },
+  apariencia: { paleta: PALETA_DEFAULT, personalizadas: {}, tematicas: {} },
 };
 
 const esUrl = (s: string) => /^https?:\/\/\S+$/i.test(s);
@@ -95,6 +106,29 @@ const esUrl = (s: string) => /^https?:\/\/\S+$/i.test(s);
 const num = (v: any, def: number) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
 const bool = (v: any, def: boolean) => (typeof v === 'boolean' ? v : def);
 const str = (v: any, def: string) => (typeof v === 'string' ? v : def);
+
+function normalizarApariencia(a: any): Configuracion['apariencia'] {
+  const personalizadas: Record<string, PaletaPersonalizada> = {};
+  for (const [id, p] of Object.entries<any>(a?.personalizadas && typeof a.personalizadas === 'object' ? a.personalizadas : {})) {
+    if (!p || !esHex(p.cabecera) || !esHex(p.boton) || !esHex(p.resaltado)) continue;
+    personalizadas[id] = {
+      nombre: typeof p.nombre === 'string' && p.nombre.trim() ? p.nombre.trim() : 'Mi paleta',
+      cabecera: p.cabecera.toLowerCase(),
+      boton: p.boton.toLowerCase(),
+      resaltado: p.resaltado.toLowerCase(),
+    };
+  }
+  const tematicas: Record<string, Tematica> = {};
+  for (const [id, t] of Object.entries<any>(a?.tematicas && typeof a.tematicas === 'object' ? a.tematicas : {})) {
+    const n = normalizarTematica(t);
+    if (n) tematicas[id] = { ...n, paleta: n.paleta && esPaleta(n.paleta, personalizadas) ? n.paleta : '' };
+  }
+  return {
+    paleta: esPaleta(a?.paleta, personalizadas) ? a.paleta : PALETA_DEFAULT,
+    personalizadas,
+    tematicas,
+  };
+}
 
 /** Mezcla lo guardado con los valores por defecto, campo por campo */
 export function normalizarConfiguracion(data: any): Configuracion {
@@ -126,6 +160,7 @@ export function normalizarConfiguracion(data: any): Configuracion {
       linkAnual: esUrl(str(data?.pagos?.linkAnual, '').trim()) ? str(data?.pagos?.linkAnual, '').trim() : '',
       instrucciones: str(data?.pagos?.instrucciones, d.pagos.instrucciones) || d.pagos.instrucciones,
     },
+    apariencia: normalizarApariencia(data?.apariencia),
     actualizadoEn: data?.actualizadoEn,
     actualizadoPor: data?.actualizadoPor,
     ultimaRevisionMembresias:
@@ -202,6 +237,53 @@ export async function guardarConfiguracion(parcial: {
   cambios.actualizadoEn = new Date().toISOString();
   cambios.actualizadoPor = sessionAdmin.value?.nombre || 'admin';
   await update(dbRef(db, 'configuracion'), cambios);
+}
+
+/* ---------------- Apariencia (Admin › Apariencia) ---------------- */
+
+/** Escribe rutas dentro de `configuracion/apariencia` (null borra) y marca quién lo cambió */
+async function escribirApariencia(cambios: Record<string, unknown>): Promise<void> {
+  const todo: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(cambios)) todo[`apariencia/${k}`] = v;
+  todo.actualizadoEn = new Date().toISOString();
+  todo.actualizadoPor = sessionAdmin.value?.nombre || 'admin';
+  await update(dbRef(db, 'configuracion'), todo);
+}
+
+export const nuevoIdApariencia = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+export function usarPaleta(paleta: Paleta) {
+  return escribirApariencia({ paleta });
+}
+
+export function guardarPaletaPersonalizada(id: string, p: PaletaPersonalizada) {
+  return escribirApariencia({ [`personalizadas/${id}`]: p });
+}
+
+/** Borra una paleta propia. Si estaba en uso (general o en una temática), se vuelve a la de por defecto. */
+export function eliminarPaletaPersonalizada(id: string) {
+  const a = configuracion.value.apariencia;
+  const cambios: Record<string, unknown> = { [`personalizadas/${id}`]: null };
+  if (a.paleta === id) cambios.paleta = PALETA_DEFAULT;
+  for (const [tid, t] of Object.entries(a.tematicas)) if (t.paleta === id) cambios[`tematicas/${tid}/paleta`] = '';
+  return escribirApariencia(cambios);
+}
+
+export function guardarTematica(id: string, t: Tematica) {
+  return escribirApariencia({ [`tematicas/${id}`]: t });
+}
+
+export function eliminarTematica(id: string) {
+  return escribirApariencia({ [`tematicas/${id}`]: null });
+}
+
+/** Activa una temática y apaga las demás (solo se muestra una a la vez); `null` las apaga todas */
+export function activarTematica(id: string | null) {
+  const cambios: Record<string, unknown> = {};
+  for (const tid of Object.keys(configuracion.value.apariencia.tematicas)) cambios[`tematicas/${tid}/activa`] = false;
+  // Explícito: la temática puede ser recién creada y aún no estar en la configuración en vivo
+  if (id) cambios[`tematicas/${id}/activa`] = true;
+  return escribirApariencia(cambios);
 }
 
 /** Si la app está en mantenimiento para esta ruta (el panel de admin nunca se bloquea) */

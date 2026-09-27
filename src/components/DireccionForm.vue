@@ -131,7 +131,7 @@ defineExpose({ form });
 .campo input:focus {
   outline: none;
   border-color: var(--color-bg-blue-ligth);
-  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-blue-ligth) 15%, transparent);
 }
 .campo input.err {
   border-color: #e74c3c;

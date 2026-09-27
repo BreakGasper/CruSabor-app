@@ -6,6 +6,7 @@ import AdminDashboard from './views/AdminDashboard.vue';
 import AdminTiendas from './views/AdminTiendas.vue';
 import AdminTiendaDetalle from './views/AdminTiendaDetalle.vue';
 import AdminConfiguracion from './views/AdminConfiguracion.vue';
+import AdminApariencia from './views/AdminApariencia.vue';
 import AdminCategorias from './views/AdminCategorias.vue';
 import AdminCuentas from './views/AdminCuentas.vue';
 import AdminBanners from './views/AdminBanners.vue';
@@ -38,6 +39,12 @@ const adminRoutes: RouteRecordRaw[] = [
     path: '/admin/configuracion',
     component: AdminConfiguracion,
     name: 'adminConfiguracion',
+    meta: { requiereAdmin: true },
+  },
+  {
+    path: '/admin/apariencia',
+    component: AdminApariencia,
+    name: 'adminApariencia',
     meta: { requiereAdmin: true },
   },
   {

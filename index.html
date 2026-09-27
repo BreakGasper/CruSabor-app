@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-paleta="carbon-lima">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CruShop</title>
     <meta name="description" content="Tiendas locales, pedidos a domicilio y panel para negocios" />
-    <meta name="theme-color" content="#0165d8" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0f141b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#141414" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)" />
 
     <!-- Ícono de pestaña -->
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
@@ -20,6 +20,25 @@
 
     <!-- Acceso directo en Android / Chrome -->
     <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Paleta de colores: la última que eligió el admin, antes de pintar (ver src/composables/usePaleta.ts) -->
+    <script>
+      try {
+        var p = localStorage.getItem("paleta");
+        if (["carbon-lima", "rosa-negro", "naranja-cacao", "azul-anil"].indexOf(p) >= 0) {
+          document.documentElement.dataset.paleta = p;
+        } else if (p === "personalizada") {
+          var css = localStorage.getItem("paleta-css");
+          if (css) {
+            var st = document.createElement("style");
+            st.id = "paleta-personalizada";
+            st.textContent = css;
+            document.head.appendChild(st);
+            document.documentElement.dataset.paleta = p;
+          }
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>

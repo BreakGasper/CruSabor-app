@@ -183,7 +183,7 @@ const { sinEnvio } = useEnvioTienda();
 
 const aumentarCantidad = async (producto: Producto) => {
   if (sinEnvio(producto.tiendaId)) {
-    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
     return;
   }
   if (!sessionPedidoId.value) {

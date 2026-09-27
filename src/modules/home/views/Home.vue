@@ -546,6 +546,7 @@ onBeforeUnmount(() => {
   .sidebar ul li a:hover,
   .sidebar ul li a.active {
     background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   }
 }
 

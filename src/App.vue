@@ -11,24 +11,52 @@
     </PullToRefresh>
   </div>
 
+  <!-- Temática de temporada (Admin › Apariencia) -->
+  <TematicaDecoracion v-if="tematicaVisible" :tematica="tematicaVisible" :url="urlImagenTematica(tematicaVisible.imagen)" />
+
   <Toast position="bottom-center" />
 </template>
 <script setup lang="ts">
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
-import { computed, ref, nextTick } from "vue";
+import { computed, ref, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import PullToRefresh from "@/components/PullToRefresh.vue";
 import { cargarSesion } from "@/utils/sessionUser";
 import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
 import MantenimientoAviso from "@/components/MantenimientoAviso.vue";
+import { aplicarPaleta } from "@/composables/usePaleta";
+import { tematicaEnCurso, pantallaDeRuta, urlImagenTematica, hoyISO } from "@/composables/useTematicas";
+import TematicaDecoracion from "@/components/TematicaDecoracion.vue";
 cargarSesion();
 // Carrito, favoritos y tiendas favoritas se respaldan en Firebase por usuario
 iniciarSincronizacion();
 // Configuración del sistema (membresías, mantenimiento, registro) en vivo
-const { configuracion, contactoSoporte } = useConfiguracion();
+const { configuracion, cargada, contactoSoporte } = useConfiguracion();
 const route = useRoute();
+
+// Temática en curso (activa y dentro de sus fechas); se ve solo en las pantallas que eligió el admin
+const tematica = computed(() => (cargada.value ? tematicaEnCurso(configuracion.value.apariencia.tematicas, hoyISO()) : null));
+const tematicaVisible = computed(() => {
+  const t = tematica.value?.[1];
+  const pantalla = pantallaDeRuta(route.path);
+  return t && pantalla && t.pantallas.includes(pantalla) ? t : null;
+});
+
+// Paleta de colores elegida por el admin (o la de la temática en curso, si trae una).
+// Hasta que llega de Firebase se queda la que index.html puso desde localStorage.
+watch(
+  () => {
+    if (!cargada.value) return null;
+    const a = configuracion.value.apariencia;
+    return { id: tematica.value?.[1].paleta || a.paleta, personalizadas: a.personalizadas };
+  },
+  (p) => {
+    if (p) aplicarPaleta(p.id, p.personalizadas);
+  },
+  { immediate: true, deep: true },
+);
 const mantenimientoActivo = computed(() => enMantenimientoPara(configuracion.value, route.path));
 
 /* Pull to refresh: cambiar la clave del router-view desmonta y vuelve a montar la pantalla,

@@ -77,15 +77,15 @@ export function useCarritoRapido() {
     // Sin sesión también se puede llenar el carrito: queda a nombre del invitado
     // y se adopta al entrar. La sesión se pide al pagar, no al elegir.
     if (tiendaNoDisponible(producto)) {
-      Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: '#0165d8' });
+      Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
       return;
     }
     if (sinEnvioTienda(producto)) {
-      Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+      Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
       return;
     }
     if (ventaBloqueada(producto)) {
-      Swal.fire({ icon: 'info', title: 'Venta pausada', text: MENSAJE_VENTA_PAUSADA, confirmButtonColor: '#0165d8' });
+      Swal.fire({ icon: 'info', title: 'Venta pausada', text: MENSAJE_VENTA_PAUSADA, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
       return;
     }
     if (!sessionPedidoId.value) generarNuevoPedidoId(idCarritoActual());

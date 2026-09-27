@@ -478,7 +478,7 @@ async function cambiarEstatus(pedido: Pedido, nuevo: EstatusPedido) {
     showCancelButton: true,
     confirmButtonText: esCancel ? 'Sí, cancelar' : 'Confirmar',
     cancelButtonText: 'Volver',
-    confirmButtonColor: esCancel ? '#e74c3c' : '#0165d8',
+    confirmButtonColor: esCancel ? '#e74c3c' : 'var(--color-bg-blue-ligth)',
   });
   if (!isConfirmed) return;
 
@@ -617,6 +617,7 @@ function onImgError(e: Event) {
 }
 .icon-circle.has-filters {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .icon-circle.has-filters .filter-icon {
   filter: none;
@@ -919,7 +920,8 @@ button:disabled {
   box-shadow: 0 0 0 1px #e3e8ef;
 }
 .timeline-item.enviado .dot {
-  background: #0165d8;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .timeline-item.entregado .dot {
   background: #27ae60;
@@ -1001,8 +1003,8 @@ button {
 }
 
 .primary {
-  background: #0165d8;
-  color: white;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 .fade-enter-active,
@@ -1088,8 +1090,8 @@ button {
 
   border-radius: 50%;
 
-  background: #0165d8;
-  color: white;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 
   display: flex;
   align-items: center;

@@ -152,7 +152,7 @@ async function confirmarEliminar(d: Direccion) {
 }
 .dir-card.activa {
   border-color: var(--color-bg-blue-ligth);
-  background: #eef5ff;
+  background: var(--brand-blue-soft);
 }
 .dir-icono {
   font-size: 1.3rem;
@@ -178,7 +178,7 @@ async function confirmarEliminar(d: Direccion) {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--color-bg-blue-ligth);
-  color: #fff;
+  color: var(--on-primary);
 }
 .tag.suave {
   background: #e3e8ef;
@@ -227,7 +227,7 @@ async function confirmarEliminar(d: Direccion) {
   cursor: pointer;
 }
 .btn-agregar:hover {
-  background: #eef5ff;
+  background: var(--brand-blue-soft);
 }
 @media (max-width: 480px) {
   .dir-card {

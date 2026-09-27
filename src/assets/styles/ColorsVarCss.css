@@ -1,48 +1,174 @@
 /*
  * Tokens de color de la app.
  *
- * - Marca (azules) y utilidades: iguales en ambos temas.
- * - Semánticos (--bg-page, --surface, --surface-2, --text, --text-muted, --border):
- *   cambian con el tema del sistema. Úsalos en lugar de white/#fff, #333, #666, #ccc…
- *   para que el texto siempre se lea sobre su fondo en claro y en oscuro.
+ * Hay dos paletas; el administrador elige cuál ve toda la app en
+ * Admin › Configuración › Apariencia (se guarda en `configuracion/apariencia/paleta`).
+ * La paleta activa se marca en <html data-paleta="…"> (ver composables/usePaleta.ts):
+ *
+ *   carbon-lima  (por defecto)  carbón + verde lima
+ *   rosa-negro                  negro + rosa mexicano
+ *
+ * Los nombres de las variables de marca vienen de cuando la app era azul y se
+ * conservan para no tocar cada componente:
+ *   --color-bg-blue-dark   fondo de cabeceras, barras y menús (siempre oscuro, texto blanco encima)
+ *   --color-bg-blue-ligth  relleno de botones y acciones principales
+ *   --on-primary           texto sobre --color-bg-blue-ligth (no siempre es blanco)
+ *   --brand-blue-text      texto/bordes en color de marca sobre superficies del tema
+ *   --brand-blue-soft      fondo suave de marca; va en pareja con --brand-blue-text
+ *
+ * Semánticos (--bg-page, --surface, --surface-2, --text, --text-muted, --border):
+ * cambian con el tema del sistema. Úsalos en lugar de white/#fff, #333, #666, #ccc…
  *
  * Los colores de estado (badges verdes/rojos/ámbar con fondo pastel y texto oscuro)
  * fijan fondo y texto juntos, por eso se leen bien en ambos modos y no se tocan.
  */
+
+/* ---------- Carbón y lima (por defecto) · claro ---------- */
 :root {
-  /* Marca */
-  --color-bg-blue-dark: #011f41;
-  --color-bg-blue-ligth: #0165d8;
-  --color-link-hover: #0b4f8a;
+  --color-bg-blue-dark: #141414;
+  --color-bg-blue-ligth: #1f1f1f;
+  --on-primary: #c6f432;
+  --color-acento: #c6f432;      /* lima: insignias, promociones; texto oscuro encima */
+  --on-acento: #141414;
+  --color-link-hover: #000000;
   --color-hover-btn-gray: #999;
   --color-shadow: rgba(0, 0, 0, 0.2);
   --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
 
-  /* Semánticos: tema claro (por defecto) */
-  --bg-page: #f5f6fa;      /* fondo de pantalla */
-  --surface: #ffffff;      /* tarjetas, modales, inputs */
-  --surface-2: #f3f4f6;    /* fondos suaves dentro de una tarjeta, botones neutros */
-  --text: #111827;         /* texto principal */
-  --text-muted: #5b6472;   /* texto secundario */
-  --border: #d5dbe3;       /* bordes y separadores */
+  --brand-navy-text: #141414;
+  --brand-blue-text: #4a6b00;
+  --brand-blue-soft: #f0fad2;
+  --brand-blue-soft-hover: #e2f5a8;
+
+  --bg-page: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #efefeb;
+  --text: #141414;
+  --text-muted: #5c5c57;
+  --border: #dcdcd6;
 
   /* Compatibilidad con el nombre anterior */
   --color-bg-all: var(--bg-page);
 }
 
-/* Tema oscuro: sigue la preferencia del sistema (teléfono y computadora) */
+/* ---------- Carbón y lima · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-link-hover: #7cb3ff;
+    --color-bg-blue-dark: #1a1a1a;
+    --color-bg-blue-ligth: #c6f432;
+    --on-primary: #141414;
+    --color-link-hover: #ddf77a;
     --color-shadow: rgba(0, 0, 0, 0.55);
 
-    --bg-page: #0f141b;
-    --surface: #1a2230;
-    --surface-2: #232d3b;
-    --text: #e6eaf0;
-    --text-muted: #a3adbb;
-    --border: #34404f;
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #c6f432;
+    --brand-blue-soft: #232a12;
+    --brand-blue-soft-hover: #2e3818;
+
+    --bg-page: #0d0d0d;
+    --surface: #1a1a1a;
+    --surface-2: #242424;
+    --text: #edede9;
+    --text-muted: #a6a6a0;
+    --border: #34342f;
   }
+}
+
+/* ---------- Negro y rosa mexicano · claro ---------- */
+:root[data-paleta="rosa-negro"] {
+  --color-bg-blue-ligth: #d1006f;
+  --on-primary: #ffffff;
+  --color-acento: #d1006f;
+  --on-acento: #ffffff;
+  --color-link-hover: #8f004c;
+
+  --brand-blue-text: #b8005f;
+  --brand-blue-soft: #fde8f2;
+  --brand-blue-soft-hover: #fad0e4;
+}
+
+/* ---------- Negro y rosa mexicano · oscuro ---------- */
+@media (prefers-color-scheme: dark) {
+  :root[data-paleta="rosa-negro"] {
+    --color-bg-blue-ligth: #e0147f;
+    --on-primary: #ffffff;
+    --color-acento: #e0147f;
+    --color-link-hover: #ff9ccb;
+
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #ff6fb1;
+    --brand-blue-soft: #3a1227;
+    --brand-blue-soft-hover: #4a1832;
+  }
+}
+
+/* ---------- Naranja y cacao · claro ---------- */
+:root[data-paleta="naranja-cacao"] {
+  --color-bg-blue-dark: #2b1d14;
+  --color-bg-blue-ligth: #c2410c;
+  --on-primary: #ffffff;
+  --color-acento: #f5b83d;
+  --on-acento: #2a1a0f;
+  --color-link-hover: #8a2e08;
+
+  --brand-navy-text: #2b1d14;
+  --brand-blue-text: #b03a0a;
+  --brand-blue-soft: #fff0e6;
+  --brand-blue-soft-hover: #ffe0cc;
+}
+
+/* ---------- Naranja y cacao · oscuro ---------- */
+@media (prefers-color-scheme: dark) {
+  :root[data-paleta="naranja-cacao"] {
+    --color-bg-blue-dark: #21160f;
+    --color-bg-blue-ligth: #f28444;
+    --on-primary: #1a0f08;
+    --color-link-hover: #ffc29c;
+
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #ff9a5c;
+    --brand-blue-soft: #3a2014;
+    --brand-blue-soft-hover: #4a2a1a;
+  }
+}
+
+/* ---------- Azul añil · claro ---------- */
+:root[data-paleta="azul-anil"] {
+  --color-bg-blue-dark: #0f1e3d;
+  --color-bg-blue-ligth: #1d4ed8;
+  --on-primary: #ffffff;
+  --color-acento: #f59e0b;
+  --on-acento: #1f1405;
+  --color-link-hover: #1e3a8a;
+
+  --brand-navy-text: #0f1e3d;
+  --brand-blue-text: #1d4ed8;
+  --brand-blue-soft: #e8eefd;
+  --brand-blue-soft-hover: #d3dffb;
+}
+
+/* ---------- Azul añil · oscuro ---------- */
+@media (prefers-color-scheme: dark) {
+  :root[data-paleta="azul-anil"] {
+    --color-bg-blue-dark: #111a2e;
+    --color-bg-blue-ligth: #6b9bff;
+    --on-primary: #0a1020;
+    --color-link-hover: #b3cbff;
+
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #8ab0ff;
+    --brand-blue-soft: #16233f;
+    --brand-blue-soft-hover: #1d2d52;
+  }
+}
+
+/* Las paletas creadas por el admin se inyectan como <style id="paleta-personalizada">
+   con :root[data-paleta="personalizada"] (ver composables/usePaleta.ts). */
+
+/* Botón de confirmar de SweetAlert pintado con el color de marca: texto legible en ambas paletas */
+.swal2-styled.swal2-confirm[style*="--color-bg-blue-ligth"],
+.swal2-styled.swal2-cancel[style*="--color-bg-blue-ligth"] {
+  color: var(--on-primary) !important;
 }
 
 /* Evitar zoom en botones e inputs por doble tap o pinch */
@@ -61,25 +187,4 @@ select {
 /* Opcional: evitar que el doble tap haga zoom en Safari */
 body {
   overscroll-behavior: contain;
-}
-
-/* Texto en color de marca: azul marino / azul sobre superficies claras; en oscuro se aclara para contrastar */
-:root {
-  --brand-navy-text: var(--color-bg-blue-dark);
-  --brand-blue-text: #1f70b2;
-
-  /* Fondo suave de marca: el de los recuadros azules (métodos de pago, horarios,
-     zonas de entrega, avisos). Va EN PAREJA con --brand-blue-text: si el fondo se
-     deja fijo y claro, en oscuro el texto se aclara y queda azul claro sobre azul
-     claro, o sea ilegible. Se usan juntos o no se usa ninguno. */
-  --brand-blue-soft: #e3f2fd;
-  --brand-blue-soft-hover: #bbdefb;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --brand-navy-text: #9cc3ff;
-    --brand-blue-text: #7cb3ff;
-    --brand-blue-soft: #16304a;
-    --brand-blue-soft-hover: #1d3e5e;
-  }
 }

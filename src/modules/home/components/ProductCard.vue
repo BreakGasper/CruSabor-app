@@ -273,6 +273,7 @@ function onImgError(e: Event) {
 }
 .btn-agregar:hover {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .btn-agregar:disabled {
   background: #ccc;
@@ -313,6 +314,7 @@ function onImgError(e: Event) {
 }
 .btn-c.menos {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .btn-c.menos.basura {
   background: #e74c3c;

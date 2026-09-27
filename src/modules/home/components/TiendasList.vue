@@ -176,7 +176,7 @@ function verTienda(t: Tienda) {
   transition: box-shadow 0.2s;
 }
 .search-input:focus {
-  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-blue-ligth) 20%, transparent);
 }
 .search-icon {
   position: absolute;

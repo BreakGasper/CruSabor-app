@@ -33,9 +33,9 @@ const reload = () => window.location.reload();
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: #0f1c2e;
+  background: var(--color-bg-blue-dark);
   background-image:
-    radial-gradient(circle at 15% 10%, rgba(1, 101, 216, 0.25), transparent 45%),
+    radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--color-bg-blue-ligth) 25%, transparent), transparent 45%),
     radial-gradient(circle at 85% 90%, rgba(245, 158, 11, 0.18), transparent 50%);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   box-sizing: border-box;
@@ -84,8 +84,8 @@ h1 {
   padding: 12px 28px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #0165d8, #011f41);
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;

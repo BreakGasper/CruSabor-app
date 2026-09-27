@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CruShop · tres paletas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #FAF8F5;
+    --superficie: #FFFFFF;
+    --texto: #1C1A17;
+    --suave: #6B6259;
+    --borde: #E4DFD8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto); font-family: 'Karla', -apple-system, 'Segoe UI', sans-serif; line-height: 1.5; }
+  .hoja { max-width: 1060px; margin: 0 auto; padding: 56px 24px 80px; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(32px, 5vw, 46px); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 10px; }
+  h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(26px, 3.6vw, 34px); font-weight: 700; margin: 0 0 6px; }
+  h3 { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--suave); margin: 34px 0 14px; }
+  p { margin: 0 0 14px; }
+  code { font-size: 0.92em; }
+  .intro { font-size: 17px; color: var(--suave); max-width: 62ch; }
+  .sub { color: var(--suave); max-width: 64ch; margin-bottom: 8px; }
+
+  /* Índice rápido: las tres paletas lado a lado */
+  .resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 32px; }
+  .resumen a { text-decoration: none; color: inherit; border: 1px solid var(--borde); border-radius: 16px; background: var(--superficie); overflow: hidden; display: block; transition: transform .15s; }
+  .resumen a:hover { transform: translateY(-2px); }
+  .franjas { display: flex; height: 72px; }
+  .franjas span { flex: 1; }
+  .franjas span:first-child { flex: 2; }
+  .resumen .pie { padding: 12px 16px; }
+  .resumen .nombre { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 700; }
+  .resumen .uso { font-size: 13px; color: var(--suave); }
+
+  .paleta { margin-top: 72px; padding-top: 40px; border-top: 1px solid var(--borde); }
+  .etiqueta { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; margin-bottom: 10px; }
+
+  .fila { display: grid; gap: 20px; }
+  .tres { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .seis { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+  .cuatro { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .dos { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+  .tarjeta { border: 1px solid var(--borde); border-radius: 16px; background: var(--superficie); overflow: hidden; }
+  .muestra { height: 104px; display: flex; align-items: flex-end; padding: 10px 14px; font-weight: 700; font-size: 14px; }
+  .pie { padding: 16px 18px; }
+  .pie .nombre { font-size: 17px; font-weight: 700; }
+  .pie .hex { font-family: 'Fraunces', Georgia, serif; font-size: 15px; margin: 2px 0 6px; }
+  .pie .uso { font-size: 13px; color: var(--suave); }
+
+  .panel { border: 1px solid var(--borde); border-radius: 16px; padding: 18px; }
+  .chip { display: flex; flex-direction: column; gap: 6px; }
+  .chip .caja { height: 52px; border-radius: 10px; border: 1px solid rgba(128,128,128,.25); }
+  .chip .et { font-size: 12px; font-weight: 700; }
+  .chip .hx { font-size: 11px; opacity: .75; }
+
+  .nota { border-left: 3px solid var(--acento-nota, #B8460E); padding: 6px 0 6px 18px; margin: 28px 0 0; font-size: 15px; }
+
+  .logo-fila { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 22px 24px; }
+  .wordmark { display: flex; align-items: baseline; gap: 2px; }
+  .wordmark .a { font-family: 'Fraunces', Georgia, serif; font-size: 34px; font-weight: 700; }
+  .wordmark .b { font-size: 34px; font-weight: 500; }
+  .tamanos { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid var(--borde); }
+
+  /* Teléfono: todos sus colores salen de variables que fija cada paleta */
+  .tel { width: 380px; max-width: 100%; height: 600px; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--t-borde); background: var(--t-fondo); color: var(--t-texto); }
+  .cabecera { padding: 14px; display: flex; align-items: center; gap: 10px; background: var(--t-cab); }
+  .buscador { flex: 1; height: 32px; border-radius: 10px; background: var(--t-busca); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: var(--t-busca-txt); }
+  .carrito { width: 32px; height: 32px; border-radius: 9px; background: var(--t-acento); display: flex; align-items: center; justify-content: center; }
+  .cuerpo { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .cuerpo h4 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; margin: 0; }
+  .prod { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border: 1px solid var(--t-borde); border-radius: 14px; background: var(--t-sup); overflow: hidden; display: flex; flex-direction: column; }
+  .foto { height: 96px; background: var(--t-sup2); display: flex; align-items: center; justify-content: center; }
+  .info { padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .nom { font-size: 13px; font-weight: 700; line-height: 1.25; }
+  .meta { font-size: 11px; color: var(--t-suave); }
+  .precio { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .btn { margin-top: 8px; width: 100%; border: 0; border-radius: 9px; background: var(--t-prim); color: var(--t-prim-txt); font-family: inherit; font-size: 12px; font-weight: 700; padding: 9px 0; }
+  .btn:disabled { background: var(--t-sup2); color: var(--t-suave); opacity: .8; }
+  .tag { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--t-tag-bg); color: var(--t-tag-txt); }
+  .promo { border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--t-acento); color: var(--t-acento-txt); font-size: 12px; font-weight: 700; }
+  .promo b { font-family: 'Fraunces', Georgia, serif; font-size: 18px; }
+
+  pre { background: #16140F; color: #F2EEE8; border-radius: 14px; padding: 20px 22px; overflow-x: auto; font-size: 13px; line-height: 1.7; font-family: ui-monospace, Menlo, Consolas, monospace; margin: 0; }
+  pre .c { color: #A89F92; }
+  pre .v { color: #F0C27A; }
+
+  .comparar { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; }
+  .comparar th, .comparar td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  .comparar th { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--suave); }
+  .tabla-envoltura { overflow-x: auto; margin-top: 16px; }
+
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--borde); font-size: 14px; color: var(--suave); }
+</style>
+</head>
+<body>
+<main class="hoja">
+
+  <header>
+    <h1>CruShop · tres paletas</h1>
+    <p class="intro">Tres alternativas a la de terracota y agave, una por color: naranja, verde y azul. Cada una trae marca, neutros, estados y teléfono en claro y oscuro, igual que la propuesta anterior. Las cifras de contraste se calculan en la página. El código no se ha tocado.</p>
+    <nav class="resumen" id="resumen"></nav>
+  </header>
+
+  <div id="paletas"></div>
+
+  <section class="paleta">
+    <h2>Cuál elegir</h2>
+    <div class="tabla-envoltura">
+      <table class="comparar">
+        <thead><tr><th>Paleta</th><th>A favor</th><th>En contra</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Naranja · Mandarina</strong></td><td>Abre el apetito y sobre fotos de comida se ve cálida. Es la más fácil de recordar.</td><td>El naranja brillante no aguanta texto blanco, así que el botón tiene que ir un tono más oscuro que el de la marca.</td></tr>
+          <tr><td><strong>Verde · Nopal</strong></td><td>Transmite fresco, local y del campo. Es la más tranquila para usar muchas horas en el panel de la tienda.</td><td>El verde de marca choca con el verde de "Éxito", por eso aquí "Éxito" pasa a turquesa.</td></tr>
+          <tr><td><strong>Azul · Añil</strong></td><td>Es la que da más confianza para pagar, y la migración es mínima porque la app ya es azul.</td><td>Es lo que usa cualquier app de reparto o de banco. Sin el acento mandarina se vuelve genérica.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota"><strong>Mi voto: el naranja</strong>, si quieren que se reconozca como mercado de comida. <strong>El azul</strong>, si lo que pesa es cambiar poco código. Con cualquiera de las tres se aplica la misma regla de la propuesta anterior: el precio va en color de texto normal y en negrita, y el rojo se reserva para errores y "Agotado".</p>
+  </section>
+
+  <footer>Propuesta para CruShop · 27 de septiembre de 2026. Nada de esto está aplicado en el código todavía. Complementa a <code>CruShop-paleta-y-logo.html</code>.</footer>
+</main>
+
+<script>
+const PALETAS = [
+  {
+    id: 'naranja', nombre: 'Mandarina', color: 'Naranja',
+    lema: 'Naranja de mercado con cacao y mango',
+    texto: 'El naranja es el color de la comida: se asocia con apetito, con precio justo y con el puesto del mercado. Lo acompaña un café cacao para las cabeceras, que da peso sin volverse negro, y un amarillo mango para promociones y estrellas.',
+    marca: [
+      { nombre: 'Mandarina', hex: '#C2410C', uso: 'Botones de acción, "Agregar al carrito", enlaces.', sobre: '#FFFFFF' },
+      { nombre: 'Cacao', hex: '#3D2418', uso: 'Cabeceras, menú lateral, panel de tienda. Sustituye al azul marino.', sobre: '#FFFFFF' },
+      { nombre: 'Mango', hex: '#F5B83D', uso: 'Estrellas, "Nuevo", promociones. Siempre con texto oscuro encima.', sobre: '#2A1A0F' },
+    ],
+    claro:  { fondo: '#FFF8F2', sup: '#FFFFFF', sup2: '#FCEBDD', texto: '#231A14', suave: '#745E4E', borde: '#F0DCCB' },
+    oscuro: { fondo: '#15100C', sup: '#211813', sup2: '#2D211A', texto: '#F8EFE7', suave: '#C0A894', borde: '#403024' },
+    primOscuro: '#F28444', primOscuroTxt: '#1A0F08', cabOscuro: '#241711',
+    estados: { exito: '#2E7D4F', aviso: '#B45309', error: '#B91C1C', info: '#2563A8' },
+    notaEstados: 'Con esta marca, "Aviso" se oscurece a #B45309 para que no se confunda con el naranja de los botones.',
+  },
+  {
+    id: 'verde', nombre: 'Nopal', color: 'Verde',
+    lema: 'Verde nopal con bosque y limón',
+    texto: 'Verde de producto fresco y de campo, no de hospital. El nopal va en los botones, un verde bosque muy oscuro en las cabeceras y un amarillo limón para lo que tiene que saltar a la vista. Es la paleta más tranquila para el panel de la tienda.',
+    marca: [
+      { nombre: 'Nopal', hex: '#2F7A3A', uso: 'Botones de acción, "Agregar al carrito", enlaces.', sobre: '#FFFFFF' },
+      { nombre: 'Bosque', hex: '#14352A', uso: 'Cabeceras, menú lateral, panel de tienda. Sustituye al azul marino.', sobre: '#FFFFFF' },
+      { nombre: 'Limón', hex: '#D4E157', uso: 'Estrellas, "Nuevo", promociones. Siempre con texto oscuro encima.', sobre: '#1A2410' },
+    ],
+    claro:  { fondo: '#F6F8F2', sup: '#FFFFFF', sup2: '#E9EFE2', texto: '#17201A', suave: '#5A6A5E', borde: '#DAE3D3' },
+    oscuro: { fondo: '#0E1410', sup: '#172019', sup2: '#202B22', texto: '#EDF4EC', suave: '#A3B4A6', borde: '#2E3B31' },
+    primOscuro: '#6BC47A', primOscuroTxt: '#0B140D', cabOscuro: '#132019',
+    estados: { exito: '#0F766E', aviso: '#B45309', error: '#B91C1C', info: '#2563A8' },
+    notaEstados: '"Éxito" pasa de verde a turquesa (#0F766E). Si fuera verde, un pedido entregado se vería igual que un botón.',
+  },
+  {
+    id: 'azul', nombre: 'Añil', color: 'Azul',
+    lema: 'Añil con noche y un acento mandarina',
+    texto: 'Es la evolución del azul que ya tiene la app, pero ordenado: un solo azul añil para las acciones, un azul noche para las cabeceras y un acento mandarina que evita que parezca un banco. Es el cambio más barato: casi todo son las mismas variables con otro valor.',
+    marca: [
+      { nombre: 'Añil', hex: '#1D4ED8', uso: 'Botones de acción, "Agregar al carrito", enlaces. Sustituye a #0165d8.', sobre: '#FFFFFF' },
+      { nombre: 'Noche', hex: '#0F1E3D', uso: 'Cabeceras, menú lateral, panel de tienda. Sustituye a #011f41.', sobre: '#FFFFFF' },
+      { nombre: 'Mandarina', hex: '#F59E0B', uso: 'Estrellas, "Nuevo", promociones. Siempre con texto oscuro encima.', sobre: '#1F1405' },
+    ],
+    claro:  { fondo: '#F5F7FB', sup: '#FFFFFF', sup2: '#E8EDF6', texto: '#131A27', suave: '#5A6578', borde: '#D9E0EC' },
+    oscuro: { fondo: '#0C1019', sup: '#151B28', sup2: '#1E2636', texto: '#EBF0F8', suave: '#A2AEC3', borde: '#2C3649' },
+    primOscuro: '#7AA2FF', primOscuroTxt: '#0A1020', cabOscuro: '#111A2E',
+    estados: { exito: '#2E7D4F', aviso: '#B45309', error: '#B91C1C', info: '#0E7490' },
+    notaEstados: '"Info" pasa a azul petróleo (#0E7490). Si fuera azul, un aviso informativo se confundiría con un botón.',
+  },
+];
+
+// --- contraste WCAG ---
+function lum(hex) {
+  const h = hex.replace('#', '').slice(0, 6);
+  const c = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contraste(a, b) {
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+  return ((x + 0.05) / (y + 0.05)).toFixed(1);
+}
+const hex6 = h => h.slice(0, 7).toUpperCase();
+
+// --- piezas ---
+function logo(p, tam) {
+  const [prim, , acento] = p.marca.map(m => m.hex);
+  const crema = p.claro.fondo;
+  const franja = (x, c) => `<path d="M${x} 30 L${x} 46 a6 6 0 0 0 12 0 L${x + 12} 30 Z" fill="${c}"></path>`;
+  return `<svg width="${tam}" height="${tam}" viewBox="0 0 96 96" ${tam > 40 ? `role="img" aria-label="Logo CruShop, toldo de mercado"` : 'aria-hidden="true"'}>
+    <rect width="96" height="96" rx="24" fill="${prim}"></rect>
+    ${franja(18, crema)}${franja(30, acento)}${franja(42, crema)}${franja(54, acento)}${franja(66, crema)}
+    <rect x="14" y="24" width="68" height="8" rx="4" fill="${crema}"></rect>
+    <rect x="30" y="60" width="36" height="22" rx="5" fill="${crema}" opacity="0.9"></rect>
+  </svg>`;
+}
+
+function chips(n, titulo) {
+  const lista = [['Fondo', n.fondo], ['Superficie', n.sup], ['Superficie 2', n.sup2], ['Texto', n.texto], ['Texto suave', n.suave], ['Borde', n.borde]];
+  return lista.map(([et, hx]) => `<div class="chip"><div class="caja" style="background:${hx}"></div><div class="et">${et}</div><div class="hx">${hex6(hx)}</div></div>`).join('');
+}
+
+function telefono(p, oscuro) {
+  const n = oscuro ? p.oscuro : p.claro;
+  const [prim, cab, acento] = p.marca;
+  const v = {
+    '--t-fondo': n.fondo, '--t-sup': n.sup, '--t-sup2': n.sup2, '--t-texto': n.texto, '--t-suave': n.suave, '--t-borde': n.borde,
+    '--t-cab': oscuro ? p.cabOscuro : cab.hex,
+    '--t-busca': oscuro ? n.sup2 : 'rgba(255,255,255,.14)',
+    '--t-busca-txt': oscuro ? n.suave : 'rgba(255,255,255,.75)',
+    '--t-prim': oscuro ? p.primOscuro : prim.hex,
+    '--t-prim-txt': oscuro ? p.primOscuroTxt : prim.sobre,
+    '--t-acento': acento.hex, '--t-acento-txt': acento.sobre,
+    '--t-tag-bg': oscuro ? '#3A1C1C' : '#FDECEC', '--t-tag-txt': oscuro ? '#F4A0A0' : p.estados.error,
+  };
+  const estilo = Object.entries(v).map(([k, x]) => `${k}:${x}`).join(';');
+  const foto = `<div class="foto"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${n.suave}" stroke-opacity=".55" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9.5" r="1.8"></circle><path d="M4 17l5-5 4 4 2-2 5 5"></path></svg></div>`;
+  return `<div class="tel" style="${estilo}">
+    <div class="cabecera">
+      ${logo(p, 30)}
+      <div class="buscador">Buscar producto o tienda</div>
+      <div class="carrito"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${acento.sobre}" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.4 11.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"></path></svg></div>
+    </div>
+    <div class="cuerpo">
+      <div class="promo"><span>Promoción de la semana<br><span style="font-weight:500">Tamales · Doña Lupe</span></span><b>-20%</b></div>
+      <h4>Productos</h4>
+      <div class="prod">
+        <div class="card">${foto}
+          <div class="info">
+            <div class="nom">Chocoflán de la casa</div>
+            <div class="meta">Postres · Lola</div>
+            <div style="display:flex;align-items:center;gap:3px"><span style="color:${acento.hex};font-size:12px;letter-spacing:1px">★★★★</span><span style="color:${n.borde};font-size:12px">★</span><span style="font-size:10px;color:${n.suave};margin-left:2px">(12)</span></div>
+            <div class="precio">$45.00</div>
+            <button class="btn" type="button">Agregar</button>
+          </div>
+        </div>
+        <div class="card">${foto}
+          <div class="info">
+            <div class="nom">Pay de queso</div>
+            <div class="meta">Postres · Dulces Ana</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:5px"><span class="precio" style="margin:0">$60.00</span><span class="tag">Agotado</span></div>
+            <button class="btn" type="button" disabled>Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function seccion(p) {
+  const [prim, cab, acento] = p.marca;
+  const tarjetas = p.marca.map(m => `
+    <div class="tarjeta">
+      <div class="muestra" style="background:${m.hex};color:${m.sobre}">Aa · ${contraste(m.hex, m.sobre)}:1</div>
+      <div class="pie">
+        <div class="nombre">${m.nombre}</div>
+        <div class="hex">${m.hex}</div>
+        <div class="uso">${m.uso}</div>
+      </div>
+    </div>`).join('');
+  const est = [['Éxito', p.estados.exito], ['Aviso', p.estados.aviso], ['Error', p.estados.error], ['Info', p.estados.info]]
+    .map(([n, h]) => `<div class="tarjeta"><div class="muestra" style="height:48px;background:${h}"></div><div class="pie" style="padding:12px 14px"><div class="nombre" style="font-size:14px">${n} · ${h}</div><div class="uso" style="margin-top:2px">Blanco encima: ${contraste(h, '#FFFFFF')}:1</div></div></div>`).join('');
+  const c = p.claro, o = p.oscuro;
+  return `
+  <section class="paleta" id="${p.id}" style="--acento-nota:${prim.hex}">
+    <span class="etiqueta" style="background:${prim.hex};color:${prim.sobre}">${p.color}</span>
+    <h2>${p.nombre} · ${p.lema.toLowerCase()}</h2>
+    <p class="sub">${p.texto}</p>
+
+    <h3>Marca</h3>
+    <div class="fila tres">${tarjetas}</div>
+
+    <h3>Neutros</h3>
+    <div class="fila dos">
+      <div class="panel" style="background:${c.sup};color:${c.texto}"><div class="fila seis">${chips(c)}</div></div>
+      <div class="panel" style="background:${o.fondo};color:${o.texto};border-color:${o.borde}"><div class="fila seis">${chips(o)}</div></div>
+    </div>
+
+    <h3>Estados · uno de cada uno</h3>
+    <div class="fila cuatro">${est}</div>
+    <p class="nota">${p.notaEstados}</p>
+
+    <h3>Logo con esta paleta</h3>
+    <div class="tarjeta"><div class="logo-fila">
+      ${logo(p, 88)}
+      <div class="wordmark" style="flex:1 1 220px"><span class="a" style="color:${cab.hex}">Cru</span><span class="b" style="color:${prim.hex}">Shop</span></div>
+      <div class="tamanos">${logo(p, 32)}${logo(p, 16)}</div>
+    </div></div>
+
+    <h3>Puesta en la app · claro y oscuro</h3>
+    <div class="fila dos">
+      <div>${telefono(p, false)}</div>
+      <div>${telefono(p, true)}</div>
+    </div>
+    <p class="nota">En oscuro, el botón pasa de ${prim.hex} a ${p.primOscuro} con texto oscuro encima (${contraste(p.primOscuro, p.primOscuroTxt)}:1), porque el tono de día se apaga sobre fondo negro.</p>
+
+    <h3>Tokens para <code>ColorsVarCss.css</code></h3>
+<pre><span class="c">/* claro */</span>
+--color-bg-blue-dark:  <span class="v">${cab.hex}</span>;  <span class="c">/* era #011f41 */</span>
+--color-bg-blue-ligth: <span class="v">${prim.hex}</span>;  <span class="c">/* era #0165d8 */</span>
+--color-acento:        <span class="v">${acento.hex}</span>;
+--bg-page:   <span class="v">${hex6(c.fondo)}</span>;   --surface:   <span class="v">${hex6(c.sup)}</span>;
+--surface-2: <span class="v">${hex6(c.sup2)}</span>;   --text:      <span class="v">${hex6(c.texto)}</span>;
+--text-muted:<span class="v">${hex6(c.suave)}</span>;   --border:    <span class="v">${hex6(c.borde)}</span>;
+
+<span class="c">/* oscuro */</span>
+--color-bg-blue-ligth: <span class="v">${p.primOscuro}</span>;
+--bg-page:   <span class="v">${hex6(o.fondo)}</span>;   --surface:   <span class="v">${hex6(o.sup)}</span>;
+--surface-2: <span class="v">${hex6(o.sup2)}</span>;   --text:      <span class="v">${hex6(o.texto)}</span>;
+--text-muted:<span class="v">${hex6(o.suave)}</span>;   --border:    <span class="v">${hex6(o.borde)}</span>;
+
+<span class="c">/* estados */</span>
+--ok: <span class="v">${p.estados.exito}</span>;  --aviso: <span class="v">${p.estados.aviso}</span>;  --error: <span class="v">${p.estados.error}</span>;  --info: <span class="v">${p.estados.info}</span>;</pre>
+  </section>`;
+}
+
+document.getElementById('resumen').innerHTML = PALETAS.map(p => `
+  <a href="#${p.id}">
+    <div class="franjas">${p.marca.map(m => `<span style="background:${m.hex}"></span>`).join('')}<span style="background:${p.claro.sup2}"></span></div>
+    <div class="pie"><div class="nombre">${p.color} · ${p.nombre}</div><div class="uso">${p.lema}</div></div>
+  </a>`).join('');
+document.getElementById('paletas').innerHTML = PALETAS.map(seccion).join('');
+</script>
+</body>
+</html>

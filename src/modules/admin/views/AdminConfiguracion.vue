@@ -12,6 +12,14 @@
       </p>
 
       <form class="secciones" novalidate @submit.prevent="guardar">
+        <router-link to="/admin/apariencia" class="card card-enlace">
+          <span>
+            <strong>Apariencia</strong>
+            <small class="hint">Paleta de colores, paletas propias y temáticas de temporada (Día de Muertos, Halloween…).</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </router-link>
+
         <!-- Membresía -->
         <section class="card">
           <h2>Membresía</h2>
@@ -214,8 +222,8 @@ const normalizado = computed(() => ({
 const hayCambios = computed(() => {
   const c = configuracion.value;
   const n = normalizado.value;
-  return JSON.stringify({ m: c.membresia, r: c.registro, t: c.mantenimiento, s: c.soporte, p: c.pagos }) !==
-    JSON.stringify({ m: n.membresia, r: n.registro, t: n.mantenimiento, s: n.soporte, p: n.pagos });
+  return JSON.stringify({ m: c.membresia, r: c.registro, o: c.promociones, t: c.mantenimiento, s: c.soporte, p: c.pagos }) !==
+    JSON.stringify({ m: n.membresia, r: n.registro, o: n.promociones, t: n.mantenimiento, s: n.soporte, p: n.pagos });
 });
 
 function restablecer() {
@@ -279,6 +287,22 @@ function fechaCorta(iso?: string) {
 </script>
 
 <style scoped>
+.card-enlace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.05rem;
+}
+.card-enlace span:first-child {
+  display: flex;
+  flex-direction: column;
+}
+.card-enlace:hover {
+  border-left-color: var(--color-bg-blue-ligth);
+}
 .admin-container {
   min-height: 100vh;
   background: var(--surface-2);

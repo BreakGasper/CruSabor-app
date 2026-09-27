@@ -453,7 +453,7 @@ async function onPagoGuardado(p: PagoRegistrado) {
   font-size: 0.68rem;
 }
 .estatus-pendiente {
-  background: #eaf2fc;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 .estatus-activa {

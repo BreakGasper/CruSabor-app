@@ -766,7 +766,7 @@ const obtenerStock = (producto: Producto) => {
 }
 
 .normal {
-  color: #3498db;
+  color: var(--brand-blue-text);
 }
 
 
@@ -829,6 +829,7 @@ const obtenerStock = (producto: Producto) => {
 }
 .btn-agregar:hover {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .btn-agregar:disabled {
   background: #ccc;
@@ -865,6 +866,7 @@ const obtenerStock = (producto: Producto) => {
 }
 .btn-menos {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .btn-basura {
   background: #e74c3c;

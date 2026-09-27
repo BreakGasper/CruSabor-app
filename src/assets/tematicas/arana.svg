@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 110">
+  <!-- Araña de ejemplo para Halloween. Reemplázala por tu GIF en src/assets/tematicas/ -->
+  <g stroke="#1b1b1b" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M44 48 Q24 30 8 38"/><path d="M44 56 Q20 52 4 64"/><path d="M46 64 Q24 74 12 94"/><path d="M50 70 Q36 88 32 106"/>
+    <path d="M76 48 Q96 30 112 38"/><path d="M76 56 Q100 52 116 64"/><path d="M74 64 Q96 74 108 94"/><path d="M70 70 Q84 88 88 106"/>
+  </g>
+  <ellipse cx="60" cy="62" rx="20" ry="18" fill="#1b1b1b"/>
+  <circle cx="60" cy="36" r="13" fill="#1b1b1b"/>
+  <circle cx="55" cy="34" r="3.5" fill="#f5b83d"/><circle cx="65" cy="34" r="3.5" fill="#f5b83d"/>
+  <path d="M60 0 V23" stroke="#1b1b1b" stroke-width="1.5"/>
+</svg>

@@ -450,6 +450,7 @@ function onImageError(event: Event) {
 }
 .icon-circle.has-filters {
   background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .icon-circle.has-filters .filter-icon {
   filter: none;

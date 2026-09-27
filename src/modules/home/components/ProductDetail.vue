@@ -97,7 +97,7 @@
               backgroundColor: variante.colorCodigo,
               border:
                 varianteSeleccionada?.sku === variante.sku
-                  ? '3px solid #1f70b2'
+                  ? '3px solid var(--brand-blue-text)'
                   : '2px solid #ddd',
             }"
             @click="seleccionarColor(variante)"
@@ -260,7 +260,7 @@ async function calificarProducto(estrellas: number) {
     showCancelButton: true,
     confirmButtonText: 'Ingresar',
     cancelButtonText: 'Ahora no',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   if (r.isConfirmed) router.push('/login');
 }
@@ -405,11 +405,11 @@ if (props.producto) sincronizarCarrito();
 // Función para agregar / aumentar
 const aumentarCantidad = async (producto: Producto) => {
   if (tiendaNoDisponible.value) {
-    Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: '#0165d8' });
+    Swal.fire({ icon: 'info', title: 'Tienda no disponible', text: MENSAJE_TIENDA_NO_DISPONIBLE, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
     return;
   }
   if (sinEnvioTienda.value) {
-    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: '#0165d8' });
+    Swal.fire({ icon: 'info', title: 'Sin envío a domicilio', text: MENSAJE_SIN_ENVIO, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
     return;
   }
   if (!sessionPedidoId.value) {
@@ -881,7 +881,7 @@ function onImgError(e: Event) {
 
 .btn-carrito.btn-menos {
   background-color: var(--color-bg-blue-ligth);
-  color: white;
+  color: var(--on-primary);
 }
 
 .detalle-modal-container {

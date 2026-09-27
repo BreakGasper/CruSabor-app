@@ -643,7 +643,7 @@ watch(
   flex: 1 0 auto; padding: 7px 12px; border: none; border-radius: 999px;
   background: var(--surface-2); color: var(--text-muted); font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-.se-tab.active { background: #1f70b2; color: #fff; }
+.se-tab.active { background: var(--color-bg-blue-ligth); color: var(--on-primary); }
 
 .se-body { overflow-y: auto; padding: 0.5rem 1.1rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .se-section { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -656,7 +656,7 @@ watch(
   font-size: 16px; box-sizing: border-box; background: var(--surface); font-family: inherit;
 }
 .se-campo input:focus, .se-campo select:focus, .se-campo textarea:focus {
-  outline: none; border-color: #1f70b2; box-shadow: 0 0 0 3px rgba(31, 112, 178, 0.15);
+  outline: none; border-color: var(--brand-blue-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-blue-ligth) 15%, transparent);
 }
 .se-campo input.err, .se-campo select.err { border-color: #e74c3c; }
 .se-campo small, .hint { color: var(--text-muted); font-size: 0.75rem; }
@@ -693,7 +693,7 @@ watch(
 .se-grid-2.calle { grid-template-columns: 2fr 1fr; }
 
 .se-check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--text); cursor: pointer; }
-.se-check input { width: 16px; height: 16px; accent-color: #1f70b2; }
+.se-check input { width: 16px; height: 16px; accent-color: var(--brand-blue-text); }
 
 .se-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .se-chip {
@@ -701,7 +701,7 @@ watch(
   border: 1px solid var(--border); font-size: 0.85rem; cursor: pointer; user-select: none;
 }
 .se-chip input { display: none; }
-.se-chip.on { background: #1f70b2; border-color: #1f70b2; color: #fff; }
+.se-chip.on { background: var(--color-bg-blue-ligth); border-color: var(--brand-blue-text); color: var(--on-primary); }
 
 .se-zonas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .se-zona {
@@ -735,7 +735,7 @@ watch(
 
 .se-footer { display: flex; gap: 8px; padding-top: 0.5rem; border-top: 1px solid #eef1f5; }
 .se-btn-pri, .se-btn-sec { flex: 1; height: 42px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; cursor: pointer; }
-.se-btn-pri { border: none; background: #1f70b2; color: #fff; }
+.se-btn-pri { border: none; background: var(--color-bg-blue-ligth); color: var(--on-primary); }
 .se-btn-sec { border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 .se-btn-pri:disabled, .se-btn-sec:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -760,6 +760,6 @@ watch(
 .se-check input {
   width: 1rem;
   height: 1rem;
-  accent-color: #0165d8;
+  accent-color: var(--brand-blue-text);
 }
 </style>

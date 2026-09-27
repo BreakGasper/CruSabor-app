@@ -277,7 +277,7 @@ const siguientePaso = async () => {
       icon: "warning",
       title: "Falta el domicilio",
       text: "Selecciona o registra una dirección de entrega completa.",
-      confirmButtonColor: "#0165d8",
+      confirmButtonColor: "var(--color-bg-blue-ligth)",
     });
     return;
   }
@@ -309,7 +309,7 @@ const siguientePaso = async () => {
             ? `${e.message} Puedes confirmar el resto del pedido.`
             : e.message,
           icon: "info",
-          confirmButtonColor: "#0165d8",
+          confirmButtonColor: "var(--color-bg-blue-ligth)",
         });
         if (!restantes.length) router.replace("/cart");
         return;
@@ -326,7 +326,7 @@ const siguientePaso = async () => {
                 : "No se pudo confirmar",
         text: e?.message || String(e),
         icon: "error",
-        confirmButtonColor: "#0165d8",
+        confirmButtonColor: "var(--color-bg-blue-ligth)",
       });
       return;
     }
@@ -342,7 +342,7 @@ const siguientePaso = async () => {
       html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong>`,
       icon: "success",
       confirmButtonText: "Aceptar",
-      confirmButtonColor: "#0165d8",
+      confirmButtonColor: "var(--color-bg-blue-ligth)",
     }).then(() => {
       router.replace("/"); // 👈 aquí lo mandas al perfil
     });
@@ -443,9 +443,9 @@ const FlechaBack = () => {
 }
 
 .payment-option.active {
-  border-color: #3498db;
+  border-color: var(--brand-blue-text);
   background: #eaf6ff;
-  color: #3498db;
+  color: var(--brand-blue-text);
   font-weight: bold;
 }
 
@@ -467,11 +467,7 @@ const FlechaBack = () => {
   width: 100%;
   text-align: center;
   padding: 2rem 1rem;
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-blue-dark),
-    var(--color-bg-blue-ligth)
-  );
+  background: var(--color-bg-blue-dark);
   color: white;
   border-radius: 0 0 40px 40px;
   margin-bottom: 2rem;
@@ -502,7 +498,7 @@ const FlechaBack = () => {
   margin-bottom: 1rem;
   font-weight: bold;
   font-size: 1.2rem;
-  color: #3498db;
+  color: var(--brand-blue-text);
   padding-bottom: 0.5rem;
 }
 .card-title::after {
@@ -570,7 +566,7 @@ const FlechaBack = () => {
 }
 
 .form-input:focus {
-  border-color: #3498db;
+  border-color: var(--brand-blue-text);
 }
 
 .payment-options button {
@@ -582,9 +578,9 @@ const FlechaBack = () => {
   cursor: pointer;
 }
 .payment-options button.active {
-  background: #3498db;
-  color: white;
-  border-color: #3498db;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
+  border-color: var(--brand-blue-text);
 }
 
 .button-row {
@@ -648,7 +644,7 @@ const FlechaBack = () => {
 }
 .dir-opcion.activa {
   border-color: var(--color-bg-blue-ligth);
-  background: #eef5ff;
+  background: var(--brand-blue-soft);
 }
 .dir-opcion input {
   margin-top: 4px;
@@ -692,7 +688,7 @@ const FlechaBack = () => {
   cursor: pointer;
 }
 .btn-nueva:hover {
-  background: #eef5ff;
+  background: var(--brand-blue-soft);
 }
 .limite {
   margin: 0;
@@ -757,7 +753,7 @@ const FlechaBack = () => {
 }
 
 .change-link {
-  color: #3498db;
+  color: var(--brand-blue-text);
   font-weight: bold;
   cursor: pointer;
   text-decoration: underline;
@@ -795,7 +791,7 @@ const FlechaBack = () => {
 .resumen-articulos h3 {
   margin-bottom: 0.5rem;
   font-size: 1rem;
-  color: #3498db;
+  color: var(--brand-blue-text);
   text-align: center;
 }
 

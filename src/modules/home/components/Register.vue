@@ -698,10 +698,10 @@ async function handleRegister() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #eef4fb;
+  background: var(--brand-blue-soft);
   background-image:
-    radial-gradient(circle at 10% 15%, rgba(1, 101, 216, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 85%, rgba(1, 31, 65, 0.1), transparent 50%);
+    radial-gradient(circle at 10% 15%, color-mix(in srgb, var(--color-bg-blue-ligth) 12%, transparent), transparent 45%),
+    radial-gradient(circle at 90% 85%, color-mix(in srgb, var(--color-bg-blue-dark) 10%, transparent), transparent 50%);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   position: relative;
   padding-bottom: 2rem;
@@ -730,13 +730,9 @@ async function handleRegister() {
   padding: 3.5rem 1rem 2rem;
   text-align: center;
   color: #fff;
-  background: linear-gradient(
-    150deg,
-    var(--color-bg-blue-ligth),
-    var(--color-bg-blue-dark)
-  );
+  background: var(--color-bg-blue-dark);
   border-radius: 0 0 40px 40px;
-  box-shadow: 0 6px 20px rgba(1, 31, 65, 0.25);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-bg-blue-dark) 25%, transparent);
   box-sizing: border-box;
 }
 .user-emblem {
@@ -800,7 +796,7 @@ async function handleRegister() {
   background: var(--surface);
   padding: 2rem 1.5rem;
   border-radius: 20px;
-  box-shadow: 0 8px 25px rgba(1, 31, 65, 0.12);
+  box-shadow: 0 8px 25px color-mix(in srgb, var(--color-bg-blue-dark) 12%, transparent);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -841,7 +837,7 @@ async function handleRegister() {
 }
 .form-input:focus {
   border-color: var(--color-bg-blue-ligth);
-  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-blue-ligth) 15%, transparent);
 }
 .input-error {
   border-color: #d9534f !important;
@@ -918,7 +914,7 @@ async function handleRegister() {
 .gender-option.selected {
   filter: none;
   border-color: var(--color-bg-blue-ligth);
-  background: #eaf2fc;
+  background: var(--brand-blue-soft);
 }
 .gender-icon {
   width: 32px;
@@ -988,7 +984,7 @@ async function handleRegister() {
   justify-content: center;
 }
 .toggle-password:hover {
-  background: #eaf2fc;
+  background: var(--brand-blue-soft);
 }
 .toggle-password img {
   width: 20px;
@@ -1017,8 +1013,8 @@ async function handleRegister() {
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
-  border: 3px solid #eaf2fc;
-  box-shadow: 0 4px 12px rgba(1, 31, 65, 0.15);
+  border: 3px solid var(--brand-blue-soft);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-bg-blue-dark) 15%, transparent);
   background: var(--surface-2);
   transition: transform 0.2s;
 }
@@ -1036,7 +1032,7 @@ async function handleRegister() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(1, 31, 65, 0.35);
+  background: color-mix(in srgb, var(--color-bg-blue-dark) 35%, transparent);
   opacity: 0;
   transition: opacity 0.2s;
   font-size: 1.6rem;
@@ -1101,13 +1097,9 @@ async function handleRegister() {
 }
 .btn-primary {
   border: none;
-  color: #fff;
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-blue-ligth),
-    var(--color-bg-blue-dark)
-  );
-  box-shadow: 0 6px 14px rgba(1, 101, 216, 0.3);
+  color: var(--on-primary);
+  background: var(--color-bg-blue-ligth);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-bg-blue-ligth) 30%, transparent);
 }
 .btn-primary:hover {
   filter: brightness(1.08);
@@ -1120,7 +1112,7 @@ async function handleRegister() {
 }
 .btn-outline:hover {
   background: var(--color-bg-blue-ligth);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .switch-link {

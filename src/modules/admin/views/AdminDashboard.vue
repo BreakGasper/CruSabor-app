@@ -273,7 +273,7 @@ function fechaCorta(iso?: string) {
   font-weight: 500;
 }
 .stat-pendiente {
-  border-color: #0165d8;
+  border-color: var(--brand-blue-text);
 }
 .stat-activa {
   border-color: #10b981;

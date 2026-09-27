@@ -410,8 +410,8 @@ onUnmounted(() => {
 }
 .stock-btn.primario {
   border-color: transparent;
-  background: #0165d8;
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   font-weight: 600;
 }
 .stock-btn:disabled {

@@ -598,7 +598,7 @@ async function intentarSalir() {
     confirmButtonText: 'Sí, salir',
     cancelButtonText: 'Seguir aquí',
     confirmButtonColor: '#d33',
-    cancelButtonColor: '#0165d8',
+    cancelButtonColor: 'var(--color-bg-blue-ligth)',
     reverseButtons: true,
   });
   if (isConfirmed) router.back();
@@ -910,7 +910,7 @@ async function verificarMembresia(idTienda: string): Promise<boolean> {
       ? 'Tu tienda está aprobada, pero para registrar productos necesitas una membresía vigente. Actívala desde tu perfil de tienda.'
       : `Estado: ${MOTIVO_SIN_MEMBRESIA_LABEL[bloqueo.motivo]}. Revisa el aviso en tu perfil de tienda o contacta al administrador.`,
     confirmButtonText: 'Ir a mi perfil',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   router.replace('/store/profile');
   return false;
@@ -1146,7 +1146,7 @@ async function submitForm() {
         ? 'Los cambios ya están publicados en tu tienda.'
         : 'Tu producto ya está publicado en tu tienda.',
       confirmButtonText: 'Ir a mi tienda',
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
       timer: 2500,
       timerProgressBar: true,
     });
@@ -1262,8 +1262,8 @@ function validarPaso2() {
   max-width: 480px;
   text-align: center;
   padding: 2rem 1rem;
-  background: linear-gradient(135deg, #6ab7ff, #0047ab);
-  color: white;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   border-radius: 0 0 40px 40px;
   margin-bottom: 1.5rem;
 }
@@ -1371,7 +1371,7 @@ function validarPaso2() {
   overflow-y: auto;
 }
 .form-input:focus {
-  border-color: #6ab7ff;
+  border-color: var(--brand-blue-text);
   box-shadow: 0 0 6px rgba(106, 183, 255, 0.3);
 }
 
@@ -1392,8 +1392,8 @@ function validarPaso2() {
 }
 .modern-button {
   flex: 1;
-  background: linear-gradient(135deg, #6ab7ff, #0047ab);
-  color: white;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   font-weight: 700;
   border-radius: 20px;
   padding: 0.9rem 0;
@@ -1427,7 +1427,7 @@ function validarPaso2() {
 .image-placeholder {
   width: 100%;
   height: 100%;
-  border: 2px dashed #0047ab;
+  border: 2px dashed var(--brand-blue-text);
   border-radius: 16px;
   display: flex;
   justify-content: center;
@@ -1607,7 +1607,7 @@ function validarPaso2() {
 }
 
 .color-item.selected {
-  border: 2px solid #0047ab; /* borde azul para el seleccionado */
+  border: 2px solid var(--brand-blue-text); /* borde azul para el seleccionado */
   padding: 0.25rem 0.45rem; /* ajustar padding por el borde */
   border-radius: 8px;
 }
@@ -1666,9 +1666,9 @@ function validarPaso2() {
 }
 
 .btn-elegante {
-  background: linear-gradient(135deg, #1565c0, #1e88e5);
+  background: var(--color-bg-blue-ligth);
   border: none !important;
-  color: white !important;
+  color: var(--on-primary) !important;
   padding: 10px 24px !important;
   font-size: 16px !important;
   font-weight: bold !important;
@@ -1678,9 +1678,10 @@ function validarPaso2() {
 }
 
 .btn-elegante:hover {
-  background: linear-gradient(135deg, #0d47a1, #1565c0);
+  background: var(--color-bg-blue-ligth);
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  color: var(--on-primary);
 }
 
 .btn-elegante:active {

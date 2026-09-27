@@ -516,7 +516,7 @@ async function calificarTienda(estrellas: number) {
     showCancelButton: true,
     confirmButtonText: 'Ingresar',
     cancelButtonText: 'Ahora no',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   if (r.isConfirmed) router.push('/login');
 }
@@ -595,7 +595,7 @@ async function elegirPlan(titulo: string, confirmar: string): Promise<PlanMembre
     showCancelButton: true,
     confirmButtonText: confirmar,
     cancelButtonText: 'Cancelar',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   return r.isConfirmed && r.value ? (r.value as PlanMembresia) : null;
 }
@@ -620,7 +620,7 @@ async function pagarAutomatico(plan: PlanMembresia) {
       showCancelButton: true,
       confirmButtonText: 'Ya pagué',
       cancelButtonText: 'Cerrar',
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
     });
     if (r.isConfirmed) await avisarPago(plan);
   }
@@ -630,7 +630,7 @@ function avisarResultadoPago() {
   const resultado = resultadoPagoDesdeQuery(route.query as Record<string, unknown>);
   if (!resultado) return;
   const m = MENSAJE_RESULTADO_PAGO[resultado];
-  Swal.fire({ icon: m.icon, title: m.titulo, text: m.texto, confirmButtonColor: '#0165d8' });
+  Swal.fire({ icon: m.icon, title: m.titulo, text: m.texto, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
   const { pago: _pago, ...resto } = route.query;
   router.replace({ query: resto });
 }
@@ -658,7 +658,7 @@ async function pagarMembresia() {
         Plan <strong>${plan === 'anual' ? 'anual' : 'mensual'}</strong>${precio > 0 ? ` · <strong>${escapar(formatoMXN(precio))}</strong>` : ''}
       </p>
       <a href="${escapar(link)}" target="_blank" rel="noopener"
-         style="display:inline-block;padding:12px 22px;border-radius:12px;background:linear-gradient(135deg,#0165d8,#011f41);color:#fff;font-weight:700;text-decoration:none">
+         style="display:inline-block;padding:12px 22px;border-radius:12px;background:var(--color-bg-blue-ligth);color:var(--on-primary);font-weight:700;text-decoration:none">
         Abrir Mercado Pago
       </a>
       <p style="margin:14px 0 0;color:var(--text-muted);font-size:0.85rem;line-height:1.4">${escapar(configuracion.value.pagos.instrucciones)}</p>
@@ -666,7 +666,7 @@ async function pagarMembresia() {
     showCancelButton: true,
     confirmButtonText: 'Ya pagué',
     cancelButtonText: 'Después',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   if (r.isConfirmed) await avisarPago(plan);
 }
@@ -684,7 +684,7 @@ async function avisarPago(planElegido?: PlanMembresia) {
     showCancelButton: true,
     confirmButtonText: 'Enviar aviso',
     cancelButtonText: 'Cancelar',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
   if (!r.isConfirmed) return;
   try {
@@ -698,10 +698,10 @@ async function avisarPago(planElegido?: PlanMembresia) {
       icon: 'success',
       title: 'Aviso enviado',
       text: 'El administrador confirmará tu pago y activará tu membresía. Te avisaremos en tu perfil.',
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
     });
   } catch (e: any) {
-    Swal.fire({ icon: 'error', title: 'No se pudo enviar el aviso', text: e?.message || 'Intenta de nuevo.', confirmButtonColor: '#0165d8' });
+    Swal.fire({ icon: 'error', title: 'No se pudo enviar el aviso', text: e?.message || 'Intenta de nuevo.', confirmButtonColor: 'var(--color-bg-blue-ligth)' });
   }
 }
 const articulosTienda = computed<Producto[]>(() =>
@@ -845,7 +845,7 @@ function artsTienda() {
       icon: 'warning',
       title: 'Activa tu membresía para publicar',
       text: MENSAJE_SIN_MEMBRESIA,
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
     });
     return;
   }
@@ -867,7 +867,7 @@ function irAPromociones() {
       icon: 'warning',
       title: 'Activa tu membresía para publicar',
       text: MENSAJE_SIN_MEMBRESIA,
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
     });
     return;
   }
@@ -971,7 +971,7 @@ body {
   max-width: 100%; /* no se desborde */
   overflow: hidden; /* recorta cualquier exceso */
   border-radius: 20px;
-  border: #1f70b2 solid 1px;
+  border: var(--brand-blue-text) solid 1px;
 }
 .banner-carousel {
   width: 100%;
@@ -1126,8 +1126,8 @@ body {
 }
 .btn-primary {
   flex: 1;
-  background: #1f70b2;
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   border: none;
   padding: 14px 0;
   border-radius: 12px;
@@ -1140,7 +1140,7 @@ body {
 }
 .btn-outline-blue {
   flex: 1;
-  border: 2px solid #1f70b2;
+  border: 2px solid var(--brand-blue-text);
   background: var(--surface);
   color: var(--brand-blue-text);
   padding: 14px 0;
@@ -1150,8 +1150,8 @@ body {
   transition: 0.3s;
 }
 .btn-outline-blue:hover {
-  background: #1f70b2;
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 /* Menú flotante lateral */
@@ -1160,8 +1160,8 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  background: var(--surface); /*#1f70b2;*/
-  border: 1px solid #1f70b2;
+  background: var(--surface);
+  border: 1px solid var(--brand-blue-text);
   border-radius: 0 10px 10px 0;
   padding: 10px;
   cursor: pointer;
@@ -1510,6 +1510,7 @@ body {
 @media (prefers-color-scheme: dark) {
   .menu-toggle {
     background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   }
 }
 
@@ -1573,7 +1574,7 @@ body {
 .btn-ya-pague {
   padding: 10px 16px;
   border-radius: 10px;
-  border: 2px solid #0165d8;
+  border: 2px solid var(--brand-blue-text);
   background: var(--surface);
   color: var(--brand-blue-text);
   font-weight: 700;
@@ -1585,13 +1586,13 @@ body {
   padding: 10px 16px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #0165d8, #011f41);
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 4px 12px rgba(1, 101, 216, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-bg-blue-ligth) 30%, transparent);
 }
 .btn-pagar-membresia:hover:not(:disabled) {
   filter: brightness(1.08);
@@ -1599,7 +1600,7 @@ body {
 
 .aviso-info {
   background: var(--brand-blue-soft);
-  border-color: #0165d8;
+  border-color: var(--brand-blue-text);
   color: var(--brand-blue-text);
 }
 .aviso-warning {
@@ -1618,7 +1619,7 @@ body {
   margin-top: 8px;
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid #1f70b2;
+  border: 1px solid var(--brand-blue-text);
   background: var(--surface);
   color: var(--brand-blue-text);
   font-size: 0.85rem;
@@ -1626,8 +1627,8 @@ body {
   cursor: pointer;
 }
 .btn-editar-tienda:hover {
-  background: #1f70b2;
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
 /* ===== Favorita ===== */
@@ -1757,8 +1758,8 @@ body {
   padding: 7px 10px;
   border: none;
   border-radius: 10px;
-  background: #1f70b2;
-  color: #fff;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -1801,7 +1802,8 @@ body {
   background: #27ae60;
 }
 .mini-btn.menos {
-  background: #1f70b2;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 .mini-btn.basura {
   background: #e74c3c;

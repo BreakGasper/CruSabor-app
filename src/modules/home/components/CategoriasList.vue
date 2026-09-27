@@ -194,7 +194,7 @@ function onImgError(e: Event) {
   transition: box-shadow 0.2s;
 }
 .search-input:focus {
-  box-shadow: 0 0 0 3px rgba(1, 101, 216, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-bg-blue-ligth) 20%, transparent);
 }
 .search-icon {
   position: absolute;
@@ -287,7 +287,7 @@ function onImgError(e: Event) {
   width: 84px;
   height: 84px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #eef4fb, #dfe9f7);
+  background: var(--brand-blue-soft);
   display: flex;
   align-items: center;
   justify-content: center;

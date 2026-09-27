@@ -306,7 +306,7 @@ async function guardar() {
       icon: 'success',
       title: editandoId.value ? 'Promoción actualizada' : 'Promoción publicada',
       text: 'Ya se ve en Destacados, en la portada de la app.',
-      confirmButtonColor: '#0165d8',
+      confirmButtonColor: 'var(--color-bg-blue-ligth)',
     });
   } catch (e) {
     console.error('Error guardando la promoción:', e);
@@ -326,7 +326,7 @@ async function renovar(p: Promocion) {
     icon: 'success',
     title: 'Promoción renovada',
     text: 'Vuelve a estar vigente por un mes más.',
-    confirmButtonColor: '#0165d8',
+    confirmButtonColor: 'var(--color-bg-blue-ligth)',
   });
 }
 

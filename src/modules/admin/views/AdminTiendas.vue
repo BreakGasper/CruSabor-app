@@ -477,7 +477,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   border-radius: 999px;
 }
 .estatus-pendiente {
-  background: #eaf2fc;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 .estatus-activa {

@@ -216,7 +216,8 @@
 }
 
 .btn-menos {
-  background-color: #007bff; /* azul */
+  background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary); /* azul */
 }
 
 .btn-basura {
@@ -229,7 +230,8 @@
 }
 
 .btn-menos {
-  background-color: var(--color-bg-blue-ligth); /* azul */
+  background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary); /* azul */
 }
 
 .btn-basura {

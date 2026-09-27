@@ -162,7 +162,7 @@ defineExpose({ abrir, cerrar });
   transition: transform 0.2s, color 0.2s;
 }
 .compartir-btn:hover {
-  color: #0165d8;
+  color: var(--brand-blue-text);
   transform: scale(1.08);
 }
 
@@ -173,7 +173,7 @@ defineExpose({ abrir, cerrar });
   gap: 8px;
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid #1f70b2;
+  border: 1px solid var(--brand-blue-text);
   background: var(--surface);
   color: var(--brand-blue-text);
   font-size: 0.85rem;
