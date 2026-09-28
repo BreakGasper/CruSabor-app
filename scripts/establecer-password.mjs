@@ -37,8 +37,8 @@ const password = arg('password') || '';
 const aplicar = process.argv.includes('--apply');
 const todos = process.argv.includes('--todos');
 
-if (password.length < 6 || (!todos && telefono.length !== 10)) {
-  console.error('Uso: --password <mín. 6> ( --telefono <10 dígitos> | --todos ) [--apply]');
+if (password.length < 6 || password.length > 10 || (!todos && telefono.length !== 10)) {
+  console.error('Uso: --password <6 a 10> ( --telefono <10 dígitos> | --todos ) [--apply]');
   process.exit(1);
 }
 

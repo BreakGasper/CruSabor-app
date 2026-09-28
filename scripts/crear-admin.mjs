@@ -37,7 +37,7 @@ const rol = arg('rol') || 'admin';
 const errores = [];
 if (telefono.length !== 10) errores.push('--telefono debe tener 10 dígitos');
 if (!nombre) errores.push('--nombre es obligatorio');
-if (password.length < 6) errores.push('--password debe tener al menos 6 caracteres');
+if (password.length < 6 || password.length > 10) errores.push('--password debe tener de 6 a 10 caracteres');
 if (!['admin', 'superadmin'].includes(rol)) errores.push('--rol debe ser admin o superadmin');
 if (errores.length) {
   console.error(errores.join('\n'));

@@ -9,8 +9,8 @@ const SALT_ROUNDS = 10;
  * Vive aquí y no en cada pantalla porque los límites tienen que coincidir entre
  * crear la cuenta, cambiarla y recuperarla: si el registro admite 10 y el cambio
  * solo 8, alguien se queda sin poder volver a poner su propia contraseña.
- * Los formularios de acceso NO llevan tope: si mañana sube el máximo, quien ya
- * tenga una más larga debe poder seguir entrando.
+ * Los formularios de acceso también llevan este tope: si algún día se sube el
+ * máximo, hay que subirlo aquí y no en cada pantalla.
  */
 export const PASSWORD_MIN = 6;
 export const PASSWORD_MAX = 10;

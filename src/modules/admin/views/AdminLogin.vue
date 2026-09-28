@@ -65,6 +65,7 @@
             id="admin-pass"
             v-model="form.password"
             :type="showPassword ? 'text' : 'password'"
+            :maxlength="PASSWORD_MAX"
             autocomplete="current-password"
             placeholder="••••••••"
             class="form-input with-left-icon"
@@ -108,6 +109,7 @@ import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import TopBarFija from '@/components/TopBarFija.vue';
 import { loginAdmin } from '@/composables/useAdmin';
+import { PASSWORD_MAX } from '@/composables/usePassword';
 import { guardarSesionAdmin } from '@/utils/sessionAdmin';
 import { cerrarSesion } from '@/utils/sessionUser';
 import { RUTA_ADMIN_HOME } from '../adminRoutes';

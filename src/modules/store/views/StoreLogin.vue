@@ -67,6 +67,7 @@
             id="store-pass"
             v-model="form.password"
             :type="showPassword ? 'text' : 'password'"
+            :maxlength="PASSWORD_MAX"
             autocomplete="current-password"
             placeholder="••••••••"
             class="form-input with-left-icon"
@@ -120,7 +121,7 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import TopBarFija from '@/components/TopBarFija.vue';
 import { findUserByPhoneStore } from '@/composables/useAuth';
-import { validatePasswordHash } from '@/composables/usePassword';
+import { validatePasswordHash, PASSWORD_MAX } from '@/composables/usePassword';
 import { cerrarSesion } from '@/utils/sessionUser';
 import eyeIcon from '@/assets/icons/eye.png';
 import eyeOffIcon from '@/assets/icons/eye-off.png';

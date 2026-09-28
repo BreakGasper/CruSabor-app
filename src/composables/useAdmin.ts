@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
 import { db } from '@/firebase';
 import { ref as dbRef, get, push, set, update, onValue, type Unsubscribe } from 'firebase/database';
-import { hashPassword, validatePasswordHash } from '@/composables/usePassword';
+import { hashPassword, validatePasswordHash, errorLongitudPassword } from '@/composables/usePassword';
 
 /**
  * Administradores del sistema. Viven en `admins/{id}` y entran con celular y
@@ -78,7 +78,8 @@ export async function crearAdmin(datos: {
   const telefono = soloDigitos(datos.telefono);
   if (!datos.nombre || datos.nombre.trim().length < 2) throw new Error('El nombre debe tener al menos 2 caracteres');
   if (telefono.length !== 10) throw new Error('El celular debe tener 10 dígitos');
-  if (!datos.password || datos.password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
+  const errPass = errorLongitudPassword(datos.password);
+  if (errPass) throw new Error(errPass);
   if (await telefonoAdminExiste(telefono)) throw new Error('Ya existe un administrador con ese celular');
 
   const nuevoRef = push(dbRef(db, 'admins'));
@@ -141,7 +142,8 @@ export async function actualizarAdmin(id: string, cambios: Partial<Pick<Admin, '
 
 /** Asigna una contraseña nueva (hash) a una cuenta */
 export async function cambiarPasswordAdmin(id: string, nueva: string) {
-  if (!nueva || nueva.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
+  const errPass = errorLongitudPassword(nueva);
+  if (errPass) throw new Error(errPass);
   await update(dbRef(db, `admins/${id}`), { password: await hashPassword(nueva), passwordCambiadaEn: new Date().toISOString() });
 }
 

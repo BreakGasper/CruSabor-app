@@ -64,6 +64,7 @@
             v-model="password"
             id="password"
             :type="showPassword ? 'text' : 'password'"
+            :maxlength="PASSWORD_MAX"
             autocomplete="current-password"
             placeholder="••••••••"
             class="form-input password-field"
@@ -166,7 +167,7 @@ import { findUserByPhone } from "@/composables/useAuth";
 import TopBarFija from "@/components/TopBarFija.vue";
 import router from "@/router";
 import { useRoute } from "vue-router";
-import { validatePasswordHash } from "@/composables/usePassword";
+import { validatePasswordHash, PASSWORD_MAX } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
 import CustomToast from "@/components/CustomToast.vue";
 import { guardarSesion, cerrarSesion } from "@/utils/sessionUser";

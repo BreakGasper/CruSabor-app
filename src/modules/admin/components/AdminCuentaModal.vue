@@ -42,10 +42,11 @@
             id="adm-pass"
             v-model="form.password"
             :type="verPass ? 'text' : 'password'"
+            :maxlength="PASSWORD_MAX"
             class="form-input"
             :class="{ 'input-error': errores.password }"
             autocomplete="new-password"
-            placeholder="Mínimo 6 caracteres"
+            placeholder="De 6 a 10 caracteres"
           />
           <button type="button" class="btn-ver" :aria-label="verPass ? 'Ocultar' : 'Mostrar'" @click="verPass = !verPass">{{ verPass ? '🙈' : '👁️' }}</button>
         </div>
@@ -66,6 +67,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
+import { errorLongitudPassword, PASSWORD_MAX } from '@/composables/usePassword';
 import { crearAdmin, actualizarAdmin, cambiarPasswordAdmin, ROL_LABEL, type Admin, type RolAdmin } from '@/composables/useAdmin';
 
 const props = defineProps<{ visible: boolean; admin: Admin | null; creadoPor?: string }>();
@@ -105,7 +107,10 @@ async function guardar() {
   errores.nombre = errores.telefono = errores.password = errores.general = undefined;
   if (form.nombre.trim().length < 2) errores.nombre = 'El nombre debe tener al menos 2 caracteres';
   if (!props.admin && soloDigitos(form.telefono).length !== 10) errores.telefono = 'El celular debe tener 10 dígitos';
-  if ((!props.admin || form.password) && form.password.length < 6) errores.password = 'La contraseña debe tener al menos 6 caracteres';
+  if (!props.admin || form.password) {
+    const errPass = errorLongitudPassword(form.password);
+    if (errPass) errores.password = errPass;
+  }
   if (errores.nombre || errores.telefono || errores.password) return;
 
   guardando.value = true;

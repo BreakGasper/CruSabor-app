@@ -228,20 +228,21 @@ describe('Límites de contraseña, parejos en toda la app', () => {
     expect(errorLongitudPassword('12345678901')).toMatch(/no puede pasar de 10/);
   });
 
-  it('ninguna pantalla de ACCESO recorta la contraseña', async () => {
+  it('las pantallas de ACCESO y la cuenta de admin limitan la contraseña a PASSWORD_MAX', async () => {
     const fs = require('node:fs') as typeof import('node:fs');
     const logins = [
       'src/modules/home/components/Login.vue',
       'src/modules/store/views/StoreLogin.vue',
       'src/modules/admin/views/AdminLogin.vue',
+      'src/modules/admin/components/AdminCuentaModal.vue',
     ];
     for (const ruta of logins) {
       const sfc = fs.readFileSync(ruta, 'utf8');
-      // se aísla el input de contraseña y se comprueba que no traiga maxlength
+      // se aísla el input de contraseña y se comprueba que traiga el tope compartido
       const i = sfc.indexOf("'text' : 'password'");
       expect(i, `${ruta}: no se encontró el campo de contraseña`).toBeGreaterThan(-1);
       const campo = sfc.slice(sfc.lastIndexOf('<input', i), sfc.indexOf('/>', i));
-      expect(campo, `${ruta} recorta la contraseña al entrar`).not.toMatch(/maxlength/);
+      expect(campo, `${ruta} no limita la contraseña`).toMatch(/:maxlength="PASSWORD_MAX"/);
     }
   });
 });
