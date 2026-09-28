@@ -471,24 +471,23 @@ onBeforeUnmount(() => {
   width: 100%; /* ocupa todo el ancho */
 }
 
-/* Hover / selección: azul y texto blanco */
-.sidebar ul li a:hover,
+/* Hover: fondo suave de marca con su texto de pareja. Selección: el color de los
+   botones. Todo sale de la paleta activa, así que sigue al admin y al modo oscuro. */
+.sidebar ul li a:hover {
+  background-color: var(--brand-blue-soft);
+  color: var(--brand-blue-text);
+}
 .sidebar ul li a.active {
-  background-color: var(--color-bg-blue-dark);
-  color: #fff;
+  background-color: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
 }
 
-/* Iconos Lucide */
+/* Iconos Lucide: toman el color del enlace, en reposo, hover y selección */
 .sidebar ul li a svg {
   width: 20px;
   height: 20px;
-  color: var(--text); /* mismo color que el texto del enlace */
-  transition: color 0.3s;
-}
-
-.sidebar ul li a:hover svg,
-.sidebar ul li a.active svg {
-  color: #fff; /* icono blanco al hover/selección */
+  color: currentColor;
+  flex-shrink: 0;
 }
 /* Separador gris entre Account y Settings */
 .sidebar-footer li:first-child {
@@ -497,57 +496,65 @@ onBeforeUnmount(() => {
   margin-top: 0.5rem; /* espacio entre Account y la línea */
 }
 
+.sidebar-header {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
 .logo-text {
-  font-size: 1.3rem;
-  font-weight: bold;
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--text);
 }
 
+/* "Shop" en el color de marca de la paleta (legible sobre la superficie) */
 .logo-text span {
-  color: var(--text-muted);
-  font-weight: normal;
+  color: var(--brand-blue-text);
 }
 
 /* Drawer lateral compacto */
 .sidebar {
-  /* Fondo propio del menú: blanco hueso en claro, superficie del tema en oscuro.
-     Estaba fijo en #f5f1eb y el texto en var(--text): en modo oscuro quedaban
-     letras casi blancas sobre un fondo casi blanco, o sea invisibles. */
-  --sidebar-bg: #f5f1eb;
+  /* Superficie del tema: blanca en claro, oscura en modo oscuro. Antes era un
+     beige fijo (#f5f1eb) que no cambiaba con la paleta elegida en el admin. */
+  --sidebar-bg: var(--surface);
   position: fixed;
   top: 20%; /* centrado verticalmente */
-  left: -220px; /* fuera de pantalla inicialmente */
+  left: -240px; /* fuera de pantalla inicialmente, sombra incluida */
   width: 220px; /* ancho del drawer */
-  height: 60%; /* altura compacta */
+  /* Alto según su contenido: con 60% fijo, en teléfono "Ingresar" quedaba fuera
+     del recuadro. Si la pantalla es muy baja, se recorre por dentro. */
+  height: auto;
+  max-height: 75%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* se recorre, pero sin barra visible */
   background: var(--sidebar-bg);
   color: var(--text);
   z-index: 20;
   padding: 2rem 1.5rem;
-  box-shadow: 4px 0 12px var(--color-shadow);
-  border-top-right-radius: 20px;
-  border-bottom-right-radius: 20px;
+  /* Franja del color de botones arriba (sombra interior, para que siga la curva
+     de las esquinas) y la sombra de siempre afuera */
+  box-shadow:
+    inset 0 4px 0 var(--color-bg-blue-ligth),
+    4px 4px 16px var(--color-shadow);
+  border: 1px solid var(--border);
+  /* Flota separado de la orilla, con las cuatro esquinas redondeadas */
+  border-radius: 20px;
   transition: left 0.4s ease, background 0.3s;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.sidebar.open {
-  left: 0;
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  .sidebar {
-    --sidebar-bg: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 0; /* el drawer sale del borde izquierdo de la pantalla */
-  }
-  /* Sobre fondo oscuro, el azul marino de marca casi no se distingue */
-  .sidebar ul li a:hover,
-  .sidebar ul li a.active {
-    background-color: var(--color-bg-blue-ligth);
-  color: var(--on-primary);
-  }
+.sidebar.open {
+  left: 12px;
 }
 
 /* Overlay */

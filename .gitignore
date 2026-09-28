@@ -29,3 +29,6 @@ dist-ssr
 *.env
 !.env.production
 !.env.example
+
+# Respaldos de la base (datos personales)
+backups/
