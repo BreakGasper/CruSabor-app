@@ -5,8 +5,9 @@
       <span class="cuenta">{{ tarjetas.length }} {{ tarjetas.length === 1 ? 'promoción' : 'promociones' }}</span>
     </div>
 
-    <!-- Dos filas que se recorren de lado, como las tiendas de arriba -->
-    <div class="pista">
+    <!-- Dos filas que se recorren de lado, como las tiendas de arriba; con pocas
+         promociones, una sola fila para que la sección no guarde huecos vacíos -->
+    <div class="pista" :class="{ 'una-fila': tarjetas.length < MINIMO_DOS_FILAS }">
       <article
         v-for="t in tarjetas"
         :key="t.promo.id"
@@ -68,6 +69,9 @@ import defaultArticulo from '@/assets/icons/default_articulo.png';
 
 /** Cuántas caben antes de que recorrer la pista se vuelva cansado */
 const MAXIMO = 12;
+
+/** Con menos de estas, dos filas dejarían una fila (o columna) a medias */
+const MINIMO_DOS_FILAS = 4;
 
 const router = useRouter();
 const { articulos } = useArticulos();
@@ -148,6 +152,10 @@ function onImgError(e: Event) {
   scroll-snap-type: x proximity;
   padding-bottom: 0.5rem;
   scrollbar-width: thin;
+}
+/* Pocas promociones: una fila del alto de sus tarjetas, sin reservar la segunda */
+.pista.una-fila {
+  grid-template-rows: auto;
 }
 .pista::-webkit-scrollbar {
   height: 6px;
