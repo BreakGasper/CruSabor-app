@@ -24,6 +24,11 @@ import {
 } from '@/composables/usePaleta';
 import {
   IMAGENES_TEMATICA,
+  iconosSubidos,
+  validarArchivoIcono,
+  cargarIconosDe,
+  tematicasQueUsan,
+  __resetIconos,
   tematicaEnCurso,
   tematicaVigente,
   pantallaDeRuta,
@@ -37,10 +42,7 @@ const stubs = { AdminTopbar: true };
 
 const tematica = (extra: Partial<Tematica> = {}): Tematica => ({
   nombre: 'Halloween',
-  imagen: 'arana.svg',
-  animacion: 'colgando',
-  posicion: 'derecha',
-  tamano: 'mediano',
+  piezas: [{ imagen: 'arana.svg', animacion: 'colgando', posicion: 'derecha', tamano: 'mediano' }],
   pantallas: ['login'],
   paleta: '',
   activa: true,
@@ -56,6 +58,7 @@ beforeEach(() => {
   swalMock.fire.mockReset();
   swalMock.fire.mockResolvedValue({ isConfirmed: true });
   delete document.documentElement.dataset.paleta;
+  __resetIconos();
   document.getElementById('paleta-personalizada')?.remove();
 });
 afterEach(() => {
@@ -154,12 +157,28 @@ describe('temáticas', () => {
     expect(tematicaEnCurso({ a: tematica({ activa: false }), b: muertos }, '2026-11-01')?.[0]).toBe('b');
   });
 
-  it('normaliza valores raros y exige imagen', () => {
+  it('normaliza valores raros y exige al menos una imagen', () => {
     expect(normalizarTematica({ nombre: 'x' })).toBeNull();
-    const t = normalizarTematica({ imagen: 'a.gif', animacion: 'bailando', pantallas: ['cocina'], desde: 'mañana' })!;
-    expect(t.animacion).toBe('colgando');
+    expect(normalizarTematica({ nombre: 'x', piezas: [{ animacion: 'flotando' }] })).toBeNull();
+    const t = normalizarTematica({
+      piezas: [{ imagen: 'a.gif', animacion: 'bailando' }, { imagen: 'b.gif', posicion: 'arriba' }],
+      pantallas: ['cocina'],
+      desde: 'mañana',
+    })!;
+    expect(t.piezas[0].animacion).toBe('colgando');
+    expect(t.piezas[1].posicion).toBe('derecha');
     expect(t.pantallas).toEqual(['login']);
     expect(t.desde).toBe('');
+  });
+
+  it('las temáticas del formato anterior (una sola imagen) se convierten en una decoración', () => {
+    const t = normalizarTematica({ nombre: 'Vieja', imagen: 'calavera.svg', animacion: 'caminando', posicion: 'izquierda', tamano: 'grande' })!;
+    expect(t.piezas).toEqual([{ imagen: 'calavera.svg', animacion: 'caminando', posicion: 'izquierda', tamano: 'grande' }]);
+  });
+
+  it('Firebase puede devolver las piezas como objeto {0:…, 2:…}', () => {
+    const t = normalizarTematica({ piezas: { 0: { imagen: 'a.gif' }, 2: { imagen: 'b.gif' } } })!;
+    expect(t.piezas.map((p) => p.imagen)).toEqual(['a.gif', 'b.gif']);
   });
 
   it('cada pantalla corresponde a sus rutas', () => {
@@ -181,13 +200,50 @@ describe('temáticas', () => {
     expect(__getAt('configuracion/apariencia/tematicas/b/activa')).toBe(false);
   });
 
-  it('la decoración no estorba los toques y usa la animación elegida', () => {
-    const w = mount(TematicaDecoracion, { props: { tematica: tematica({ animacion: 'caminando' }), url: '/x.gif' } });
-    const el = w.find('[data-testid="tematica"]');
-    expect(el.classes()).toContain('anim-caminando');
-    expect(el.attributes('aria-hidden')).toBe('true');
-    expect(w.find('img').attributes('src')).toBe('/x.gif');
-    expect(mount(TematicaDecoracion, { props: { tematica: tematica(), url: undefined } }).html()).not.toContain('img');
+  it('pinta cada decoración con su animación, sin estorbar los toques; omite las que no tienen imagen', () => {
+    const w = mount(TematicaDecoracion, {
+      props: {
+        piezas: [
+          { imagen: 'arana.svg', animacion: 'colgando', posicion: 'derecha', tamano: 'mediano' },
+          { imagen: 'calavera.svg', animacion: 'caminando', posicion: 'izquierda', tamano: 'grande' },
+          { imagen: 'no-existe.gif', animacion: 'flotando', posicion: 'centro', tamano: 'chico' },
+        ],
+      },
+    });
+    expect(w.find('[data-testid="tematica"]').attributes('aria-hidden')).toBe('true');
+    const piezas = w.findAll('[data-testid="pieza"]');
+    expect(piezas).toHaveLength(2);
+    expect(piezas[0].classes()).toContain('anim-colgando');
+    expect(piezas[1].classes()).toEqual(expect.arrayContaining(['anim-caminando', 'pos-izquierda']));
+    expect(piezas[0].find('.hilo').exists()).toBe(true);
+  });
+});
+
+describe('iconos subidos desde el admin', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+
+  it('solo acepta imágenes de hasta 300 KB', () => {
+    expect(validarArchivoIcono({ type: 'image/gif', size: 200 * 1024 })).toBeNull();
+    expect(validarArchivoIcono({ type: 'image/gif', size: 301 * 1024 })).toContain('300 KB');
+    expect(validarArchivoIcono({ type: 'application/pdf', size: 10 })).toContain('Formato');
+  });
+
+  it('se guardan fuera de configuracion y los clientes descargan solo los que usa la temática', async () => {
+    __reset({
+      configuracion: {},
+      iconosTematica: { i1: { nombre: 'vela.gif', datos: PNG, bytes: 10 }, i2: { nombre: 'otro.gif', datos: PNG, bytes: 10 } },
+    });
+    await cargarIconosDe([{ imagen: 'subido:i1', animacion: 'flotando', posicion: 'centro', tamano: 'chico' }]);
+    expect(Object.keys(iconosSubidos.value)).toEqual(['i1']);
+    const w = mount(TematicaDecoracion, {
+      props: { piezas: [{ imagen: 'subido:i1', animacion: 'flotando', posicion: 'centro', tamano: 'chico' }] },
+    });
+    expect(w.find('img').attributes('src')).toBe(PNG);
+  });
+
+  it('avisa qué temáticas usan un icono', () => {
+    const t = tematica({ nombre: 'Muertos', piezas: [{ imagen: 'subido:i1', animacion: 'flotando', posicion: 'centro', tamano: 'chico' }] });
+    expect(tematicasQueUsan({ a: t, b: tematica() }, 'subido:i1')).toEqual(['Muertos']);
   });
 });
 
@@ -242,11 +298,66 @@ describe('Admin › Apariencia', () => {
     const [id] = Object.keys(tematicas);
     expect(tematicas[id]).toMatchObject({
       nombre: 'Halloween',
-      imagen: 'arana.svg',
+      piezas: [{ imagen: 'arana.svg', animacion: 'colgando' }],
       pantallas: ['login', 'login-tienda'],
       paleta: 'naranja-cacao',
       activa: true,
     });
+  });
+
+  it('varias decoraciones: agregar una segunda con otra imagen y guardarla', async () => {
+    __setConfiguracion({});
+    const w = mount(AdminApariencia, { global: { stubs } });
+    await flushPromises();
+    await w.find('#tem-nombre').setValue('Día de Muertos');
+    await w.find('[data-testid="img-calavera.svg"]').setValue(true);
+    await w.findAll('button').find((b) => b.text().includes('Agregar otra decoración'))!.trigger('click');
+    // La nueva queda seleccionada y sin imagen: no se puede guardar hasta elegirle una
+    expect(w.findAll('button').find((b) => b.text() === 'Guardar temática')!.attributes('disabled')).toBeDefined();
+    await w.find('[data-testid="img-arana.svg"]').setValue(true);
+    await w.find('#pz-anim-1').setValue('asomandose');
+    await w.findAll('button').find((b) => b.text() === 'Guardar temática')!.trigger('click');
+    await flushPromises();
+
+    const [t] = Object.values<any>(__getAt('configuracion/apariencia/tematicas'));
+    expect(t.piezas).toEqual([
+      { imagen: 'calavera.svg', animacion: 'colgando', posicion: 'derecha', tamano: 'mediano' },
+      { imagen: 'arana.svg', animacion: 'asomandose', posicion: 'izquierda', tamano: 'mediano' },
+    ]);
+  });
+
+  it('subir un icono lo guarda en iconosTematica y lo asigna a la decoración seleccionada', async () => {
+    __setConfiguracion({});
+    const w = mount(AdminApariencia, { global: { stubs } });
+    await flushPromises();
+    const archivo = new File([new Uint8Array([71, 73, 70, 56])], 'vela.gif', { type: 'image/gif' });
+    const input = w.find('[data-testid="subir-icono"]');
+    Object.defineProperty(input.element, 'files', { value: [archivo] });
+    await input.trigger('change');
+    await new Promise((r) => setTimeout(r, 20));
+    await flushPromises();
+
+    const iconos = __getAt('iconosTematica');
+    const [id] = Object.keys(iconos);
+    expect(iconos[id]).toMatchObject({ nombre: 'vela.gif', bytes: 4 });
+    expect(iconos[id].datos).toMatch(/^data:image\/gif;base64,/);
+    const radio = w.find('[data-testid="img-vela.gif"]');
+    expect(radio.exists()).toBe(true);
+    expect((radio.element as HTMLInputElement).checked).toBe(true);
+    expect(__getAt('configuracion/apariencia')).toBeUndefined();
+  });
+
+  it('un archivo muy pesado no se sube y explica por qué', async () => {
+    __setConfiguracion({});
+    const w = mount(AdminApariencia, { global: { stubs } });
+    await flushPromises();
+    const grande = new File([new Uint8Array(400 * 1024)], 'enorme.gif', { type: 'image/gif' });
+    const input = w.find('[data-testid="subir-icono"]');
+    Object.defineProperty(input.element, 'files', { value: [grande] });
+    await input.trigger('change');
+    await flushPromises();
+    expect(__getAt('iconosTematica')).toBeUndefined();
+    expect(w.find('[role="alert"]').text()).toContain('300 KB');
   });
 
   it('fechas al revés bloquean el guardado', async () => {

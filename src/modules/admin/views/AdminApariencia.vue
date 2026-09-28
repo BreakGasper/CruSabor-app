@@ -115,13 +115,13 @@
         <ul v-if="listaTematicas.length" class="tematicas">
           <li v-for="[id, t] in listaTematicas" :key="id" class="tematica-fila" :data-testid="`tematica-${id}`">
             <span class="miniatura">
-              <img v-if="urlImagenTematica(t.imagen)" :src="urlImagenTematica(t.imagen)" alt="" />
-              <span v-else class="falta" title="El archivo ya no está en la carpeta">?</span>
+              <img v-if="urlImagen(t.piezas[0].imagen)" :src="urlImagen(t.piezas[0].imagen)" alt="" />
+              <span v-else class="falta" title="La imagen ya no existe">?</span>
             </span>
             <div class="tematica-info">
               <strong>{{ t.nombre }}</strong>
               <small>
-                {{ ANIMACIONES[t.animacion] }} · {{ t.pantallas.map((p) => PANTALLAS[p].nombre).join(', ') }}
+                {{ t.piezas.length === 1 ? ANIMACIONES[t.piezas[0].animacion] : `${t.piezas.length} decoraciones` }} · {{ t.pantallas.map((p) => PANTALLAS[p].nombre).join(', ') }}
                 <template v-if="t.desde || t.hasta"> · {{ rangoFechas(t) }}</template>
               </small>
             </div>
@@ -148,45 +148,101 @@
             </div>
 
             <div class="form-group">
-              <span class="etiqueta">Imagen o GIF</span>
-              <div v-if="imagenes.length" class="imagenes" role="radiogroup" aria-label="Imagen de la temática">
-                <label v-for="[archivo, url] in imagenes" :key="archivo" class="imagen-op" :class="{ activo: formTematica.imagen === archivo }" :title="archivo">
-                  <input v-model="formTematica.imagen" type="radio" :value="archivo" :data-testid="`img-${archivo}`" />
-                  <img :src="url" alt="" />
-                  <small>{{ archivo }}</small>
-                </label>
-              </div>
-              <p v-else class="aviso">No hay imágenes en la carpeta <code>src/assets/tematicas/</code>.</p>
-              <details class="ayuda-archivos">
-                <summary>¿Cómo agrego mis propios GIFs?</summary>
-                <ol>
-                  <li>Copia el archivo (<code>.gif</code>, <code>.png</code>, <code>.webp</code> o <code>.svg</code>) a la carpeta <code>src/assets/tematicas/</code> del proyecto. Usa fondo transparente para que se vea bien.</li>
-                  <li>Compila y publica: <code>npm run build</code> y <code>firebase deploy --only hosting</code>. En desarrollo (<code>npm run dev</code>) aparece al guardar el archivo.</li>
-                  <li>La imagen aparece aquí para elegirla. Viaja dentro de la app: no se sube a Cloudinary ni a otro servidor.</li>
-                </ol>
-                <p>Consejo: GIFs de menos de 500 KB para que la pantalla cargue rápido en el teléfono.</p>
-              </details>
+              <span class="etiqueta">Decoraciones ({{ formTematica.piezas.length }} de {{ MAX_PIEZAS }})</span>
+              <small class="hint">Toca una decoración para elegir su imagen en la galería de abajo.</small>
+              <ul class="piezas">
+                <li
+                  v-for="(p, i) in formTematica.piezas"
+                  :key="i"
+                  class="pieza-fila"
+                  :class="{ activo: i === piezaSel }"
+                  :data-testid="`pieza-${i}`"
+                  @click="piezaSel = i"
+                >
+                  <span class="miniatura">
+                    <img v-if="urlImagen(p.imagen)" :src="urlImagen(p.imagen)" alt="" />
+                    <span v-else class="falta" title="Elige una imagen">?</span>
+                  </span>
+                  <div class="pieza-campos">
+                    <select :id="`pz-anim-${i}`" v-model="p.animacion" class="form-input" :aria-label="`Animación de la decoración ${i + 1}`">
+                      <option v-for="(n, k) in ANIMACIONES" :key="k" :value="k">{{ n }}</option>
+                    </select>
+                    <select
+                      :id="`pz-pos-${i}`"
+                      v-model="p.posicion"
+                      class="form-input"
+                      :disabled="p.animacion === 'caminando'"
+                      :aria-label="`Posición de la decoración ${i + 1}`"
+                    >
+                      <option v-for="(n, k) in POSICIONES" :key="k" :value="k">{{ n }}</option>
+                    </select>
+                    <select :id="`pz-tam-${i}`" v-model="p.tamano" class="form-input" :aria-label="`Tamaño de la decoración ${i + 1}`">
+                      <option v-for="(n, k) in TAMANOS" :key="k" :value="k">{{ n }}</option>
+                    </select>
+                  </div>
+                  <button
+                    v-if="formTematica.piezas.length > 1"
+                    type="button"
+                    class="btn-quitar"
+                    :aria-label="`Quitar decoración ${i + 1}`"
+                    @click.stop="quitarPieza(i)"
+                  >
+                    ✕
+                  </button>
+                </li>
+              </ul>
+              <button
+                type="button"
+                class="btn-sm btn-outline agregar-pieza"
+                :disabled="formTematica.piezas.length >= MAX_PIEZAS"
+                @click="agregarPieza"
+              >
+                + Agregar otra decoración
+              </button>
             </div>
 
-            <div class="row">
-              <div class="form-group">
-                <label for="tem-anim">Animación</label>
-                <select id="tem-anim" v-model="formTematica.animacion" class="form-input">
-                  <option v-for="(n, k) in ANIMACIONES" :key="k" :value="k">{{ n }}</option>
-                </select>
+            <div v-if="piezaActual" class="form-group">
+              <span class="etiqueta">Imagen de la decoración {{ piezaSel + 1 }}</span>
+              <div class="imagenes" role="radiogroup" :aria-label="`Imagen de la decoración ${piezaSel + 1}`">
+                <label
+                  v-for="img in imagenes"
+                  :key="img.ref"
+                  class="imagen-op"
+                  :class="{ activo: piezaActual.imagen === img.ref }"
+                  :title="img.nombre"
+                >
+                  <input v-model="piezaActual.imagen" type="radio" :value="img.ref" :data-testid="`img-${img.nombre}`" />
+                  <img :src="img.url" alt="" />
+                  <small>{{ img.nombre }}</small>
+                  <span v-if="img.subido" class="origen">Subido</span>
+                  <button
+                    v-if="img.subido"
+                    type="button"
+                    class="btn-borrar-icono"
+                    :aria-label="`Borrar icono ${img.nombre}`"
+                    @click.prevent.stop="borrarIcono(img.ref)"
+                  >
+                    ✕
+                  </button>
+                </label>
+                <label class="imagen-op subir" :class="{ ocupado: subiendo }">
+                  <input
+                    type="file"
+                    :accept="TIPOS_ICONO.join(',')"
+                    data-testid="subir-icono"
+                    :disabled="subiendo"
+                    @change="onSubirIcono"
+                  />
+                  <span class="mas" aria-hidden="true">+</span>
+                  <small>{{ subiendo ? 'Subiendo…' : 'Subir icono' }}</small>
+                </label>
               </div>
-              <div class="form-group">
-                <label for="tem-pos">Posición</label>
-                <select id="tem-pos" v-model="formTematica.posicion" class="form-input" :disabled="formTematica.animacion === 'caminando'">
-                  <option v-for="(n, k) in POSICIONES" :key="k" :value="k">{{ n }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="tem-tam">Tamaño</label>
-                <select id="tem-tam" v-model="formTematica.tamano" class="form-input">
-                  <option v-for="(n, k) in TAMANOS" :key="k" :value="k">{{ n }}</option>
-                </select>
-              </div>
+              <p v-if="errorSubida" class="error-text" role="alert">{{ errorSubida }}</p>
+              <details class="ayuda-archivos">
+                <summary>¿Cómo agrego mis propios GIFs o iconos?</summary>
+                <p><strong>Rápido: "Subir icono".</strong> Queda disponible al momento, sin volver a publicar. Se guarda en tu base de Firebase (no en Cloudinary). Máximo {{ MAX_BYTES_ICONO / 1024 }} KB por archivo: GIF, PNG, WebP o SVG, de preferencia con fondo transparente.</p>
+                <p><strong>Para GIFs pesados: en el proyecto.</strong> Copia el archivo a <code>src/assets/tematicas/</code>, compila y publica (<code>npm run build</code> y <code>firebase deploy --only hosting</code>). Viaja dentro de la app y no tiene límite de tamaño, pero procura que pese menos de 500 KB para que cargue rápido en el teléfono.</p>
+              </details>
             </div>
 
             <fieldset class="form-group pantallas">
@@ -226,14 +282,8 @@
               <div class="pt-campo"></div>
               <div class="pt-boton">Entrar</div>
             </div>
-            <TematicaDecoracion
-              v-if="formTematica.imagen"
-              :key="previaClave"
-              :tematica="formTematica"
-              :url="urlImagenTematica(formTematica.imagen)"
-              contenida
-            />
-            <span v-else class="pt-vacio">Elige una imagen para ver la vista previa</span>
+            <TematicaDecoracion :key="previaClave" :piezas="formTematica.piezas" contenida />
+            <span v-if="!formTematica.piezas.some((p) => urlImagen(p.imagen))" class="pt-vacio">Elige una imagen para ver la vista previa</span>
           </div>
         </div>
 
@@ -278,11 +328,23 @@ import {
   TAMANOS,
   PANTALLAS,
   IMAGENES_TEMATICA,
-  urlImagenTematica,
+  MAX_PIEZAS,
+  MAX_BYTES_ICONO,
+  TIPOS_ICONO,
+  PREFIJO_SUBIDO,
+  iconosSubidos,
+  urlImagen,
+  nombreImagen,
+  suscribirIconosAdmin,
+  subirIcono,
+  eliminarIcono,
+  idSubido,
+  tematicasQueUsan,
   tematicaEnCurso,
   tematicaVigente,
   hoyISO,
   type Tematica,
+  type Pieza,
 } from '@/composables/useTematicas';
 
 const { configuracion } = useConfiguracion();
@@ -403,16 +465,25 @@ function tokensDe(id: string) {
 
 /* ---------------- Temáticas ---------------- */
 
-const imagenes = computed(() => Object.entries(IMAGENES_TEMATICA));
+suscribirIconosAdmin();
+
+/** Galería: imágenes del proyecto y luego las subidas desde el admin */
+const imagenes = computed(() => [
+  ...Object.entries(IMAGENES_TEMATICA).map(([archivo, url]) => ({ ref: archivo, nombre: archivo, url, subido: false })),
+  ...Object.entries(iconosSubidos.value).map(([id, i]) => ({ ref: PREFIJO_SUBIDO + id, nombre: i.nombre, url: i.datos, subido: true })),
+]);
 const listaTematicas = computed(() => Object.entries(apariencia.value.tematicas));
 const tematicaActual = computed(() => tematicaEnCurso(apariencia.value.tematicas, hoyISO()));
 
-const tematicaVacia = (): Tematica => ({
-  nombre: '',
-  imagen: imagenes.value[0]?.[0] ?? '',
+const piezaNueva = (imagen = imagenes.value[0]?.ref ?? ''): Pieza => ({
+  imagen,
   animacion: 'colgando',
   posicion: 'derecha',
   tamano: 'mediano',
+});
+const tematicaVacia = (): Tematica => ({
+  nombre: '',
+  piezas: [piezaNueva()],
   pantallas: ['login'],
   paleta: '',
   activa: false,
@@ -421,29 +492,94 @@ const tematicaVacia = (): Tematica => ({
 });
 const formTematica = reactive<Tematica>(tematicaVacia());
 const tematicaEditando = ref<string | null>(null);
+/** Decoración a la que se le asigna la imagen elegida en la galería */
+const piezaSel = ref(0);
+const piezaActual = computed<Pieza | undefined>(() => formTematica.piezas[piezaSel.value]);
 
-// Reinicia la animación de la vista previa cuando cambian sus opciones
+function agregarPieza() {
+  if (formTematica.piezas.length >= MAX_PIEZAS) return;
+  // La nueva empieza flotando en una posición libre para que no quede encima de la anterior
+  const usadas = new Set(formTematica.piezas.map((p) => p.posicion));
+  const libre = (['izquierda', 'centro', 'derecha'] as const).find((x) => !usadas.has(x)) ?? 'izquierda';
+  formTematica.piezas.push({ ...piezaNueva(''), animacion: 'flotando', posicion: libre });
+  piezaSel.value = formTematica.piezas.length - 1;
+}
+
+function quitarPieza(i: number) {
+  if (formTematica.piezas.length <= 1) return;
+  formTematica.piezas.splice(i, 1);
+  piezaSel.value = Math.min(piezaSel.value, formTematica.piezas.length - 1);
+}
+
+// Reinicia la animación de la vista previa cuando cambian las decoraciones
 const previaClave = ref(0);
 watch(
-  () => [formTematica.imagen, formTematica.animacion, formTematica.posicion, formTematica.tamano],
+  () => JSON.stringify(formTematica.piezas),
   () => previaClave.value++,
 );
 
+/* Subir y borrar iconos */
+const subiendo = ref(false);
+const errorSubida = ref('');
+
+async function onSubirIcono(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const archivo = input.files?.[0];
+  input.value = '';
+  if (!archivo) return;
+  errorSubida.value = '';
+  subiendo.value = true;
+  try {
+    const imagen = await subirIcono(archivo);
+    if (piezaActual.value) piezaActual.value.imagen = imagen;
+    aviso(`Icono "${archivo.name}" subido`);
+  } catch (err: any) {
+    errorSubida.value = err?.message || 'No se pudo subir el icono.';
+  } finally {
+    subiendo.value = false;
+  }
+}
+
+async function borrarIcono(imagen: string) {
+  const nombre = nombreImagen(imagen);
+  const usan = tematicasQueUsan(apariencia.value.tematicas, imagen);
+  const r = await Swal.fire({
+    icon: 'warning',
+    title: `¿Borrar el icono "${nombre}"?`,
+    text: usan.length
+      ? `Lo usan: ${usan.join(', ')}. Esas decoraciones dejarán de verse hasta que les elijas otra imagen.`
+      : 'No se puede deshacer.',
+    showCancelButton: true,
+    confirmButtonText: 'Borrar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#d9534f',
+  });
+  if (!r.isConfirmed) return;
+  await ejecutar(() => eliminarIcono(idSubido(imagen)), `Icono "${nombre}" borrado`);
+}
+
 const fechasInvalidas = computed(() => !!(formTematica.desde && formTematica.hasta && formTematica.hasta < formTematica.desde));
 const tematicaValida = computed(
-  () => formTematica.nombre.trim().length > 0 && !!formTematica.imagen && formTematica.pantallas.length > 0 && !fechasInvalidas.value,
+  () =>
+    formTematica.nombre.trim().length > 0 &&
+    formTematica.piezas.length > 0 &&
+    formTematica.piezas.every((p) => !!urlImagen(p.imagen)) &&
+    formTematica.pantallas.length > 0 &&
+    !fechasInvalidas.value,
 );
 
 function nuevaTematica() {
   Object.assign(formTematica, tematicaVacia());
   tematicaEditando.value = null;
+  piezaSel.value = 0;
 }
 
 function editarTematica(id: string) {
   const t = apariencia.value.tematicas[id];
   if (!t) return;
-  Object.assign(formTematica, { ...t, pantallas: [...t.pantallas] });
+  Object.assign(formTematica, { ...t, pantallas: [...t.pantallas], piezas: t.piezas.map((p) => ({ ...p })) });
   tematicaEditando.value = id;
+  piezaSel.value = 0;
   seccionTematica.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
 
@@ -454,6 +590,7 @@ async function guardarTem(activarla: boolean) {
     ...formTematica,
     nombre: formTematica.nombre.trim(),
     pantallas: [...formTematica.pantallas],
+    piezas: formTematica.piezas.map((p) => ({ ...p })),
     activa: activarla || formTematica.activa,
   };
   await ejecutar(async () => {
@@ -940,6 +1077,99 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.piezas {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pieza-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.pieza-fila.activo {
+  border-color: var(--brand-blue-text);
+  background: var(--brand-blue-soft);
+}
+.pieza-campos {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.pieza-campos .form-input {
+  padding: 7px 8px;
+  font-size: 13px;
+}
+@media (max-width: 480px) {
+  .pieza-campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.btn-quitar,
+.btn-borrar-icono {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-quitar:hover,
+.btn-borrar-icono:hover {
+  color: #b71c1c;
+  border-color: #f5c2c0;
+}
+.agregar-pieza {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+.imagen-op {
+  position: relative;
+}
+.btn-borrar-icono {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.7rem;
+}
+.origen {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--brand-blue-text);
+}
+.imagen-op.subir {
+  justify-content: center;
+  border-style: dashed;
+  background: var(--surface);
+  min-height: 104px;
+}
+.imagen-op.subir.ocupado {
+  opacity: 0.6;
+  cursor: progress;
+}
+.mas {
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--brand-blue-text);
+}
+.ayuda-archivos p {
+  margin: 6px 0;
+}
 .ayuda-archivos {
   margin-top: 8px;
   font-size: 0.8rem;
@@ -975,8 +1205,10 @@ button:disabled {
 
 /* Vista previa de temática: un login en miniatura */
 .previa-tematica {
-  position: relative;
-  min-height: 420px;
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  height: 440px;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--border);

@@ -1,29 +1,34 @@
 <template>
-  <!-- Decoración de temporada: no bloquea toques (pointer-events: none) y se queda quieta si el sistema pide menos movimiento -->
-  <div
-    v-if="url"
-    class="tematica"
-    :class="[`anim-${tematica.animacion}`, `pos-${tematica.posicion}`, { contenida }]"
-    :style="{ '--tam': `${PX_TAMANO[tematica.tamano]}px` }"
-    aria-hidden="true"
-    data-testid="tematica"
-  >
-    <div class="pieza">
-      <span v-if="tematica.animacion === 'colgando'" class="hilo"></span>
-      <img :src="url" alt="" draggable="false" />
+  <!-- Decoraciones de temporada: no bloquean toques (pointer-events: none) y se quedan quietas si el sistema pide menos movimiento -->
+  <div v-if="visibles.length" class="tematica" :class="{ contenida }" aria-hidden="true" data-testid="tematica">
+    <div
+      v-for="(p, i) in visibles"
+      :key="i"
+      class="pieza"
+      :class="[`anim-${p.animacion}`, `pos-${p.posicion}`]"
+      :style="{ '--tam': `${PX_TAMANO[p.tamano]}px`, '--retraso': `${i * 0.35}s` }"
+      data-testid="pieza"
+    >
+      <span v-if="p.animacion === 'colgando'" class="hilo"></span>
+      <img :src="p.url" alt="" draggable="false" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { PX_TAMANO, type Tematica } from '@/composables/useTematicas';
+import { computed } from 'vue';
+import { PX_TAMANO, urlImagen, type Pieza } from '@/composables/useTematicas';
 
-defineProps<{
-  tematica: Tematica;
-  url: string | undefined;
+const props = defineProps<{
+  piezas: Pieza[];
   /** true = dentro de una caja (vista previa del admin) en lugar de sobre toda la pantalla */
   contenida?: boolean;
 }>();
+
+/** Solo las piezas cuya imagen existe (un icono borrado o aún sin descargar no se pinta) */
+const visibles = computed(() =>
+  props.piezas.map((p) => ({ ...p, url: urlImagen(p.imagen) })).filter((p): p is Pieza & { url: string } => !!p.url),
+);
 </script>
 
 <style scoped>
@@ -33,6 +38,7 @@ defineProps<{
   pointer-events: none;
   z-index: 40;
   overflow: hidden;
+  container-type: size;
 }
 .tematica.contenida {
   position: absolute;
@@ -50,18 +56,18 @@ defineProps<{
 }
 
 /* Posición horizontal */
-.pos-izquierda .pieza { left: 6%; }
-.pos-centro .pieza { left: calc(50% - var(--tam) / 2); }
-.pos-derecha .pieza { right: 6%; }
+.pieza.pos-izquierda { left: 6%; }
+.pieza.pos-centro { left: calc(50% - var(--tam) / 2); }
+.pieza.pos-derecha { right: 6%; }
 
 /* Colgando de un hilo: baja desde arriba y se balancea */
-.anim-colgando .pieza {
+.pieza.anim-colgando {
   top: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   transform-origin: top center;
-  animation: bajar 1.6s ease-out both, balanceo 3.2s ease-in-out 1.6s infinite alternate;
+  animation: bajar 1.6s ease-out var(--retraso) both, balanceo 3.2s ease-in-out calc(1.6s + var(--retraso)) infinite alternate;
 }
 .hilo {
   width: 2px;
@@ -78,9 +84,9 @@ defineProps<{
 }
 
 /* Asomándose desde abajo */
-.anim-asomandose .pieza {
+.pieza.anim-asomandose {
   bottom: 0;
-  animation: asomarse 1.2s ease-out both, respirar 2.6s ease-in-out 1.2s infinite alternate;
+  animation: asomarse 1.2s ease-out var(--retraso) both, respirar 2.6s ease-in-out calc(1.2s + var(--retraso)) infinite alternate;
 }
 @keyframes asomarse {
   from { transform: translateY(100%); }
@@ -92,9 +98,9 @@ defineProps<{
 }
 
 /* Flotando arriba */
-.anim-flotando .pieza {
+.pieza.anim-flotando {
   top: 12%;
-  animation: flotar 4s ease-in-out infinite alternate;
+  animation: flotar 4s ease-in-out var(--retraso) infinite alternate;
 }
 @keyframes flotar {
   0% { transform: translate(0, 0) rotate(-3deg); }
@@ -103,20 +109,17 @@ defineProps<{
 }
 
 /* Caminando por abajo de lado a lado (ignora la posición) */
-.anim-caminando .pieza {
+.pieza.anim-caminando {
   bottom: 8px;
   left: 0;
   right: auto;
-  animation: caminar 14s linear infinite;
+  animation: caminar 14s linear calc(var(--retraso) * 6) infinite backwards;
 }
 @keyframes caminar {
   0% { transform: translateX(calc(-1 * var(--tam))) scaleX(1); }
   49% { transform: translateX(calc(100cqw + 0px)) scaleX(1); }
   50% { transform: translateX(calc(100cqw + 0px)) scaleX(-1); }
   100% { transform: translateX(calc(-1 * var(--tam))) scaleX(-1); }
-}
-.tematica.anim-caminando {
-  container-type: inline-size;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -12,7 +12,7 @@
   </div>
 
   <!-- Temática de temporada (Admin › Apariencia) -->
-  <TematicaDecoracion v-if="tematicaVisible" :tematica="tematicaVisible" :url="urlImagenTematica(tematicaVisible.imagen)" />
+  <TematicaDecoracion v-if="tematicaVisible" :piezas="tematicaVisible.piezas" />
 
   <Toast position="bottom-center" />
 </template>
@@ -27,7 +27,7 @@ import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
 import MantenimientoAviso from "@/components/MantenimientoAviso.vue";
 import { aplicarPaleta } from "@/composables/usePaleta";
-import { tematicaEnCurso, pantallaDeRuta, urlImagenTematica, hoyISO } from "@/composables/useTematicas";
+import { tematicaEnCurso, pantallaDeRuta, cargarIconosDe, hoyISO } from "@/composables/useTematicas";
 import TematicaDecoracion from "@/components/TematicaDecoracion.vue";
 cargarSesion();
 // Carrito, favoritos y tiendas favoritas se respaldan en Firebase por usuario
@@ -43,6 +43,14 @@ const tematicaVisible = computed(() => {
   const pantalla = pantallaDeRuta(route.path);
   return t && pantalla && t.pantallas.includes(pantalla) ? t : null;
 });
+// Los iconos subidos desde el admin se descargan solo cuando la temática en curso los usa
+watch(
+  () => tematica.value?.[1].piezas,
+  (piezas) => {
+    if (piezas) cargarIconosDe(piezas);
+  },
+  { immediate: true },
+);
 
 // Paleta de colores elegida por el admin (o la de la temática en curso, si trae una).
 // Hasta que llega de Firebase se queda la que index.html puso desde localStorage.
