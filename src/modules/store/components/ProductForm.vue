@@ -478,7 +478,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 import { db } from '@/firebase';
-import { push, ref as dbRef, get, update } from 'firebase/database';
+import { push, ref as dbRef, get, update } from '@/services/baseDatos';
 import type { Producto } from '@/types/Producto';
 import {
   obtenerCategorias,

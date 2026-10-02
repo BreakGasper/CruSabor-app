@@ -1,5 +1,5 @@
 import { db } from "@/firebase";
-import { ref as dbRef, push, set, get, update, remove } from "firebase/database";
+import { ref as dbRef, push, set, get, update, remove } from "@/services/baseDatos";
 
 // Tipo de categoría
 export interface CategoriaData {
@@ -8,6 +8,23 @@ export interface CategoriaData {
   descripcion?: string;
   icono?: string;
   padreId?: string;
+}
+
+/**
+ * Categorías principales que tienen al menos un artículo, en orden alfabético.
+ * Usa la misma regla que la pantalla de la categoría (ArticulosCategorias.vue:
+ * `categoriaId` igual al id), así que nunca se ofrece una categoría que abriría vacía.
+ * `articulos` debe ser el catálogo público (useArticulos ya quita tiendas que no pueden
+ * vender y artículos dados de baja).
+ */
+export function categoriasConArticulos(
+  categorias: CategoriaData[],
+  articulos: { categoriaId?: string }[],
+): CategoriaData[] {
+  const conArticulos = new Set(articulos.map((a) => a.categoriaId).filter(Boolean));
+  return categorias
+    .filter((c) => !c.padreId && conArticulos.has(c.id))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }
 
 // Tipo para el objeto completo de categorías

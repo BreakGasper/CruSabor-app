@@ -9,6 +9,7 @@
  * Las funciones que arman texto y enlaces son puras (reciben el origen) para poder
  * probarlas; las que tocan el navegador viven al final y nunca lanzan.
  */
+import { NOMBRE_APP } from '@/constants/marca';
 
 /** Qué pasó al intentar compartir con el menú del sistema */
 export type ResultadoCompartir = 'compartido' | 'cancelado' | 'sin-soporte';
@@ -55,8 +56,8 @@ export function textoCompartirTienda(nombreTienda: string, categoria?: string): 
   const nombre = (nombreTienda || '').trim() || 'esta tienda';
   const rubro = (categoria || '').trim();
   return rubro
-    ? `Mira ${nombre} (${rubro}) en MAVI`
-    : `Mira ${nombre} en MAVI`;
+    ? `Mira ${nombre} (${rubro}) en ${NOMBRE_APP}`
+    : `Mira ${nombre} en ${NOMBRE_APP}`;
 }
 
 /**
@@ -67,7 +68,7 @@ export function textoCompartirTienda(nombreTienda: string, categoria?: string): 
 export function textoCompartirProducto(nombre: string, nombreTienda?: string): string {
   const articulo = (nombre || '').trim() || 'este producto';
   const tienda = (nombreTienda || '').trim();
-  return tienda ? `Mira ${articulo} de ${tienda} en MAVI` : `Mira ${articulo} en MAVI`;
+  return tienda ? `Mira ${articulo} de ${tienda} en ${NOMBRE_APP}` : `Mira ${articulo} en ${NOMBRE_APP}`;
 }
 
 /** Texto y enlace en un solo mensaje, para destinos que no aceptan la url aparte */

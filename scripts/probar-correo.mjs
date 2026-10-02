@@ -62,9 +62,9 @@ try {
 
   console.log('2) Enviando un correo de prueba a ' + destino + '...');
   const info = await transporter.sendMail({
-    from: `"CRUSTORE" <${user}>`,
+    from: `"Crustore" <${user}>`,
     to: destino,
-    subject: 'Prueba de correo - CruStore',
+    subject: 'Prueba de correo - Crustore',
     html: '<p>Si ves esto, el correo funciona ✅</p>',
   });
   console.log('   ✅ Enviado. messageId:', info.messageId);

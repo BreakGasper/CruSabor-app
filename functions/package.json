@@ -1,8 +1,8 @@
 {
-  "name": "crusabor-functions",
+  "name": "crustore-functions",
   "private": true,
   "version": "1.0.0",
-  "description": "Funciones de Firebase de MAVI: revisión diaria de membresías de tiendas",
+  "description": "Funciones de Firebase de Crustore: revisión diaria de membresías de tiendas",
   "type": "module",
   "main": "src/index.js",
   "engines": {

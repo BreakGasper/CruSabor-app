@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, get, onValue } from 'firebase/database';
+import { ref as dbRef, get, onValue } from '@/services/baseDatos';
 
 /**
  * Horario de atención de las tiendas.

@@ -97,7 +97,7 @@
             </div>
             <div class="form-group">
               <label for="cfg-email">Correo</label>
-              <input id="cfg-email" v-model="form.soporte.email" type="email" class="form-input" :class="{ 'input-error': errores.email }" placeholder="soporte@mavi.mx" />
+              <input id="cfg-email" v-model="form.soporte.email" type="email" class="form-input" :class="{ 'input-error': errores.email }" placeholder="soporte@crustore.mx" />
               <small v-if="errores.email" class="error-text">{{ errores.email }}</small>
             </div>
           </div>

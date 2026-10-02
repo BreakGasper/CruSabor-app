@@ -18,8 +18,8 @@
           <path d="M4 21a8 8 0 0 1 16 0" />
         </svg>
       </div>
+      <h1 class="title"><MarcaCrustore fondo="oscuro" /></h1>
       <span class="badge">Clientes</span>
-      <h1 class="title">Cru - Shop</h1>
       <p class="subtitle">Bienvenido de nuevo 👋</p>
     </div>
 
@@ -124,7 +124,7 @@
           <button type="button" class="eleccion-btn admin" :disabled="entrando" @click="entrarComoAdmin">
             <span class="eleccion-icono">🛡️</span>
             <span class="eleccion-label">Como administrador</span>
-            <span class="eleccion-sub">Panel de MAVI</span>
+            <span class="eleccion-sub">Panel de {{ NOMBRE_APP }}</span>
           </button>
         </div>
         <p v-if="errorEleccion" class="eleccion-error">{{ errorEleccion }}</p>
@@ -165,6 +165,8 @@
 import { ref } from "vue";
 import { findUserByPhone } from "@/composables/useAuth";
 import TopBarFija from "@/components/TopBarFija.vue";
+import MarcaCrustore from "@/components/MarcaCrustore.vue";
+import { NOMBRE_APP } from "@/constants/marca";
 import router from "@/router";
 import { useRoute } from "vue-router";
 import { validatePasswordHash, PASSWORD_MAX } from "@/composables/usePassword";
@@ -414,13 +416,18 @@ function forgotPassword() {
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 0.6rem;
+  margin: 0.5rem 0 0.2rem;
 }
 .title {
   font-size: 1.8rem;
   font-weight: 700;
   margin: 0;
   letter-spacing: 1px;
+  /* Renglón propio y centrado (con inline-flex se pegaba a la insignia) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 .subtitle {
   margin: 0.3rem 0 0;

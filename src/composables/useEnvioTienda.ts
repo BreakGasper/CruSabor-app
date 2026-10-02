@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue } from 'firebase/database';
+import { ref as dbRef, onValue } from '@/services/baseDatos';
 
 /**
  * Regla de negocio: solo se pueden agregar al carrito productos de tiendas

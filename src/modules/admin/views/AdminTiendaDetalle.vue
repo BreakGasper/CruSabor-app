@@ -164,7 +164,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Swal from 'sweetalert2';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue } from 'firebase/database';
+import { ref as dbRef, onValue } from '@/services/baseDatos';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
 import type { Tienda } from '@/composables/useTiendas';

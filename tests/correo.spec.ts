@@ -16,7 +16,7 @@ afterEach(() => {
 describe('enviarCorreo con Brevo', () => {
   it('llama a la API de Brevo con remitente, destinatario y contenido', async () => {
     process.env.BREVO_API_KEY = 'clave-brevo';
-    process.env.SMTP_USER = 'remitente@mavi.mx';
+    process.env.SMTP_USER = 'remitente@crustore.mx';
     const fetchMock = vi.fn(async () => ({ ok: true, status: 201, text: async () => '' }));
     global.fetch = fetchMock as any;
 
@@ -27,7 +27,7 @@ describe('enviarCorreo con Brevo', () => {
     expect(url).toBe('https://api.brevo.com/v3/smtp/email');
     expect((init as any).headers['api-key']).toBe('clave-brevo');
     const body = JSON.parse((init as any).body);
-    expect(body.sender.email).toBe('remitente@mavi.mx');
+    expect(body.sender.email).toBe('remitente@crustore.mx');
     expect(body.to).toEqual([{ email: 'cliente@correo.mx' }]);
     expect(body.subject).toBe('Código');
     expect(body.htmlContent).toContain('1234');
@@ -35,7 +35,7 @@ describe('enviarCorreo con Brevo', () => {
 
   it('si Brevo responde error, lo reporta (no se cuelga)', async () => {
     process.env.BREVO_API_KEY = 'clave-brevo';
-    process.env.SMTP_USER = 'remitente@mavi.mx';
+    process.env.SMTP_USER = 'remitente@crustore.mx';
     global.fetch = vi.fn(async () => ({ ok: false, status: 401, text: async () => 'Key not found' })) as any;
 
     const r = await enviarCorreo({ to: 'x@y.mx', subject: 's', html: 'h' });

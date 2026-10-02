@@ -19,22 +19,27 @@
 </template>
 
 <script setup lang="ts">
-/** Categorías en un carrusel horizontal (solo icono y nombre), arriba de "Explorar" */
-import { ref, onMounted } from 'vue';
+/**
+ * Categorías en un carrusel horizontal (solo icono y nombre), arriba de "Explorar".
+ * Solo las que tienen artículos a la venta: se actualiza en vivo cuando una tienda
+ * publica el primero o da de baja el último.
+ */
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { obtenerCategorias, type CategoriaData } from '@/composables/useCategorias';
+import { obtenerCategorias, categoriasConArticulos, type CategoriaData } from '@/composables/useCategorias';
+import { useArticulos } from '@/composables/useArticulos';
 import defaultIcon from '@/assets/icons/default_articulo.png';
 
 const router = useRouter();
-const categorias = ref<CategoriaData[]>([]);
+const todas = ref<CategoriaData[]>([]);
+const { articulos } = useArticulos();
 
 onMounted(async () => {
-  const todas = await obtenerCategorias();
-  // Solo categorías principales, en orden alfabético
-  categorias.value = todas
-    .filter((c) => !c.padreId)
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  todas.value = await obtenerCategorias();
 });
+
+// Solo categorías principales con artículos, en orden alfabético
+const categorias = computed(() => categoriasConArticulos(todas.value, articulos.value));
 
 function verCategoria(cat: CategoriaData) {
   router.push({ name: 'categoriaArticulos', params: { id: cat.id, categoriaNombre: cat.nombre } });

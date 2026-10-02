@@ -54,7 +54,7 @@
     <!-- Menú lateral -->
     <div class="sidebar" :class="{ open: menuAbierto }">
       <div class="sidebar-header">
-        <h1 class="logo-text">Cru - <span>Shop</span></h1>
+        <h1 class="logo-text"><MarcaCrustore acento /></h1>
       </div>
 
       <ul class="sidebar-menu">
@@ -183,6 +183,7 @@ import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import BannersCarousel from "../components/BannersCarousel.vue";
+import MarcaCrustore from "@/components/MarcaCrustore.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
 import TiendasDestacadas from "../components/TiendasDestacadas.vue";
 import Destacados from "../components/Destacados.vue";
@@ -503,6 +504,8 @@ onBeforeUnmount(() => {
 }
 
 .logo-text {
+  display: flex;
+  align-items: center;
   margin: 0;
   font-size: 1.4rem;
   font-weight: 800;
@@ -510,10 +513,7 @@ onBeforeUnmount(() => {
   color: var(--text);
 }
 
-/* "Shop" en el color de marca de la paleta (legible sobre la superficie) */
-.logo-text span {
-  color: var(--brand-blue-text);
-}
+/* "store" va en el color de marca: lo pinta MarcaCrustore.vue */
 
 /* Drawer lateral compacto */
 .sidebar {

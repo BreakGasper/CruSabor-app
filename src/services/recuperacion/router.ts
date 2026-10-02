@@ -90,7 +90,7 @@ export function crearRouterRecuperacion(op: OpcionesRecuperacion = {}) {
         <p>Hola${usuario.nombre ? ' ' + usuario.nombre : ''},</p>
         <p>Tu código para recuperar la contraseña es: <b style="font-size:20px">${codigo}</b></p>
         <p>Vence en ${MINUTOS_VIGENCIA} minutos. Si no lo pediste, ignora este correo.</p>`;
-      const r = await enviar({ to: usuario.email, subject: 'Recuperar contraseña - CruStore', html });
+      const r = await enviar({ to: usuario.email, subject: 'Recuperar contraseña - Crustore', html });
       if (!r.success) {
         codigos.delete(tel);
         // Temporal: se incluye el detalle del error para diagnosticar por qué Gmail rechaza el envío

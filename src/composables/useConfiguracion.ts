@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, update } from 'firebase/database';
+import { ref as dbRef, onValue, update } from '@/services/baseDatos';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import { setDiasGracia } from '@/composables/useMembresia';
 import { esPaleta, esHex, PALETA_DEFAULT, type Paleta, type PaletaPersonalizada } from '@/composables/usePaleta';

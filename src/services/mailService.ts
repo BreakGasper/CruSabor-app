@@ -45,7 +45,7 @@ async function enviarPorBrevo(
         accept: "application/json",
       },
       body: JSON.stringify({
-        sender: { email: remitente(), name: "CRUSTORE" },
+        sender: { email: remitente(), name: "Crustore" },
         to: [{ email: to }],
         subject,
         htmlContent: html,
@@ -81,7 +81,7 @@ export async function enviarCorreo(
   }
   try {
     const info = await transporter.sendMail({
-      from: `"CRUSTORE" <${remitente()}>`,
+      from: `"Crustore" <${remitente()}>`,
       to,
       subject,
       html,

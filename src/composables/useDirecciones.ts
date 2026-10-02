@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, push, set, update, remove, onValue, type Unsubscribe } from 'firebase/database';
+import { ref as dbRef, push, set, update, remove, onValue, type Unsubscribe } from '@/services/baseDatos';
 import { sessionUser } from '@/utils/sessionUser';
 
 /**

@@ -3,18 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>CruShop</title>
+    <title>Crustore</title>
     <meta name="description" content="Tiendas locales, pedidos a domicilio y panel para negocios" />
-    <meta name="theme-color" content="#141414" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1f1a" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)" />
 
     <!-- Ícono de pestaña -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <link rel="icon" type="image/png" href="/logo.png" />
 
     <!-- Acceso directo en iPhone / iPad (Safari › Compartir › Agregar a inicio) -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="MAVI" />
+    <meta name="apple-mobile-web-app-title" content="Crustore" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
@@ -25,7 +26,7 @@
     <script>
       try {
         var p = localStorage.getItem("paleta");
-        if (["carbon-lima", "rosa-negro", "naranja-cacao", "azul-anil"].indexOf(p) >= 0) {
+        if (["carbon-lima", "rosa-negro", "naranja-cacao", "azul-anil", "crustore"].indexOf(p) >= 0) {
           document.documentElement.dataset.paleta = p;
         } else if (p === "personalizada") {
           var css = localStorage.getItem("paleta-css");

@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, update, push, onValue } from 'firebase/database';
+import { ref as dbRef, update, push, onValue } from '@/services/baseDatos';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import {
   estadoEfectivo,

@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { db } from "@/firebase";
-import { ref as dbRef, update } from "firebase/database";
+import { ref as dbRef, update } from "@/services/baseDatos";
 import { useArticulos } from "@/composables/useArticulos";
 import type { CategoriaData } from "@/composables/useCategorias";
 import { obtenerCategorias } from "@/composables/useCategorias";

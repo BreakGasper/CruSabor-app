@@ -7,8 +7,8 @@ import {
   get,
   set,
   update,
-} from 'firebase/database';
-import { getDatabase, ref, child } from 'firebase/database';
+} from '@/services/baseDatos';
+import { getDatabase, ref, child } from '@/services/baseDatos';
 
 export interface Usuario {
   id: string;

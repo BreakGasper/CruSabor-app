@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, set, remove } from 'firebase/database';
+import { ref as dbRef, onValue, set, remove } from '@/services/baseDatos';
 import { sessionUser, sessionUsuarioValidation } from '@/utils/sessionUser';
 
 /**

@@ -20,8 +20,8 @@
           <path d="M9 20v-5h6v5" />
         </svg>
       </div>
+      <h1 class="title"><MarcaCrustore fondo="oscuro" /></h1>
       <span class="badge">Panel de tiendas</span>
-      <h1 class="title">Cru - Shop</h1>
       <p class="subtitle">Administra tus productos y pedidos</p>
     </div>
 
@@ -120,6 +120,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import TopBarFija from '@/components/TopBarFija.vue';
+import MarcaCrustore from '@/components/MarcaCrustore.vue';
 import { findUserByPhoneStore } from '@/composables/useAuth';
 import { validatePasswordHash, PASSWORD_MAX } from '@/composables/usePassword';
 import { cerrarSesion } from '@/utils/sessionUser';
@@ -300,12 +301,17 @@ async function login() {
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 0.6rem;
+  margin: 0.5rem 0 0.2rem;
 }
 .title {
   font-size: 1.7rem;
   font-weight: 700;
   margin: 0;
+  /* Renglón propio y centrado (con inline-flex se pegaba a la insignia) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 .subtitle {
   margin: 0.3rem 0 0;

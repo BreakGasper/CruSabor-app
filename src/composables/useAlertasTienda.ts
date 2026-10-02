@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, type Unsubscribe } from 'firebase/database';
+import { ref as dbRef, onValue, type Unsubscribe } from '@/services/baseDatos';
 import { suscribirPedidosProveedor, estatusDeTienda, tiendasDelPedido, type Pedido } from '@/composables/usePedidos';
 import { resumenStock, type ResumenStock } from '@/composables/useArticulos';
 import type { Producto } from '@/types/Producto';

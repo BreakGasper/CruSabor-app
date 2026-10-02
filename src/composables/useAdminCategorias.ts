@@ -1,6 +1,6 @@
 import { ref, computed, onUnmounted } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, push, update, get } from 'firebase/database';
+import { ref as dbRef, onValue, push, update, get } from '@/services/baseDatos';
 import type { CategoriaData } from '@/composables/useCategorias';
 import { uploadCategoriaIcon } from '@/composables/useStorage';
 import { eliminarImagenes } from '@/composables/useCloudinary';

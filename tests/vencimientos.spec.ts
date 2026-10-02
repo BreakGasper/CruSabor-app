@@ -110,7 +110,7 @@ describe('cambios y mensajes', () => {
   it('mensajeAviso adapta asunto y cuerpo a cada caso e incluye el contacto', () => {
     const item = { tiendaId: 'x', tienda: { nombreTienda: 'Panadería Lupita' }, vigenteHasta: '2026-09-13', dias: 7, clave: 'recordatorio-7' };
     const r7 = mensajeAviso(item, { tipo: 'recordatorio', contacto: 'WhatsApp 3312345678' });
-    expect(r7.asunto).toBe('MAVI · La membresía de Panadería Lupita vence en 7 días');
+    expect(r7.asunto).toBe('Crustore · La membresía de Panadería Lupita vence en 7 días');
     expect(r7.texto).toMatch(/13 de septiembre de 2026/);
     expect(r7.texto).toMatch(/WhatsApp 3312345678/);
     expect(r7.html).toContain('<p');
@@ -165,7 +165,7 @@ describe('ejecutarRevision (almacén en memoria)', () => {
         r: conVigencia('2026-09-13'),
         sinCorreo: { ...conVigencia('2026-09-09'), email: '' },
       },
-      configuracion: { membresia: { diasGracia: 0 }, soporte: { whatsapp: '3312345678', email: 'soporte@mavi.mx' } },
+      configuracion: { membresia: { diasGracia: 0 }, soporte: { whatsapp: '3312345678', email: 'soporte@crustore.mx' } },
     });
     const enviados: any[] = [];
     const r = await ejecutarRevision(a, {
@@ -183,7 +183,7 @@ describe('ejecutarRevision (almacén en memoria)', () => {
     expect(a.tree.tiendas.sinCorreo.membresia.avisos['recordatorio-3']).toBe('2026-09-09');
 
     expect(r.resumen).toMatchObject({ bloqueadas: 1, recordatorios: 2, correosEnviados: 1, correosFallidos: 1, simulacion: false });
-    expect(enviados[0].texto).toMatch(/WhatsApp 3312345678 · soporte@mavi.mx/);
+    expect(enviados[0].texto).toMatch(/WhatsApp 3312345678 · soporte@crustore.mx/);
     expect(a.tree.configuracion.ultimaRevisionMembresias).toMatchObject({ hoy: HOY, bloqueadas: 1 });
     const log = Object.values(a.tree.avisosMembresia)[0] as any;
     expect(log.acciones.map((x: any) => x.accion).sort()).toEqual(['bloqueo', 'recordatorio-3', 'recordatorio-7']);

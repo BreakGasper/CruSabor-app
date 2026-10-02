@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { db } from "@/firebase";
-import { ref as dbRef, onValue } from "firebase/database";
+import { ref as dbRef, onValue } from "@/services/baseDatos";
 import type { Producto } from "@/types/Producto";
 /**
  * Interfaz que define la estructura de un artículo.

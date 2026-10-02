@@ -76,7 +76,7 @@ describe('crearPreferencia', () => {
     const orig = global.fetch;
     global.fetch = fetchMock as any;
     try {
-      await crearPreferencia('TOK', { ...base, backUrls: { success: 'https://mavi.test/x?pago=exito', pending: '', failure: '' } });
+      await crearPreferencia('TOK', { ...base, backUrls: { success: 'https://crustore.test/x?pago=exito', pending: '', failure: '' } });
       expect(JSON.parse((fetchMock.mock.calls[0][1] as any).body).auto_return).toBe('approved');
 
       fetchMock.mockClear();
@@ -110,7 +110,7 @@ function almacenEnMemoria(datos: any) {
 }
 
 const SECRETO = 'webhook-secreto';
-const ENV = { MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRETO, API_PUBLIC_URL: 'https://api.mavi.test', FRONTEND_URL: 'https://mavi.test' } as NodeJS.ProcessEnv;
+const ENV = { MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRETO, API_PUBLIC_URL: 'https://api.crustore.test', FRONTEND_URL: 'https://crustore.test' } as NodeJS.ProcessEnv;
 
 let servidor: ReturnType<express.Express['listen']>;
 let base = '';
@@ -152,15 +152,15 @@ afterAll(() => servidor?.close());
 
 describe('POST /pagos/membresia/crear', () => {
   it('crea el intento y devuelve la URL de Mercado Pago', async () => {
-    const r = await post('/pagos/membresia/crear', { tiendaId: 't1', plan: 'anual', origen: 'https://mavi.test' });
+    const r = await post('/pagos/membresia/crear', { tiendaId: 't1', plan: 'anual', origen: 'https://crustore.test' });
     expect(r.status).toBe(200);
     const d = await r.json();
     expect(d).toMatchObject({ intentoId: 'id1', url: 'https://mp.test/checkout/id1', monto: 3000, plan: 'anual' });
     expect(almacen.tree.pagosMercadoPago.id1).toMatchObject({ tiendaId: 't1', plan: 'anual', monto: 3000, estado: 'pendiente', preferenceId: 'pref-id1' });
     const pref = mpFalso.crearPreferencia.mock.calls[0][1];
     expect(pref.externalReference).toBe('membresia|t1|anual|id1');
-    expect(pref.notificationUrl).toBe('https://api.mavi.test/pagos/membresia/webhook');
-    expect(pref.backUrls.success).toBe('https://mavi.test/store/profile/t1?pago=exito');
+    expect(pref.notificationUrl).toBe('https://api.crustore.test/pagos/membresia/webhook');
+    expect(pref.backUrls.success).toBe('https://crustore.test/store/profile/t1?pago=exito');
     // No se fija el correo del pagador (anclaba el checkout al modo invitado y rechazaba tarjetas de prueba)
     expect(pref.payerEmail).toBeUndefined();
   });
@@ -242,13 +242,13 @@ describe('app (useMercadoPago y configuración)', () => {
   beforeEach(() => __setConfiguracion(null));
 
   it('urlApi usa VITE_API_URL o localhost:3000', () => {
-    expect(urlApi({ VITE_API_URL: 'https://api.mavi.test/' })).toBe('https://api.mavi.test');
+    expect(urlApi({ VITE_API_URL: 'https://api.crustore.test/' })).toBe('https://api.crustore.test');
     expect(urlApi({})).toBe('http://localhost:3000');
   });
 
   it('iniciarPagoMembresia llama al servidor y regresa la URL; propaga errores y caídas', async () => {
     const ok = vi.fn(async () => new Response(JSON.stringify({ intentoId: 'i1', url: 'https://mp.test/x', monto: 300, plan: 'mensual' }), { status: 200 }));
-    const r = await iniciarPagoMembresia({ tiendaId: 't1', plan: 'mensual', origen: 'https://mavi.test' }, ok as any, 'https://api.test');
+    const r = await iniciarPagoMembresia({ tiendaId: 't1', plan: 'mensual', origen: 'https://crustore.test' }, ok as any, 'https://api.test');
     expect(r.url).toBe('https://mp.test/x');
     expect((ok.mock.calls[0] as any)[0]).toBe('https://api.test/pagos/membresia/crear');
 

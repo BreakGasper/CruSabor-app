@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from "vue";
 
 import { db } from "@/firebase";
-import { ref as dbRef, push, set, get, update, remove, onValue, type Unsubscribe } from "firebase/database";
+import { ref as dbRef, push, set, get, update, remove, onValue, type Unsubscribe } from "@/services/baseDatos";
 
 export interface MunicipioData {
   id: string;

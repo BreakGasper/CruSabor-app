@@ -77,7 +77,7 @@
             <div v-for="modo in ['claro', 'oscuro'] as const" :key="modo" class="previa" :class="modo" :style="tokensPrevia?.[modo]">
               <div class="p-cabecera">
                 <span class="p-logo"></span>
-                <span>CruShop</span>
+                <span>Crustore</span>
                 <span class="p-modo">{{ modo === 'claro' ? 'Claro' : 'Oscuro' }}</span>
               </div>
               <div class="p-cuerpo">
@@ -316,6 +316,8 @@ import {
   PALETAS,
   NOMBRE_PALETA,
   MUESTRA_PALETA,
+  PREVIA_FIJA,
+  PALETA_DEFAULT,
   esHex,
   esPaletaFija,
   avisosContraste,
@@ -443,7 +445,7 @@ async function borrarPaleta(id: string) {
   const r = await Swal.fire({
     icon: 'warning',
     title: `¿Eliminar "${nombre}"?`,
-    text: apariencia.value.paleta === id ? 'Está en uso: la app volverá a la paleta Carbón y lima.' : 'No se puede deshacer.',
+    text: apariencia.value.paleta === id ? `Está en uso: la app volverá a la paleta ${NOMBRE_PALETA[PALETA_DEFAULT]}.` : 'No se puede deshacer.',
     showCancelButton: true,
     confirmButtonText: 'Eliminar',
     cancelButtonText: 'Cancelar',
@@ -456,7 +458,7 @@ async function borrarPaleta(id: string) {
 
 /** Variables CSS de una paleta para pintar la vista previa de la temática */
 function tokensDe(id: string) {
-  if (esPaletaFija(id)) return { '--pv-cabecera': MUESTRA_PALETA[id][0], '--pv-boton': MUESTRA_PALETA[id][1], '--pv-texto-boton': id === 'carbon-lima' ? '#c6f432' : '#ffffff' };
+  if (esPaletaFija(id)) return { '--pv-cabecera': PREVIA_FIJA[id].cabecera, '--pv-boton': PREVIA_FIJA[id].boton, '--pv-texto-boton': PREVIA_FIJA[id].textoBoton };
   const p = apariencia.value.personalizadas[id];
   if (!p) return {};
   const t = tokensPersonalizados(p).claro;

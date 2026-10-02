@@ -1,12 +1,20 @@
 /*
  * Tokens de color de la app.
  *
- * Hay dos paletas; el administrador elige cuál ve toda la app en
- * Admin › Configuración › Apariencia (se guarda en `configuracion/apariencia/paleta`).
+ * Hay cinco paletas fijas; el administrador elige cuál ve toda la app en
+ * Admin › Apariencia (se guarda en `configuracion/apariencia/paleta`).
  * La paleta activa se marca en <html data-paleta="…"> (ver composables/usePaleta.ts):
  *
- *   carbon-lima  (por defecto)  carbón + verde lima
- *   rosa-negro                  negro + rosa mexicano
+ *   carbon-lima    A · Pin de tienda (por defecto)  carbón + lima
+ *   rosa-negro     B · Burbuja C                   rosa mexicano + negro
+ *   naranja-cacao  C · Toldo de mercado            naranja + cacao
+ *   azul-anil      D · Carrito C                   añil + ámbar
+ *   crustore       E · Crustore                    colores del logo: tinta + rosa + violeta + cian
+ *
+ * Cada una define su Principal (botones), Principal en modo oscuro, Acento, Fondo
+ * oscuro y Fondo claro; el resto (texto de marca, fondos suaves, superficies y bordes)
+ * se derivó de esos cinco cuidando contraste ≥ 4.5:1. Los ids se conservan de las
+ * paletas anteriores para que la elección guardada en la base siga funcionando.
  *
  * Los nombres de las variables de marca vienen de cuando la app era azul y se
  * conservan para no tocar cada componente:
@@ -15,6 +23,9 @@
  *   --on-primary           texto sobre --color-bg-blue-ligth (no siempre es blanco)
  *   --brand-blue-text      texto/bordes en color de marca sobre superficies del tema
  *   --brand-blue-soft      fondo suave de marca; va en pareja con --brand-blue-text
+ *   --logo-{claro|oscuro}-{estrella|destello|chispa|punto}
+ *                          colores de los destellos del logo (LogoCrustore.vue) según el fondo
+ *                          sobre el que va: no cambian con el modo del sistema, sino con el fondo
  *
  * Semánticos (--bg-page, --surface, --surface-2, --text, --text-muted, --border):
  * cambian con el tema del sistema. Úsalos en lugar de white/#fff, #333, #666, #ccc…
@@ -23,142 +34,241 @@
  * fijan fondo y texto juntos, por eso se leen bien en ambos modos y no se tocan.
  */
 
-/* ---------- Carbón y lima (por defecto) · claro ---------- */
+/* ---------- A · Pin de tienda (por defecto) · claro ---------- */
 :root {
-  --color-bg-blue-dark: #141414;
-  --color-bg-blue-ligth: #1f1f1f;
-  --on-primary: #c6f432;
-  --color-acento: #c6f432;      /* lima: insignias, promociones; texto oscuro encima */
-  --on-acento: #141414;
-  --color-link-hover: #000000;
+  /* Destellos del logo (estrella central, destello grande, chispa chica, punto), por fondo */
+  --logo-claro-estrella: #7f9c20;
+  --logo-claro-destello: #7b9c14;
+  --logo-claro-chispa: #627c10;
+  --logo-claro-punto: #7f9c20;
+  --logo-oscuro-estrella: #c6f432;
+  --logo-oscuro-destello: #b5e61d;
+  --logo-oscuro-chispa: #e9ff9e;
+  --logo-oscuro-punto: #c6f432;
+
   --color-hover-btn-gray: #999;
   --color-shadow: rgba(0, 0, 0, 0.2);
   --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
-
-  --brand-navy-text: #141414;
-  --brand-blue-text: #4a6b00;
-  --brand-blue-soft: #f0fad2;
-  --brand-blue-soft-hover: #e2f5a8;
-
-  --bg-page: #f6f6f3;
-  --surface: #ffffff;
-  --surface-2: #efefeb;
   --text: #141414;
   --text-muted: #5c5c57;
-  --border: #dcdcd6;
 
   /* Compatibilidad con el nombre anterior */
   --color-bg-all: var(--bg-page);
+
+  --color-bg-blue-dark: #1c1f1a;
+  --color-bg-blue-ligth: #1c1f1a;
+  --on-primary: #c6f432;
+  --color-acento: #b5e61d;
+  --on-acento: #1c1f1a;
+  --brand-navy-text: #1c1f1a;
+  --brand-blue-text: #627c10;
+  --brand-blue-soft: #f6fce4;
+  --brand-blue-soft-hover: #effacd;
+  --bg-page: #f4f6ef;
+  --surface: #ffffff;
+  --surface-2: #eaece5;
+  --border: #d7d8d2;
+  --color-link-hover: #4a5d0c;
 }
 
-/* ---------- Carbón y lima · oscuro ---------- */
+/* ---------- A · Pin de tienda · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg-blue-dark: #1a1a1a;
-    --color-bg-blue-ligth: #c6f432;
-    --on-primary: #141414;
-    --color-link-hover: #ddf77a;
     --color-shadow: rgba(0, 0, 0, 0.55);
-
-    --brand-navy-text: #f2f2ee;
-    --brand-blue-text: #c6f432;
-    --brand-blue-soft: #232a12;
-    --brand-blue-soft-hover: #2e3818;
-
-    --bg-page: #0d0d0d;
-    --surface: #1a1a1a;
-    --surface-2: #242424;
     --text: #edede9;
     --text-muted: #a6a6a0;
-    --border: #34342f;
+    --color-bg-blue-dark: #222420;
+    --color-bg-blue-ligth: #c6f432;
+    --on-primary: #141612;
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #c6f432;
+    --brand-blue-soft: #343e18;
+    --brand-blue-soft-hover: #42501a;
+    --bg-page: #141612;
+    --surface: #222420;
+    --surface-2: #2e302c;
+    --border: #434541;
+    --color-link-hover: #d7f770;
   }
 }
 
-/* ---------- Negro y rosa mexicano · claro ---------- */
+/* ---------- B · Burbuja C · claro ---------- */
 :root[data-paleta="rosa-negro"] {
-  --color-bg-blue-ligth: #d1006f;
+  --logo-claro-estrella: #ff2e97;
+  --logo-claro-destello: #d6006f;
+  --logo-claro-chispa: #c90068;
+  --logo-claro-punto: #ff2e97;
+  --logo-oscuro-estrella: #ff2e97;
+  --logo-oscuro-destello: #d6006f;
+  --logo-oscuro-chispa: #ffb3d6;
+  --logo-oscuro-punto: #ff2e97;
+  --color-bg-blue-dark: #141414;
+  --color-bg-blue-ligth: #d6006f;
   --on-primary: #ffffff;
-  --color-acento: #d1006f;
-  --on-acento: #ffffff;
-  --color-link-hover: #8f004c;
-
-  --brand-blue-text: #b8005f;
-  --brand-blue-soft: #fde8f2;
-  --brand-blue-soft-hover: #fad0e4;
+  --color-acento: #ffffff;
+  --on-acento: #d6006f;
+  --brand-navy-text: #141414;
+  --brand-blue-text: #c90068;
+  --brand-blue-soft: #fae0ee;
+  --brand-blue-soft-hover: #f6c7df;
+  --bg-page: #fff5fa;
+  --surface: #ffffff;
+  --surface-2: #f5ebf0;
+  --border: #e0d8dc;
+  --color-link-hover: #a00053;
 }
 
-/* ---------- Negro y rosa mexicano · oscuro ---------- */
+/* ---------- B · Burbuja C · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root[data-paleta="rosa-negro"] {
-    --color-bg-blue-ligth: #e0147f;
-    --on-primary: #ffffff;
-    --color-acento: #e0147f;
-    --color-link-hover: #ff9ccb;
-
+    --color-bg-blue-dark: #222222;
+    --color-bg-blue-ligth: #ff2e97;
+    --on-primary: #141414;
     --brand-navy-text: #f2f2ee;
-    --brand-blue-text: #ff6fb1;
-    --brand-blue-soft: #3a1227;
-    --brand-blue-soft-hover: #4a1832;
+    --brand-blue-text: #ff369b;
+    --brand-blue-soft: #3e192c;
+    --brand-blue-soft-hover: #511b36;
+    --bg-page: #141414;
+    --surface: #222222;
+    --surface-2: #2e2e2e;
+    --border: #434343;
+    --color-link-hover: #ff72b9;
   }
 }
 
-/* ---------- Naranja y cacao · claro ---------- */
+/* ---------- C · Toldo de mercado · claro ---------- */
 :root[data-paleta="naranja-cacao"] {
-  --color-bg-blue-dark: #2b1d14;
-  --color-bg-blue-ligth: #c2410c;
-  --on-primary: #ffffff;
-  --color-acento: #f5b83d;
-  --on-acento: #2a1a0f;
-  --color-link-hover: #8a2e08;
-
-  --brand-navy-text: #2b1d14;
-  --brand-blue-text: #b03a0a;
-  --brand-blue-soft: #fff0e6;
-  --brand-blue-soft-hover: #ffe0cc;
+  --logo-claro-estrella: #e07936;
+  --logo-claro-destello: #e85d10;
+  --logo-claro-chispa: #b84a0d;
+  --logo-claro-punto: #e07936;
+  --logo-oscuro-estrella: #ff8a3d;
+  --logo-oscuro-destello: #e85d10;
+  --logo-oscuro-chispa: #ffc48a;
+  --logo-oscuro-punto: #ff8a3d;
+  --color-bg-blue-dark: #2a1911;
+  --color-bg-blue-ligth: #e85d10;
+  --on-primary: #2a1911;
+  --color-acento: #3b2418;
+  --on-acento: #ffffff;
+  --brand-navy-text: #2a1911;
+  --brand-blue-text: #b84a0d;
+  --brand-blue-soft: #fcece2;
+  --brand-blue-soft-hover: #fadbca;
+  --bg-page: #fff3e8;
+  --surface: #ffffff;
+  --surface-2: #f5e9df;
+  --border: #e0d6cc;
+  --color-link-hover: #963c0a;
 }
 
-/* ---------- Naranja y cacao · oscuro ---------- */
+/* ---------- C · Toldo de mercado · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root[data-paleta="naranja-cacao"] {
-    --color-bg-blue-dark: #21160f;
-    --color-bg-blue-ligth: #f28444;
-    --on-primary: #1a0f08;
-    --color-link-hover: #ffc29c;
-
+    --color-bg-blue-dark: #37271f;
+    --color-bg-blue-ligth: #ff8a3d;
+    --on-primary: #2a1911;
     --brand-navy-text: #f2f2ee;
-    --brand-blue-text: #ff9a5c;
-    --brand-blue-soft: #3a2014;
-    --brand-blue-soft-hover: #4a2a1a;
+    --brand-blue-text: #ff8a3d;
+    --brand-blue-soft: #502d19;
+    --brand-blue-soft-hover: #61361c;
+    --bg-page: #2a1911;
+    --surface: #37271f;
+    --surface-2: #41322b;
+    --border: #554741;
+    --color-link-hover: #ffad77;
   }
 }
 
-/* ---------- Azul añil · claro ---------- */
+/* ---------- D · Carrito C · claro ---------- */
 :root[data-paleta="azul-anil"] {
-  --color-bg-blue-dark: #0f1e3d;
-  --color-bg-blue-ligth: #1d4ed8;
+  --logo-claro-estrella: #c4851c;
+  --logo-claro-destello: #7b8fdb;
+  --logo-claro-chispa: #2b3a8c;
+  --logo-claro-punto: #7b8fdb;
+  --logo-oscuro-estrella: #f5a623;
+  --logo-oscuro-destello: #8fa6ff;
+  --logo-oscuro-chispa: #f5a623;
+  --logo-oscuro-punto: #8fa6ff;
+  --color-bg-blue-dark: #2b3a8c;
+  --color-bg-blue-ligth: #2b3a8c;
   --on-primary: #ffffff;
-  --color-acento: #f59e0b;
-  --on-acento: #1f1405;
-  --color-link-hover: #1e3a8a;
-
-  --brand-navy-text: #0f1e3d;
-  --brand-blue-text: #1d4ed8;
-  --brand-blue-soft: #e8eefd;
-  --brand-blue-soft-hover: #d3dffb;
+  --color-acento: #f5a623;
+  --on-acento: #2b3a8c;
+  --brand-navy-text: #2b3a8c;
+  --brand-blue-text: #2b3a8c;
+  --brand-blue-soft: #e6e7f1;
+  --brand-blue-soft-hover: #d0d4e6;
+  --bg-page: #f3f5fc;
+  --surface: #ffffff;
+  --surface-2: #e9ebf2;
+  --border: #d6d8de;
+  --color-link-hover: #202c69;
 }
 
-/* ---------- Azul añil · oscuro ---------- */
+/* ---------- D · Carrito C · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root[data-paleta="azul-anil"] {
-    --color-bg-blue-dark: #111a2e;
-    --color-bg-blue-ligth: #6b9bff;
-    --on-primary: #0a1020;
-    --color-link-hover: #b3cbff;
-
+    --color-bg-blue-dark: #1c213c;
+    --color-bg-blue-ligth: #8fa6ff;
+    --on-primary: #0e1330;
     --brand-navy-text: #f2f2ee;
-    --brand-blue-text: #8ab0ff;
-    --brand-blue-soft: #16233f;
-    --brand-blue-soft-hover: #1d2d52;
+    --brand-blue-text: #8fa6ff;
+    --brand-blue-soft: #252d55;
+    --brand-blue-soft-hover: #303966;
+    --bg-page: #0e1330;
+    --surface: #1c213c;
+    --surface-2: #292d47;
+    --border: #3e4259;
+    --color-link-hover: #b1c1ff;
+  }
+}
+
+/* ---------- E · Crustore (colores del logo) · claro ---------- */
+/* Tinta #1F2430 en cabeceras, rosa del logo en botones (texto en tinta), violeta para
+   enlaces y textos de marca, cian como acento. */
+:root[data-paleta="crustore"] {
+  --logo-claro-estrella: #ff2e97;
+  --logo-claro-destello: #00a9c2;
+  --logo-claro-chispa: #f5a300;
+  --logo-claro-punto: #7c4dff;
+  --logo-oscuro-estrella: #ff2e97;
+  --logo-oscuro-destello: #00e5ff;
+  --logo-oscuro-chispa: #ffc233;
+  --logo-oscuro-punto: #a78bfa;
+  --color-bg-blue-dark: #1f2430;
+  --color-bg-blue-ligth: #ff2e97;
+  --on-primary: #1e232f;
+  --color-acento: #00a9c2;
+  --on-acento: #1f2430;
+  --brand-navy-text: #1f2430;
+  --brand-blue-text: #7548f0;
+  --brand-blue-soft: #f2edff;
+  --brand-blue-soft-hover: #e5dbff;
+  --bg-page: #f7f7fb;
+  --surface: #ffffff;
+  --surface-2: #ededf1;
+  --border: #d9d9dd;
+  --color-link-hover: #5836b4;
+}
+
+/* ---------- E · Crustore · oscuro ---------- */
+@media (prefers-color-scheme: dark) {
+  :root[data-paleta="crustore"] {
+    --color-bg-blue-dark: #1c1c22;
+    --color-bg-blue-ligth: #ff2e97;
+    --on-primary: #0e0e14;
+    --color-acento: #00e5ff;
+    --on-acento: #0e0e14;
+    --brand-navy-text: #f2f2ee;
+    --brand-blue-text: #a78bfa;
+    --brand-blue-soft: #2a243d;
+    --brand-blue-soft-hover: #362e50;
+    --bg-page: #0e0e14;
+    --surface: #1c1c22;
+    --surface-2: #29292e;
+    --border: #3e3e43;
+    --color-link-hover: #c1aefc;
   }
 }
 

@@ -15,6 +15,9 @@
   <TematicaDecoracion v-if="tematicaVisible" :piezas="tematicaVisible.piezas" />
 
   <Toast position="bottom-center" />
+
+  <!-- Logo animado si algo que pidió el usuario tarda (services/carga.ts) -->
+  <CargandoCrustore />
 </template>
 <script setup lang="ts">
 import Toast from "primevue/toast";
@@ -26,6 +29,7 @@ import { cargarSesion } from "@/utils/sessionUser";
 import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
 import MantenimientoAviso from "@/components/MantenimientoAviso.vue";
+import CargandoCrustore from "@/components/CargandoCrustore.vue";
 import { aplicarPaleta } from "@/composables/usePaleta";
 import { tematicaEnCurso, pantallaDeRuta, cargarIconosDe, hoyISO } from "@/composables/useTematicas";
 import TematicaDecoracion from "@/components/TematicaDecoracion.vue";

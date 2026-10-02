@@ -17,7 +17,7 @@
       </router-link>
       <div>
         <p class="brand-title">{{ titulo }}</p>
-        <p class="brand-sub">MAVI - Admin</p>
+        <p class="brand-sub">Crustore · Admin</p>
       </div>
     </div>
 

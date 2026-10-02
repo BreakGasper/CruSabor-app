@@ -1,4 +1,6 @@
-# 🛍️ CruSabor App (MAVI Store)
+# 🛍️ Crustore
+
+> Antes se llamó CruSabor / MAVI. Algunos nombres técnicos conservan el nombre anterior a propósito, porque cambiarlos rompería cosas que ya están publicadas: la carpeta y el repositorio de GitHub (`CruSabor-app`) y el servidor de Render (`mavi-api`, con su URL `https://mavi-api.onrender.com`, que es la que usa la app). El nombre visible vive en `src/constants/marca.ts` (`NOMBRE_APP`) y el logo en `src/components/LogoCrustore.vue` + `public/` (favicon e iconos).
 
 Marketplace web con tres caras: la **tienda en línea** para clientes, el **panel de tiendas** para negocios que publican productos y atienden pedidos, y el **panel de administración** de la plataforma.
 

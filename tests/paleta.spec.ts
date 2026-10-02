@@ -37,6 +37,10 @@ import {
 } from '@/composables/useTematicas';
 import AdminApariencia from '@/modules/admin/views/AdminApariencia.vue';
 import TematicaDecoracion from '@/components/TematicaDecoracion.vue';
+import LogoCrustore from '@/components/LogoCrustore.vue';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { PALETAS } from '@/composables/usePaleta';
 
 const stubs = { AdminTopbar: true };
 
@@ -68,13 +72,13 @@ afterEach(() => {
 });
 
 describe('paletas en la configuración', () => {
-  it('por defecto es carbón y lima, sin paletas propias ni temáticas', () => {
+  it('por defecto es la A (carbon-lima), sin paletas propias ni temáticas', () => {
     expect(PALETA_DEFAULT).toBe('carbon-lima');
     expect(normalizarConfiguracion(null).apariencia).toEqual({ paleta: 'carbon-lima', personalizadas: {}, tematicas: {} });
   });
 
-  it('acepta las cuatro fijas y las propias que existen; ignora ids desconocidos y colores inválidos', () => {
-    for (const id of ['rosa-negro', 'naranja-cacao', 'azul-anil']) {
+  it('acepta las cinco fijas y las propias que existen; ignora ids desconocidos y colores inválidos', () => {
+    for (const id of ['rosa-negro', 'naranja-cacao', 'azul-anil', 'crustore']) {
       expect(normalizarConfiguracion({ apariencia: { paleta: id } }).apariencia.paleta).toBe(id);
     }
     const a = normalizarConfiguracion({
@@ -370,5 +374,41 @@ describe('Admin › Apariencia', () => {
     expect(w.text()).toContain('"Hasta" no puede ser antes de "Desde"');
     const boton = w.findAll('button').find((b) => b.text() === 'Guardar temática')!;
     expect(boton.attributes('disabled')).toBeDefined();
+  });
+});
+
+describe('destellos del logo según la paleta', () => {
+  const css = readFileSync(resolve(__dirname, '../src/assets/styles/ColorsVarCss.css'), 'utf8');
+  const ROLES = ['estrella', 'destello', 'chispa', 'punto'];
+
+  it('cada paleta fija define los colores de los destellos para fondo claro y oscuro', () => {
+    for (const id of PALETAS) {
+      const sel = id === 'carbon-lima' ? ':root {' : `:root[data-paleta="${id}"] {`;
+      const bloque = css.slice(css.indexOf(sel), css.indexOf('}', css.indexOf(sel)));
+      for (const fondo of ['claro', 'oscuro']) {
+        for (const r of ROLES) expect(bloque, `${id} ${fondo} ${r}`).toMatch(new RegExp(`--logo-${fondo}-${r}: #[0-9a-f]{6};`));
+      }
+    }
+  });
+
+  it('las paletas personalizadas derivan sus destellos y se distinguen del fondo (≥ 3:1)', () => {
+    const p: PaletaPersonalizada = { nombre: 'Home', cabecera: '#1b2a24', boton: '#2f7a3a', resaltado: '#2fff00' };
+    const { claro, oscuro } = tokensPersonalizados(p);
+    for (const r of ROLES) {
+      expect(contraste(claro[`--logo-claro-${r}`], '#ffffff'), r).toBeGreaterThanOrEqual(3);
+      expect(contraste(claro[`--logo-oscuro-${r}`], '#1a1a1a'), r).toBeGreaterThanOrEqual(3);
+      expect(oscuro[`--logo-oscuro-${r}`]).toBe(claro[`--logo-oscuro-${r}`]);
+    }
+  });
+
+  it('el logo se dibuja en línea: el carrito según el fondo y los destellos con los tokens', () => {
+    const w = mount(LogoCrustore, { props: { fondo: 'oscuro', tamano: 34, alt: '' } });
+    const svg = w.find('svg');
+    expect(svg.classes()).toContain('fondo-oscuro');
+    expect(svg.attributes('aria-hidden')).toBe('true');
+    for (const r of ROLES) expect(w.findAll(`.${r}`).length, r).toBeGreaterThan(0);
+    const conNombre = mount(LogoCrustore);
+    expect(conNombre.find('svg').attributes('aria-label')).toBe('Crustore');
+    expect(conNombre.find('svg').classes()).toContain('fondo-auto');
   });
 });

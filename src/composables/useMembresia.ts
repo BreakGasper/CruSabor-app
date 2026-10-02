@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, get, onValue } from 'firebase/database';
+import { ref as dbRef, get, onValue } from '@/services/baseDatos';
 
 /**
  * Autorización y membresía de tiendas.

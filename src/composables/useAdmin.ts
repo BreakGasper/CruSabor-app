@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, get, push, set, update, onValue, type Unsubscribe } from 'firebase/database';
+import { ref as dbRef, get, push, set, update, onValue, type Unsubscribe } from '@/services/baseDatos';
 import { hashPassword, validatePasswordHash, errorLongitudPassword } from '@/composables/usePassword';
 
 /**

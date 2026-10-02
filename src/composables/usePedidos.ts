@@ -12,7 +12,7 @@ import {
   onValue,
   runTransaction,
   type Unsubscribe,
-} from 'firebase/database';
+} from '@/services/baseDatos';
 import { tiendasQueNoPuedenVender, TiendaNoDisponibleError } from '@/composables/useMembresia';
 import { tiendasCerradas, TiendaCerradaError } from '@/composables/useHorarioTienda';
 import { ventaBloqueada } from '@/composables/useArticulos';

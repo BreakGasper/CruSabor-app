@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, push, update } from 'firebase/database';
+import { ref as dbRef, onValue, push, update } from '@/services/baseDatos';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import type { PlanMembresia } from '@/composables/useAdminTiendas';
 

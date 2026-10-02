@@ -12,25 +12,38 @@
  * La última paleta aplicada se recuerda en localStorage (id y, si es personalizada,
  * su CSS) para que index.html la ponga antes de pintar y no haya parpadeo.
  */
-export const PALETAS = ['carbon-lima', 'rosa-negro', 'naranja-cacao', 'azul-anil'] as const;
+export const PALETAS = ['carbon-lima', 'rosa-negro', 'naranja-cacao', 'azul-anil', 'crustore'] as const;
 export type PaletaFija = (typeof PALETAS)[number];
 /** Una paleta fija o el id de una personalizada */
 export type Paleta = string;
 export const PALETA_DEFAULT: PaletaFija = 'carbon-lima';
 
+// Los ids vienen de las paletas anteriores; se conservan para que la elección
+// guardada en `configuracion/apariencia/paleta` siga funcionando.
 export const NOMBRE_PALETA: Record<PaletaFija, string> = {
-  'carbon-lima': 'Carbón y lima',
-  'rosa-negro': 'Negro y rosa mexicano',
-  'naranja-cacao': 'Naranja y cacao',
-  'azul-anil': 'Azul añil',
+  'carbon-lima': 'A · Pin de tienda',
+  'rosa-negro': 'B · Burbuja C',
+  'naranja-cacao': 'C · Toldo de mercado',
+  'azul-anil': 'D · Carrito C',
+  crustore: 'Home · Crustore',
 };
 
-/** Los tres colores que se ven en la muestra de cada paleta fija: cabecera, botón, resaltado */
+/** Los tres colores que se ven en la muestra de cada paleta fija: principal, principal en oscuro, acento */
 export const MUESTRA_PALETA: Record<PaletaFija, [string, string, string]> = {
-  'carbon-lima': ['#141414', '#1f1f1f', '#c6f432'],
-  'rosa-negro': ['#141414', '#d1006f', '#d1006f'],
-  'naranja-cacao': ['#2b1d14', '#c2410c', '#f5b83d'],
-  'azul-anil': ['#0f1e3d', '#1d4ed8', '#f59e0b'],
+  'carbon-lima': ['#1c1f1a', '#c6f432', '#b5e61d'],
+  'rosa-negro': ['#d6006f', '#ff2e97', '#ffffff'],
+  'naranja-cacao': ['#e85d10', '#ff8a3d', '#3b2418'],
+  'azul-anil': ['#2b3a8c', '#8fa6ff', '#f5a623'],
+  crustore: ['#1f2430', '#ff2e97', '#7c4dff'],
+};
+
+/** Colores de la vista previa de temáticas (modo claro): cabecera, botón y texto del botón */
+export const PREVIA_FIJA: Record<PaletaFija, { cabecera: string; boton: string; textoBoton: string }> = {
+  'carbon-lima': { cabecera: '#1c1f1a', boton: '#1c1f1a', textoBoton: '#c6f432' },
+  'rosa-negro': { cabecera: '#141414', boton: '#d6006f', textoBoton: '#ffffff' },
+  'naranja-cacao': { cabecera: '#2a1911', boton: '#e85d10', textoBoton: '#2a1911' },
+  'azul-anil': { cabecera: '#2b3a8c', boton: '#2b3a8c', textoBoton: '#ffffff' },
+  crustore: { cabecera: '#1f2430', boton: '#ff2e97', textoBoton: '#1e232f' },
 };
 
 export interface PaletaPersonalizada {
@@ -131,7 +144,31 @@ export function tokensPersonalizados(p: PaletaPersonalizada) {
     '--brand-blue-soft': mezclar(p.resaltado, SUPERFICIE_OSCURA, 0.82),
     '--brand-blue-soft-hover': mezclar(p.resaltado, SUPERFICIE_OSCURA, 0.74),
   };
-  return { claro, oscuro };
+  // Destellos del logo (LogoCrustore.vue): dependen del fondo sobre el que va el logo,
+  // no del modo del sistema, así que van iguales en claro y en oscuro.
+  const logo = tokensLogo(p, cabecera, textoMarca);
+  return { claro: { ...claro, ...logo }, oscuro: { ...oscuro, ...logo } };
+}
+
+/**
+ * Colores de los destellos del logo para una paleta personalizada: estrella central y
+ * chispa con el resaltado, destello y punto con el color de los botones. Sobre fondo
+ * claro se oscurecen y sobre fondo oscuro se aclaran hasta tener 3:1 (se distinguen
+ * como gráfico aunque no sean texto).
+ */
+export function tokensLogo(p: PaletaPersonalizada, cabecera: string, textoMarca: string): Record<string, string> {
+  const sobreClaro = (c: string) => asegurar(c, BLANCO, 3, NEGRO);
+  const sobreOscuro = (c: string) => asegurar(asegurar(c, cabecera, 3, BLANCO), SUPERFICIE_OSCURA, 3, BLANCO);
+  return {
+    '--logo-claro-estrella': sobreClaro(p.resaltado),
+    '--logo-claro-destello': sobreClaro(p.boton),
+    '--logo-claro-chispa': textoMarca,
+    '--logo-claro-punto': sobreClaro(p.boton),
+    '--logo-oscuro-estrella': sobreOscuro(p.resaltado),
+    '--logo-oscuro-destello': sobreOscuro(p.boton),
+    '--logo-oscuro-chispa': sobreOscuro(mezclar(p.resaltado, BLANCO, 0.35)),
+    '--logo-oscuro-punto': sobreOscuro(p.boton),
+  };
 }
 
 /** Avisos de contraste para mostrar al admin mientras elige colores */
@@ -155,10 +192,11 @@ export function cssPersonalizado(p: PaletaPersonalizada): string {
 /* ---------------- Aplicar ---------------- */
 
 const THEME_COLOR: Record<PaletaFija, string> = {
-  'carbon-lima': '#141414',
+  'carbon-lima': '#1c1f1a',
   'rosa-negro': '#141414',
-  'naranja-cacao': '#2b1d14',
-  'azul-anil': '#0f1e3d',
+  'naranja-cacao': '#2a1911',
+  'azul-anil': '#2b3a8c',
+  crustore: '#1f2430',
 };
 const CLAVE = 'paleta';
 const CLAVE_CSS = 'paleta-css';

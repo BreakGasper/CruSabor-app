@@ -19,7 +19,7 @@
         </svg>
       </div>
       <span class="badge">Administración</span>
-      <h1 class="title">MAVI - Admin</h1>
+      <h1 class="title"><MarcaCrustore fondo="oscuro" sufijo="· Admin" /></h1>
       <p class="subtitle">Control de tiendas, membresías y sistema</p>
     </div>
 
@@ -108,6 +108,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import TopBarFija from '@/components/TopBarFija.vue';
+import MarcaCrustore from '@/components/MarcaCrustore.vue';
 import { loginAdmin } from '@/composables/useAdmin';
 import { PASSWORD_MAX } from '@/composables/usePassword';
 import { guardarSesionAdmin } from '@/utils/sessionAdmin';
@@ -282,9 +283,16 @@ async function login() {
   margin-bottom: 0.6rem;
 }
 .title {
-  font-size: 1.7rem;
+  /* Se encoge en teléfonos angostos para que "Crustore · Admin" no se parta en dos renglones */
+  font-size: clamp(1.3rem, 6vw, 1.7rem);
   font-weight: 700;
   margin: 0;
+  /* Renglón propio y centrado (con inline-flex se pegaba a la insignia) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
 }
 .subtitle {
   margin: 0.3rem 0 0;

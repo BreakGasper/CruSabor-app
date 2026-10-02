@@ -53,9 +53,9 @@ describe('enlaces y textos', () => {
   });
 
   it('el mensaje usa el nombre y, si hay, la categoría', () => {
-    expect(textoCompartirTienda('Pastelería Lola')).toBe('Mira Pastelería Lola en MAVI');
-    expect(textoCompartirTienda('Pastelería Lola', 'Postres')).toBe('Mira Pastelería Lola (Postres) en MAVI');
-    expect(textoCompartirTienda('  ')).toBe('Mira esta tienda en MAVI');
+    expect(textoCompartirTienda('Pastelería Lola')).toBe('Mira Pastelería Lola en Crustore');
+    expect(textoCompartirTienda('Pastelería Lola', 'Postres')).toBe('Mira Pastelería Lola (Postres) en Crustore');
+    expect(textoCompartirTienda('  ')).toBe('Mira esta tienda en Crustore');
   });
 
   it('junta texto y enlace en un solo mensaje', () => {
@@ -65,11 +65,11 @@ describe('enlaces y textos', () => {
 
   it('WhatsApp recibe el mensaje codificado y deja elegir contacto', () => {
     const url = `${ORIGEN}/store/profile/t1`;
-    const enlace = enlaceWhatsApp('Mira Pastelería Lola en MAVI', url);
+    const enlace = enlaceWhatsApp('Mira Pastelería Lola en Crustore', url);
     expect(enlace.startsWith('https://wa.me/?text=')).toBe(true);
     // el acento, el salto de línea y los dos puntos van codificados
     expect(enlace).not.toContain(' ');
-    expect(decodeURIComponent(enlace.split('text=')[1])).toBe(`Mira Pastelería Lola en MAVI\n${url}`);
+    expect(decodeURIComponent(enlace.split('text=')[1])).toBe(`Mira Pastelería Lola en Crustore\n${url}`);
   });
 
   it('cada destino arma su propio enlace', () => {
@@ -105,7 +105,7 @@ describe('menú del sistema', () => {
 });
 
 describe('BotonCompartir', () => {
-  const props = { titulo: 'Pastelería Lola', texto: 'Mira Pastelería Lola en MAVI', url: `${ORIGEN}/store/profile/t1` };
+  const props = { titulo: 'Pastelería Lola', texto: 'Mira Pastelería Lola en Crustore', url: `${ORIGEN}/store/profile/t1` };
 
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -136,7 +136,7 @@ describe('BotonCompartir', () => {
     const wa = hoja!.querySelector<HTMLAnchorElement>('a[href*="wa.me"]');
     expect(wa).not.toBeNull();
     expect(decodeURIComponent(wa!.href)).toContain(props.url);
-    expect(decodeURIComponent(wa!.href)).toContain('Mira Pastelería Lola en MAVI');
+    expect(decodeURIComponent(wa!.href)).toContain('Mira Pastelería Lola en Crustore');
     // y los demás destinos
     expect(hoja!.querySelector('a[href*="facebook.com/sharer"]')).not.toBeNull();
     expect(hoja!.querySelector('a[href^="mailto:"]')).not.toBeNull();
@@ -181,10 +181,10 @@ describe('compartir un producto', () => {
 
   it('el mensaje nombra el artículo y su tienda, sin precio', () => {
     expect(textoCompartirProducto('Pastel de chocolate', 'Pastelería Lola')).toBe(
-      'Mira Pastel de chocolate de Pastelería Lola en MAVI',
+      'Mira Pastel de chocolate de Pastelería Lola en Crustore',
     );
-    expect(textoCompartirProducto('Pastel de chocolate')).toBe('Mira Pastel de chocolate en MAVI');
-    expect(textoCompartirProducto('')).toBe('Mira este producto en MAVI');
+    expect(textoCompartirProducto('Pastel de chocolate')).toBe('Mira Pastel de chocolate en Crustore');
+    expect(textoCompartirProducto('')).toBe('Mira este producto en Crustore');
     // el precio cambia por variante: dejarlo fuera evita contradecir la pantalla que abre quien recibe
     expect(textoCompartirProducto('Pastel', 'Lola')).not.toMatch(/\d/);
   });
@@ -236,7 +236,7 @@ describe('ProductDetail: botón de compartir', () => {
     expect(wa).not.toBeNull();
     const mensaje = decodeURIComponent(wa!.href);
     expect(mensaje).toContain('/producto/p1');
-    expect(mensaje).toContain('Mira Pastel de chocolate de Pastelería Lola en MAVI');
+    expect(mensaje).toContain('Mira Pastel de chocolate de Pastelería Lola en Crustore');
     w.unmount();
   });
 });

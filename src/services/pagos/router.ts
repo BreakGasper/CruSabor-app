@@ -93,8 +93,8 @@ export function crearRouterPagos(op: OpcionesRouter = {}) {
       const volver = `${app}/store/profile/${tiendaId}`;
 
       const pref = await mp.crearPreferencia(token(), {
-        titulo: `Membresía MAVI ${PLAN_LABEL[plan]} · ${tienda.nombreTienda || tiendaId}`,
-        descripcion: `Membresía ${PLAN_LABEL[plan].toLowerCase()} para vender en MAVI`,
+        titulo: `Membresía Crustore ${PLAN_LABEL[plan]} · ${tienda.nombreTienda || tiendaId}`,
+        descripcion: `Membresía ${PLAN_LABEL[plan].toLowerCase()} para vender en Crustore`,
         monto,
         externalReference,
         notificationUrl: `${apiPublica()}/pagos/membresia/webhook`,

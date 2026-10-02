@@ -1,5 +1,5 @@
 /**
- * Funciones de Firebase de MAVI (requieren plan Blaze; mientras no se active, usa
+ * Funciones de Firebase de Crustore (requieren plan Blaze; mientras no se active, usa
  * scripts/revisar-membresias.mjs para correr la revisión a mano).
  *
  *  - revisarMembresias        programada, todos los días a las 06:00 (hora de Ciudad de México)

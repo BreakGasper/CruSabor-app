@@ -64,7 +64,7 @@ export async function crearPreferencia(token: string, d: DatosPreferencia) {
     external_reference: d.externalReference,
     notification_url: d.notificationUrl,
     back_urls: d.backUrls,
-    statement_descriptor: 'MAVI',
+    statement_descriptor: 'CRUSTORE',
     metadata: { external_reference: d.externalReference },
   };
   // auto_return regresa solo a la app al aprobarse, pero Mercado Pago EXIGE que

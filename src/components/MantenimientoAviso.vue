@@ -13,7 +13,7 @@
           <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-2.6 2.4-2.4z" />
         </svg>
       </div>
-      <h1>MAVI en mantenimiento</h1>
+      <h1>{{ NOMBRE_APP }} en mantenimiento</h1>
       <p class="mensaje">{{ mensaje }}</p>
       <p v-if="contacto" class="contacto">¿Necesitas ayuda? {{ contacto }}</p>
       <button type="button" class="btn-reintentar" @click="reload">Reintentar</button>
@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import { NOMBRE_APP } from '@/constants/marca';
 defineProps<{ mensaje: string; contacto?: string }>();
 const reload = () => window.location.reload();
 </script>

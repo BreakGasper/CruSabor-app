@@ -1,5 +1,5 @@
 import { db } from '@/firebase';
-import { ref as dbRef, get, update } from 'firebase/database';
+import { ref as dbRef, get, update } from '@/services/baseDatos';
 import { hashPassword } from '@/composables/usePassword';
 
 /**

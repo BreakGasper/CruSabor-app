@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, onValue, push, set, update, remove } from 'firebase/database';
+import { ref as dbRef, onValue, push, set, update, remove } from '@/services/baseDatos';
 import type { Producto } from '@/types/Producto';
 
 /**

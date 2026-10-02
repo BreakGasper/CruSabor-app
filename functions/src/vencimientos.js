@@ -138,17 +138,17 @@ export function mensajeAviso(item, { tipo, contacto = '', diasGracia = 0 }) {
   let cuerpo;
 
   if (tipo === 'bloqueo') {
-    asunto = `MAVI · ${nombre} quedó bloqueada por membresía vencida`;
+    asunto = `Crustore · ${nombre} quedó bloqueada por membresía vencida`;
     cuerpo = `Hola,\n\nLa membresía de ${nombre} venció el ${fecha}${diasGracia > 0 ? ` y el periodo de gracia de ${diasGracia} día${diasGracia === 1 ? '' : 's'} terminó` : ''}. Tu tienda dejó de mostrarse a los clientes y no puede recibir pedidos.\n\nPara reactivarla, realiza el pago de tu membresía y el administrador la habilitará de nuevo.${pie}`;
   } else if (item.clave === 'gracia') {
     const restan = item.diasRestantesGracia;
-    asunto = `MAVI · La membresía de ${nombre} venció`;
+    asunto = `Crustore · La membresía de ${nombre} venció`;
     cuerpo = `Hola,\n\nLa membresía de ${nombre} venció el ${fecha}. Sigues vendiendo ${restan} día${restan === 1 ? '' : 's'} más por periodo de gracia; después tu tienda quedará bloqueada.\n\nRenueva tu membresía cuanto antes para no perder visibilidad.${pie}`;
   } else if (item.dias === 0) {
-    asunto = `MAVI · La membresía de ${nombre} vence hoy`;
+    asunto = `Crustore · La membresía de ${nombre} vence hoy`;
     cuerpo = `Hola,\n\nLa membresía de ${nombre} vence hoy, ${fecha}.${diasGracia > 0 ? ` Tendrás ${diasGracia} día${diasGracia === 1 ? '' : 's'} de gracia, pero te recomendamos renovar hoy mismo.` : ' A partir de mañana tu tienda dejará de mostrarse a los clientes.'}${pie}`;
   } else {
-    asunto = `MAVI · La membresía de ${nombre} vence en ${item.dias} día${item.dias === 1 ? '' : 's'}`;
+    asunto = `Crustore · La membresía de ${nombre} vence en ${item.dias} día${item.dias === 1 ? '' : 's'}`;
     cuerpo = `Hola,\n\nLa membresía de ${nombre} vence el ${fecha} (en ${item.dias} día${item.dias === 1 ? '' : 's'}). Renueva a tiempo para que tu tienda siga visible y pueda recibir pedidos.${pie}`;
   }
 

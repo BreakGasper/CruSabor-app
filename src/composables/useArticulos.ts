@@ -2,7 +2,7 @@ import { ref as vueRef, computed, onMounted } from "vue";
 import type { Ref } from "vue";
 import { useEstadoTiendas } from "@/composables/useMembresia";
 import { db } from "@/firebase";
-import { ref as dbRef, onValue, push, set, update } from "firebase/database";
+import { ref as dbRef, onValue, push, set, update } from "@/services/baseDatos";
 import type { Producto } from "@/types/Producto";
 
 /* =========================================================================

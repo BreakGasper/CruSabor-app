@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { __reset, __getAt } from './mocks/firebaseDb';
+import { __reset, __getAt, __getTree } from './mocks/firebaseDb';
 import { flush } from './helpers';
 import { sessionUser } from '@/utils/sessionUser';
 import { resumirVotos, useCalificaciones, __setVotos } from '@/composables/useCalificaciones';
@@ -12,6 +12,7 @@ import { __setControlPorTienda } from '@/composables/useMembresia';
 import StarRating from '@/components/StarRating.vue';
 import TiendasDestacadas from '@/modules/home/components/TiendasDestacadas.vue';
 import CategoriasScroll from '@/modules/home/components/CategoriasScroll.vue';
+import { categoriasConArticulos } from '@/composables/useCategorias';
 import { routerMock } from './setup';
 
 beforeEach(() => {
@@ -104,6 +105,14 @@ describe('StarRating', () => {
 
 describe('Portada', () => {
   it('CategoriasScroll muestra solo categorías principales con icono y nombre, y navega', async () => {
+    __setControlPorTienda({ t1: { estatus: 'activa' }, t2: { estatus: 'activa' }, t3: { estatus: 'bloqueada' } });
+    __reset({
+      ...__getTree(),
+      articulos: {
+        a1: { nombre: 'Playera', categoriaId: 'c1', tiendaId: 't1' },
+        a2: { nombre: 'Tamales', categoriaId: 'c2', tiendaId: 't2' },
+      },
+    });
     const w = mount(CategoriasScroll);
     await flushPromises();
     const items = w.findAll('.categoria');
@@ -111,6 +120,44 @@ describe('Portada', () => {
     expect(items[1].find('img').attributes('src')).toBe('https://cdn.test/ropa.png');
     await items[1].trigger('click');
     expect(routerMock.push).toHaveBeenCalledWith({ name: 'categoriaArticulos', params: { id: 'c1', categoriaNombre: 'Ropa' } });
+  });
+
+  it('CategoriasScroll oculta las categorías sin artículos a la venta', async () => {
+    __setControlPorTienda({ t1: { estatus: 'activa' }, t2: { estatus: 'activa' }, t3: { estatus: 'bloqueada' } });
+    __reset({
+      ...__getTree(),
+      categorias: {
+        c1: { id: 'c1', nombre: 'Ropa' },
+        c2: { id: 'c2', nombre: 'Alimentos' },
+        c4: { id: 'c4', nombre: 'Calzado' },
+        c5: { id: 'c5', nombre: 'Electrónica' },
+        c3: { id: 'c3', nombre: 'Sub', padreId: 'c1' },
+      },
+      articulos: {
+        a1: { nombre: 'Playera', categoriaId: 'c1', tiendaId: 't1' },
+        // dado de baja: no cuenta
+        a2: { nombre: 'Tamales', categoriaId: 'c2', tiendaId: 't2', baja: true },
+        // de una tienda bloqueada: no cuenta
+        a3: { nombre: 'Tenis', categoriaId: 'c4', tiendaId: 't3' },
+        // en una subcategoría: la principal no se muestra por esto
+        a4: { nombre: 'Calcetas', categoriaId: 'c3', tiendaId: 't1' },
+      },
+    });
+    const w = mount(CategoriasScroll);
+    await flushPromises();
+    expect(w.findAll('.categoria').map((i) => i.text())).toEqual(['Ropa']);
+  });
+
+  it('categoriasConArticulos: principales con artículos, en orden alfabético', () => {
+    const cats = [
+      { id: 'b', nombre: 'Belleza' },
+      { id: 'a', nombre: 'Accesorios' },
+      { id: 'h', nombre: 'Hogar' },
+      { id: 's', nombre: 'Sub', padreId: 'a' },
+    ];
+    const arts = [{ categoriaId: 'h' }, { categoriaId: 'a' }, { categoriaId: 's' }, {}];
+    expect(categoriasConArticulos(cats, arts).map((c) => c.id)).toEqual(['a', 'h']);
+    expect(categoriasConArticulos(cats, [])).toEqual([]);
   });
 
   it('TiendasDestacadas lista en vertical banner, nombre, corazón y estrellas solo de lectura de tiendas que pueden vender', async () => {
