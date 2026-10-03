@@ -1,5 +1,7 @@
 <template>
-  <header class="admin-topbar">
+  <!-- El header va fijo arriba; esta caja ocupa su alto para que el contenido no quede debajo -->
+  <div class="admin-topbar-espacio" :style="{ height: alto ? `${alto}px` : undefined }">
+  <header ref="header" class="admin-topbar">
     <div class="brand">
       <ArrowBack v-if="volver" class="btn-back" @click="$router.push(volver)" />
       <router-link v-else to="/admin" class="admin-emblem" aria-label="Tablero">
@@ -85,10 +87,11 @@
       <button type="button" class="btn-logout" @click="salir">Cerrar sesión</button>
     </div>
   </header>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import ArrowBack from '@/components/ArrowBack.vue';
 import { sessionAdmin, cerrarSesionAdmin } from '@/utils/sessionAdmin';
@@ -109,6 +112,22 @@ function fechaCorta(iso?: string) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 }
 
+/* Alto real del header (en móvil ocupa dos renglones): se mide y se reserva */
+const header = ref<HTMLElement | null>(null);
+const alto = ref(0);
+let observador: ResizeObserver | null = null;
+onMounted(() => {
+  if (!header.value) return;
+  alto.value = header.value.offsetHeight;
+  if (typeof ResizeObserver !== 'undefined') {
+    observador = new ResizeObserver(() => {
+      if (header.value) alto.value = header.value.offsetHeight;
+    });
+    observador.observe(header.value);
+  }
+});
+onBeforeUnmount(() => observador?.disconnect());
+
 function salir() {
   cerrarSesionAdmin();
   router.replace('/admin/login');
@@ -125,16 +144,25 @@ function salir() {
   background: linear-gradient(160deg, #1f2937, #111827 70%);
   border-bottom: 3px solid #10b981;
   color: #fff;
-  position: sticky;
+  /* Fijo, no sticky: sticky se despega si algún contenedor de arriba tiene su propio scroll */
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  box-sizing: border-box;
   font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+.admin-topbar-espacio {
+  min-height: 64px;
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
+  flex-shrink: 1;
 }
 .admin-emblem {
   width: 40px;
@@ -178,8 +206,18 @@ function salir() {
 .nav {
   display: flex;
   gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar {
+  display: none;
 }
 .nav-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 8px 14px;
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.8);
@@ -199,6 +237,7 @@ function salir() {
   align-items: center;
   gap: 10px;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 .user-name {
   font-weight: 600;
@@ -281,7 +320,7 @@ function salir() {
     background: transparent;
     align-items: flex-start;
     justify-content: flex-end;
-    padding: 66px 18px 0; /* debajo del topbar, alineado a la campana */
+    padding: 72px 18px 0; /* debajo del topbar fijo, alineado a la campana */
   }
   .notif-panel {
     max-width: 340px;
@@ -374,6 +413,12 @@ function salir() {
 .btn-logout:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+@media (max-width: 1180px) {
+  .user-name,
+  .user-rol {
+    display: none;
+  }
+}
 @media (max-width: 720px) {
   .admin-topbar {
     flex-wrap: wrap;
@@ -381,20 +426,10 @@ function salir() {
   }
   .nav {
     order: 3;
-    width: 100%;
-    /* Barra deslizable de lado: caben las 5 secciones (la última es "Cuentas") */
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox: sin barra visible */
+    flex-basis: 100%;
     scroll-snap-type: x proximity;
   }
-  .nav::-webkit-scrollbar {
-    display: none; /* Chrome/Safari: sin barra visible */
-  }
   .nav-link {
-    flex: 0 0 auto; /* no se encogen: se conserva su ancho y se desliza */
-    white-space: nowrap;
     scroll-snap-align: start;
   }
   .brand-sub,
