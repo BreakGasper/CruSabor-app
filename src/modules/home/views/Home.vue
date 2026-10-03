@@ -42,12 +42,7 @@
       <CartButton class="btn-icon cart bg-bnt-cart" />
 
       <button class="user-button" aria-label="Mi perfil" @click="validarLoginSession">
-        <img
-          loading="lazy"
-          src="@/assets/images/user.png"
-          alt="Usuario"
-          class="user-icon"
-        />
+        <LogoCrustore fondo="oscuro" :tamano="28" alt="" />
       </button>
     </div>
 
@@ -184,6 +179,7 @@ import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import BannersCarousel from "../components/BannersCarousel.vue";
 import MarcaCrustore from "@/components/MarcaCrustore.vue";
+import LogoCrustore from "@/components/LogoCrustore.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
 import TiendasDestacadas from "../components/TiendasDestacadas.vue";
 import Destacados from "../components/Destacados.vue";
@@ -399,12 +395,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
   padding: 0;
 }
-
-.user-icon {
-  width: 20px; /* ajusta tamaño según tu icono */
-  height: 20px;
-}
-
 
 .cart-button {
   background: #007bff00;
