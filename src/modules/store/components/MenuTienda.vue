@@ -16,7 +16,9 @@
               <strong>{{ nombreTienda || 'Tienda' }}</strong>
               <small>{{ esDueno ? 'Tu tienda' : 'Menú' }}</small>
             </div>
-            <button type="button" class="mt-cerrar" aria-label="Cerrar menú" @click="$emit('cerrar')">✕</button>
+            <button type="button" class="mt-cerrar" aria-label="Cerrar menú" @click="$emit('cerrar')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
           </header>
 
           <nav class="mt-cuerpo">
@@ -215,10 +217,21 @@ function agregarTienda() {
   color: #fff;
   width: 34px;
   height: 34px;
+  padding: 0; /* sin esto hereda el padding global de button y la X queda chueca */
   border-radius: 10px;
-  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+}
+.mt-cerrar svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: none;
 }
 .mt-cuerpo {
   flex: 1;
