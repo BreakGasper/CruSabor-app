@@ -1,6 +1,6 @@
 # 🛍️ Crustore
 
-> Antes se llamó CruSabor / MAVI. Algunos nombres técnicos conservan el nombre anterior a propósito, porque cambiarlos rompería cosas que ya están publicadas: la carpeta y el repositorio de GitHub (`CruSabor-app`) y el servidor de Render (`mavi-api`, con su URL `https://mavi-api.onrender.com`, que es la que usa la app). El nombre visible vive en `src/constants/marca.ts` (`NOMBRE_APP`) y el logo en `src/components/LogoCrustore.vue` + `public/` (favicon e iconos).
+> Antes se llamó CruSabor / MAVI. Algunos nombres técnicos conservan el nombre anterior a propósito, porque cambiarlos rompería cosas que ya están publicadas: la carpeta y el repositorio de GitHub (`CruSabor-app`) y el servidor de Render (`mavi-api`, con su URL `https://mavi-api.onrender.com`, que es la que usa la app). El nombre visible vive en `src/constants/marca.ts` (`NOMBRE_APP`) y el logo en `src/components/LogoCrustore.vue` + `public/` (favicon e iconos). Dentro de la app el logo se pinta siempre con `LogoCrustore` (SVG que toma los colores de la paleta activa; `fondo="oscuro"` sobre cabeceras y botones oscuros), no con `public/logo.png`: la portada lo usa también como botón de perfil (arriba a la derecha), en lugar del ícono genérico de usuario que había antes.
 
 Marketplace web con tres caras: la **tienda en línea** para clientes, el **panel de tiendas** para negocios que publican productos y atienden pedidos, y el **panel de administración** de la plataforma.
 
@@ -100,6 +100,8 @@ VITE_API_URL=http://localhost:3000  # a dónde llama la app; al compilar para pr
 | `npm test` | Corre la suite de Vitest una vez |
 | `npm run test:watch` | Vitest en modo interactivo |
 | `npm run server` | Servidor Express local en el puerto 3000 (correo + pagos) |
+
+**Datos de prueba (solo local).** Con `npm run dev`, los registros de tienda y de cliente y el alta de producto muestran abajo a la izquierda un botón **"Llenar con datos de prueba"** (`src/dev/`). Llena el formulario con datos inventados: nombres con "[Prueba]", correos @example.com, teléfono al azar, contraseña `Prueba123` y un logo o foto dibujados al vuelo. Se monta solo si `import.meta.env.DEV`, así que `npm run build` lo deja fuera del deploy. **Ojo:** en local la app usa la base del `.env`; si es la de producción, lo que registres con estos datos queda ahí (búscalo por "[Prueba]" para borrarlo).
 
 Antes de dar por terminado un cambio: `npm test` y `npm run type-check` deben pasar.
 
@@ -229,6 +231,10 @@ Las zonas válidas están en `SELECTOR_CABECERA` (`PullToRefresh.vue`): `.page-h
 - Una tienda **puede vender** solo si su estado efectivo es `activa`. Tiendas anteriores a la regla (sin `estatus`) se tratan como activas. Para **publicar productos** además necesita membresía vigente (`membresiaVigente`).
 - El catálogo público, el carrito rápido y `guardarPedidos` bloquean tiendas que no pueden vender (`tiendasQueNoPuedenVender` → `TiendaNoDisponibleError`).
 
+### Varias tiendas por celular (`cuentaTienda.ts`)
+
+Un celular puede tener hasta `MAX_TIENDAS_POR_TELEFONO = 3` tiendas, todas con **la misma contraseña**: celular + contraseña funcionan como una cuenta. No hay nodo nuevo; cada tienda sigue en `tiendas/{id}` con su `telefono` y su hash, y la cuenta se arma buscando por teléfono. **Registro:** con un número que ya tiene tiendas se exige la contraseña de ellas (para no colgar una tienda del número de otra persona) y se respeta el máximo; se revisa en el paso 3 y otra vez al finalizar. **Login:** entran las tiendas de ese número cuya contraseña coincide; con varias, se elige cuál administrar. **Sesión** (`localStorage.tiendas`): la tienda activa más `cuenta`, la lista para cambiar sin volver a escribir la contraseña; el perfil carga la tienda por el **id** de la sesión (antes por teléfono, que con varias abría siempre la primera). En el menú del perfil propio, **Mis tiendas** (`MisTiendasModal.vue`) cambia de tienda y ofrece **Agregar otra tienda**, que abre el registro con el celular y correo ya llenos y, al terminar, la suma a la cuenta. Al editar el celular de una tienda tampoco se puede pasar del máximo.
+
 ### Nombre de la tienda
 
 Fuente de verdad: `tiendas/{id}/nombreTienda`. Artículos (`tiendaNombre`), carrito (`nombre_tienda`) y pedidos (`items[].nombreTienda`) guardan solo una copia. Al renombrar desde el perfil, `actualizarTienda` la propaga a todos sus artículos (`sincronizarNombreEnArticulos`); catálogo y carrito muestran siempre el nombre vivo vía `useEstadoTiendas().nombreDe`. Los pedidos conservan el nombre histórico a propósito. Copias viejas: `node scripts/sincronizar-nombre-tienda.mjs --apply`.
@@ -236,6 +242,8 @@ Fuente de verdad: `tiendas/{id}/nombreTienda`. Artículos (`tiendaNombre`), carr
 ### Horario de atención (`useHorarioTienda.ts`)
 
 `tiendas/{id}/horario` tiene una entrada por día ("Lunes"…"Domingo") con `inicio`/`fin` en `HH:MM`; día sin horas = cerrado. Los productos de una tienda **cerrada** se pueden guardar en el carrito pero no comprar: el carrito los marca, los excluye del total y manda al checkout solo los de tiendas abiertas; `guardarPedidos` vuelve a validar (`TiendaCerradaError`). Tras comprar solo salen del carrito los artículos comprados. Sin horario registrado = abierta. Se admiten horarios que cruzan la medianoche; `proximaApertura` da el texto "Abre hoy a las 10:00 a.m.".
+
+**Captura rápida** (`useHorarioRapido.ts`, en el registro y en Editar tienda): casilla "Mismo horario de lunes a viernes" (una sola fila, la del lunes, que se copia de martes a viernes) y, con ella marcada, "Sábado y domingo con el mismo horario". Sin la segunda, sábado y domingo se capturan a mano y vacíos cuentan como cerrado. El lunes es la referencia: al editar, las casillas se marcan solas si lo guardado coincide con él; una tienda nueva arranca con "lunes a viernes" marcado. Se sigue guardando una entrada por día, así que el resto de la app no cambia.
 
 ### Compartir (`BotonCompartir.vue`, `useCompartir.ts`)
 
@@ -560,3 +568,6 @@ Decisiones de producto y técnicas tomadas durante el desarrollo, con su razón,
 | 2026-09-16 | Compartir vive en la tarjeta del perfil y como círculo flotante en el producto | En el perfil compite con la campana y el corazón del banner; en el producto la columna derecha ya es la de acciones |
 | 2026-09-16 | `BotonCompartir` con un solo nodo raíz, sin `inheritAttrs: false` | Con dos raíces (botón + Teleport) el componente no hereda el `data-v-` del padre y sus estilos scoped no aplican, sin error ni aviso |
 | 2026-09-16 | El mensaje al compartir un producto no incluye el precio | Cada variante tiene el suyo y cambia; el texto quedaría contradiciendo la pantalla que se abre |
+| 2026-10-03 | El botón de perfil de la portada muestra el logo (`LogoCrustore`) en vez del ícono genérico de usuario; se borró `src/assets/images/user.png` | Refuerza la marca en el lugar más visto; el SVG sigue la paleta activa y se lee sobre el botón oscuro, cosa que el PNG con su fondo claro no hacía |
+| 2026-10-03 | Horario con casillas "lunes a viernes igual" y "sábado y domingo igual", tomando el lunes como referencia | La mayoría de las tiendas abre igual entre semana; capturar siete filas era lento. Se guarda igual (un registro por día) para no tocar la lógica de tienda abierta/cerrada |
+| 2026-10-03 | Hasta 3 tiendas por celular, con la misma contraseña, sin migrar datos | Muchos dueños tienen más de un negocio. Compartir contraseña hace del celular una cuenta sin crear un nodo nuevo; pedirla al registrar evita que alguien agregue tiendas al número de otra persona |
