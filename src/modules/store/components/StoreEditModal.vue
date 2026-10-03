@@ -230,8 +230,16 @@
         <!-- ============ HORARIO ============ -->
         <section v-show="tab === 'horario'" class="se-section">
           <p class="hint">Deja vacío el día que no abres.</p>
-          <div v-for="dia in DIAS" :key="dia" class="se-dia">
-            <span class="se-dia-nombre">{{ dia }}</span>
+          <label class="se-check">
+            <input v-model="mismoEntreSemana" type="checkbox" data-testid="horario-mismo" @change="alCambiarMismo" />
+            <span>Mismo horario de lunes a viernes</span>
+          </label>
+          <label v-if="mismoEntreSemana" class="se-check">
+            <input v-model="incluirFinDeSemana" type="checkbox" data-testid="horario-fin" @change="alCambiarFinDeSemana" />
+            <span>Sábado y domingo con el mismo horario</span>
+          </label>
+          <div v-for="dia in diasVisibles" :key="dia" class="se-dia" :data-testid="`dia-${dia}`">
+            <span class="se-dia-nombre">{{ etiquetaDia(dia) }}</span>
             <input v-model="form.horario[dia].inicio" type="time" aria-label="Apertura" />
             <span class="se-sep">a</span>
             <input v-model="form.horario[dia].fin" type="time" aria-label="Cierre" />
@@ -270,6 +278,7 @@ import { cpDeColonia } from '@/composables/coloniasLocales';
 import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
 import { eliminarImagenes } from '@/composables/useCloudinary';
 import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
+import { useHorarioRapido } from '@/composables/useHorarioRapido';
 
 /**
  * Edición de los datos de la tienda por su dueña o dueño.
@@ -409,6 +418,11 @@ const form = reactive({
   zonasEntrega: [] as string[],
   horario: horarioVacio(),
 });
+
+// Casillas "mismo horario de lunes a viernes" / "sábado y domingo igual": se marcan
+// solas según el horario guardado, con el lunes como referencia (useHorarioRapido.ts)
+const { mismoEntreSemana, incluirFinDeSemana, alCambiarMismo, alCambiarFinDeSemana, diasVisibles, etiquetaDia } =
+  useHorarioRapido(() => form.horario);
 
 function cargarDesde(t: Tienda) {
   form.nombreTienda = t.nombreTienda || '';
