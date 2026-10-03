@@ -3,6 +3,9 @@
     <!-- Volver -->
     <TopBarFija titulo="Crear cuenta" @back="$router.back()" />
 
+    <!-- Solo en npm run dev: no existe en el build de producción (src/dev/) -->
+    <component :is="BotonDatosPrueba" v-if="BotonDatosPrueba" :al-llenar="llenarConDatosPrueba" />
+
     <!-- Encabezado -->
     <div class="register-header">
       <div class="user-emblem" aria-hidden="true">
@@ -382,7 +385,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, defineAsyncComponent } from "vue";
 import { saveUser, findUserByPhone, type Usuario } from "@/composables/useAuth";
 import { useRouter } from "vue-router";
 import GFemale from "@/assets/icons/g-female.png";
@@ -468,6 +471,33 @@ function onNumeroInput(event: Event) {
 function onTelefonoInput(event: Event) {
   const target = event.target as HTMLInputElement;
   telefono.value = target.value.replace(/\D/g, "");
+}
+
+// Botón "Llenar con datos de prueba": solo existe en `npm run dev`. Con
+// import.meta.env.DEV en false (build de producción) Vite elimina el botón y
+// src/dev/datosPrueba.ts del bundle.
+const BotonDatosPrueba = import.meta.env.DEV ? defineAsyncComponent(() => import('@/dev/BotonDatosPrueba.vue')) : null;
+
+/** Llena los 3 pasos de una vez (la foto es opcional y no se llena) */
+async function llenarConDatosPrueba() {
+  if (import.meta.env.DEV) {
+    const d = await import("@/dev/datosPrueba");
+    nombre.value = d.nombrePersonaPrueba();
+    email.value = d.correoPrueba("cliente");
+    fechaNacimiento.value = d.fechaNacimientoPrueba();
+    genero.value = "O";
+    calle.value = d.callePrueba();
+    numero.value = d.numeroPrueba();
+    lugar.value = "Centro";
+    codigoPostal.value = "44100";
+    municipio.value = "Guadalajara";
+    estado.value = "Jalisco";
+    telefono.value = d.telefonoPrueba();
+    password.value = d.PASSWORD_PRUEBA;
+    aceptaTerminos.value = true;
+    termsError.value = "";
+    Object.keys(errors).forEach((k) => ((errors as Record<string, string>)[k] = ""));
+  }
 }
 
 // Validaciones

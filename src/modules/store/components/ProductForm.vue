@@ -3,6 +3,8 @@
     <!-- Header -->
     <div class="register-header">
       <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="intentarSalir" />
+      <!-- Solo en npm run dev y al registrar (no al editar): no existe en el build de producción (src/dev/) -->
+      <component :is="BotonDatosPrueba" v-if="BotonDatosPrueba && !isEdit" :al-llenar="llenarConDatosPrueba" />
       <h1 class="title">{{ isEdit ? 'Editar Artículo' : 'Registrar Artículo' }}</h1>
       <p class="subtitle">Rápido y fácil ✨</p>
       <div class="step-indicator">
@@ -476,7 +478,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch, defineAsyncComponent } from 'vue';
 import { db } from '@/firebase';
 import { push, ref as dbRef, get, update } from '@/services/baseDatos';
 import type { Producto } from '@/types/Producto';
@@ -597,7 +599,9 @@ async function intentarSalir() {
     showCancelButton: true,
     confirmButtonText: 'Sí, salir',
     cancelButtonText: 'Seguir aquí',
-    confirmButtonColor: '#d33',
+    // Los dos botones siguen la paleta activa: "Seguir aquí" con el color de botón y
+    // "Sí, salir" con el de cabecera (siempre oscuro, texto blanco)
+    confirmButtonColor: 'var(--color-bg-blue-dark)',
     cancelButtonColor: 'var(--color-bg-blue-ligth)',
     reverseButtons: true,
   });
@@ -1192,6 +1196,30 @@ const tamanios = ref([
 function mostrarDialogo(mensaje: string) {
   dialogMensaje.value = mensaje;
   dialogError.value = true;
+}
+
+// Botón 'Llenar con datos de prueba': solo existe en `npm run dev`. Con
+// import.meta.env.DEV en false (build de producción) Vite elimina el botón y
+// src/dev/datosPrueba.ts del bundle.
+const BotonDatosPrueba = import.meta.env.DEV ? defineAsyncComponent(() => import('@/dev/BotonDatosPrueba.vue')) : null;
+
+/** Llena nombre, descripción, imagen, precio, unidad y categoría (pasos 1 y 2) */
+async function llenarConDatosPrueba() {
+  if (import.meta.env.DEV) {
+    const d = await import('@/dev/datosPrueba');
+    const p = d.productoPrueba();
+    form.value.nombre = p.nombre;
+    form.value.descripcion = p.descripcion;
+    const imagen = await d.imagenPrueba(p.nombre.slice(0, 6), 'producto-prueba.png');
+    imagenFile.value = imagen;
+    form.value.url = URL.createObjectURL(imagen);
+    sincronizarImagenVariantes(form.value.url);
+    precioDisplay.value = String(p.precio);
+    precioValue.value = p.precio;
+    form.value.precio = p.precio;
+    form.value.unidadMedida = 'pz';
+    if (!form.value.categoria && categorias.value[0]) selectCategoria(categorias.value[0]);
+  }
 }
 
 function validarPaso1() {
