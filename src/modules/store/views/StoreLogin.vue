@@ -92,8 +92,26 @@
       <!-- Error general -->
       <p v-if="errors.general" class="error-banner">{{ errors.general }}</p>
 
+      <!-- Varias tiendas con este celular: elegir cuál administrar -->
+      <div v-if="opciones.length" class="elegir-tienda" role="group" aria-label="Elige tu tienda">
+        <p class="elegir-titulo">¿Qué tienda quieres administrar?</p>
+        <button
+          v-for="t in opciones"
+          :key="t.id"
+          type="button"
+          class="opcion-tienda"
+          :data-testid="`elegir-${t.id}`"
+          @click="entrarA(t)"
+        >
+          <img v-if="t.logoUrl" :src="t.logoUrl" alt="" class="opcion-logo" />
+          <span v-else class="opcion-logo vacio" aria-hidden="true">{{ t.nombreTienda.charAt(0) }}</span>
+          <span class="opcion-nombre">{{ t.nombreTienda }}</span>
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+
       <!-- Acciones -->
-      <button type="submit" class="btn-primary" :disabled="loading">
+      <button v-if="!opciones.length" type="submit" class="btn-primary" :disabled="loading">
         <span v-if="loading" class="spinner" aria-hidden="true"></span>
         {{ loading ? 'Validando...' : 'Entrar' }}
       </button>
@@ -117,12 +135,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import TopBarFija from '@/components/TopBarFija.vue';
 import MarcaCrustore from '@/components/MarcaCrustore.vue';
-import { findUserByPhoneStore } from '@/composables/useAuth';
-import { validatePasswordHash, PASSWORD_MAX } from '@/composables/usePassword';
+import { PASSWORD_MAX } from '@/composables/usePassword';
+import {
+  tiendasDelTelefono,
+  tiendasConPassword,
+  sesionDeTienda,
+  guardarSesionTienda,
+  resumenTienda,
+  type TiendaDeCuenta,
+} from '@/composables/cuentaTienda';
 import { cerrarSesion } from '@/utils/sessionUser';
 import eyeIcon from '@/assets/icons/eye.png';
 import eyeOffIcon from '@/assets/icons/eye-off.png';
@@ -139,6 +164,10 @@ const errors = reactive<{
 }>({});
 const showPassword = ref(false);
 const loading = ref(false);
+/** Tiendas que abrió este celular + contraseña, cuando son varias */
+const opciones = ref<TiendaDeCuenta[]>([]);
+// Si cambia el celular o la contraseña, la lista ya no corresponde
+watch(() => [form.username, form.password], () => (opciones.value = []));
 
 
 const soloDigitos = () => form.username.replace(/\D/g, '');
@@ -179,6 +208,14 @@ function goRegister() {
   router.push('/store/register');
 }
 
+/** Abre la sesión de esa tienda; las demás de la cuenta quedan para cambiar sin contraseña */
+function entrarA(tienda: TiendaDeCuenta) {
+  // Una sola sesión activa: al entrar como tienda se cierra la de cliente
+  cerrarSesion();
+  guardarSesionTienda(sesionDeTienda(tienda, opciones.value.map(resumenTienda)));
+  router.replace('/store/profile');
+}
+
 async function login() {
   errors.general = undefined;
   const okPhone = validatePhone();
@@ -187,40 +224,16 @@ async function login() {
 
   loading.value = true;
   try {
-    const tienda = await findUserByPhoneStore(soloDigitos());
-    if (!tienda) {
-      errors.general = 'No encontramos una tienda registrada con ese celular.';
+    const tel = soloDigitos();
+    const validas = await tiendasConPassword(tel, form.password);
+    if (!validas.length) {
+      const hay = (await tiendasDelTelefono(tel)).length > 0;
+      errors.general = hay ? 'Celular o contraseña incorrectos.' : 'No encontramos una tienda registrada con ese celular.';
       return;
     }
-
-    const valida = await validatePasswordHash(
-      form.password,
-      tienda.password || '',
-    );
-    if (!valida) {
-      errors.general = 'Celular o contraseña incorrectos.';
-      return;
-    }
-
-    // Una sola sesión activa: al entrar como tienda se cierra la de cliente
-    cerrarSesion();
-
-    localStorage.setItem(
-      'tiendas',
-      JSON.stringify({
-        id: tienda.id,
-        nombre: tienda.nombreTienda,
-        nombreTienda: tienda.nombreTienda,
-        telefono: tienda.telefono,
-        email: tienda.email,
-        domicilio: tienda.calle,
-        colonia: tienda.colonia,
-        municipio: tienda.municipio,
-        codigpostal: tienda.cp,
-        estado: tienda.estado,
-      }),
-    );
-    router.replace('/store/profile');
+    opciones.value = validas;
+    // Con una sola tienda se entra directo; con varias se elige en la lista
+    if (validas.length === 1) entrarA(validas[0]);
   } catch (e) {
     console.error('Error al iniciar sesión de tienda:', e);
     errors.general = 'Ocurrió un error al iniciar sesión. Intenta de nuevo.';
@@ -231,6 +244,58 @@ async function login() {
 </script>
 
 <style scoped>
+.elegir-tienda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.elegir-titulo {
+  margin: 0 0 2px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.opcion-tienda {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.opcion-tienda:hover {
+  border-color: var(--brand-blue-text);
+  background: var(--brand-blue-soft);
+}
+.opcion-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.opcion-logo.vacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.opcion-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .login-container {
   min-height: 100vh;
   display: flex;

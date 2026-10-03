@@ -1,7 +1,10 @@
 <template>
   <div class="wizard-container">
     <!-- ENCABEZADO -->
-    <TopBarFija titulo="Registro de tienda" @back="$router.back()" />
+    <TopBarFija titulo="Registro de tienda" @back="salirDelRegistro" />
+
+    <!-- Solo en npm run dev: no existe en el build de producción (src/dev/) -->
+    <component :is="BotonDatosPrueba" v-if="BotonDatosPrueba" :al-llenar="llenarConDatosPrueba" />
 
     <div class="wizard-header">
       <div class="store-emblem" aria-hidden="true">
@@ -646,8 +649,19 @@
         <!-- HORARIO -->
         <div class="form-group">
           <label>Horario</label>
-          <div v-for="dia in diasSemana" :key="dia" class="day-schedule">
-            <strong>{{ dia }}:</strong>
+          <label class="red-check">
+            <input v-model="mismoEntreSemana" type="checkbox" data-testid="horario-mismo" @change="alCambiarMismo" />
+            <span>Mismo horario de lunes a viernes</span>
+          </label>
+          <label v-if="mismoEntreSemana" class="red-check">
+            <input v-model="incluirFinDeSemana" type="checkbox" data-testid="horario-fin" @change="alCambiarFinDeSemana" />
+            <span>Sábado y domingo con el mismo horario</span>
+          </label>
+          <small v-if="mismoEntreSemana && !incluirFinDeSemana" class="horario-pista">
+            Sábado y domingo: captúralos aparte o déjalos vacíos si no abres.
+          </small>
+          <div v-for="dia in diasVisibles" :key="dia" class="day-schedule" :data-testid="`dia-${dia}`">
+            <strong>{{ etiquetaDia(dia) }}:</strong>
             <input
               type="time"
               v-model="form.horario[dia].inicio"
@@ -675,12 +689,21 @@
       <div v-if="step === 5" class="wizard-step">
         <h3 class="step-title">Extras</h3>
         <div class="form-group">
-          <label>Comparte consejos o noticias de tu tienda</label>
-          <textarea v-model="form.blog" class="form-input"></textarea>
+          <label for="reg-blog">Novedades de tu tienda (opcional)</label>
+          <small class="field-hint">Avisos, promociones o consejos que quieras que vean tus clientes en tu perfil.</small>
+          <textarea
+            id="reg-blog"
+            v-model="form.blog"
+            class="form-input"
+            rows="3"
+            placeholder="Ej. ¡Esta semana pan de muerto recién horneado! Hacemos pedidos para fiestas con 2 días de anticipación."
+          ></textarea>
         </div>
         <div class="form-group">
-          <label>Galería (máx. 3 imágenes)</label>
-
+          <label>Galería de tu tienda (máx. 3 imágenes)</label>
+          <small class="field-hint">
+            Muestra fotos de tu local, tu calle o alguna referencia para que tus clientes te encuentren fácil.
+          </small>
           <div class="gallery-upload">
             <!-- Mostrar imágenes seleccionadas -->
             <div
@@ -734,7 +757,8 @@
 <script setup lang="ts">
 import TopBarFija from "@/components/TopBarFija.vue";
 import CustomToast from "@/components/CustomToast.vue";
-import { ref, reactive, watch, computed, onMounted } from "vue";
+import { ref, reactive, watch, computed, onMounted, defineAsyncComponent } from "vue";
+import Swal from "sweetalert2";
 import { useTiendas } from "@/composables/useTiendas";
 import { hashPassword, errorLongitudPassword, PASSWORD_MIN, PASSWORD_MAX } from "@/composables/usePassword";
 import { buscarPorCP, coloniasPorMunicipioConOrigen } from "@/composables/useCodigoPostal";
@@ -755,6 +779,14 @@ import eyeOffIcon from "@/assets/icons/eye-off.png";
 import { useConfiguracion } from "@/composables/useConfiguracion";
 import { esEnlaceValido, normalizarEnlace } from "@/utils/enlaces";
 import { cpDeColonia } from "@/composables/coloniasLocales";
+import { useHorarioRapido } from "@/composables/useHorarioRapido";
+import {
+  revisarTelefonoNuevaTienda,
+  leerSesionTienda,
+  guardarSesionTienda,
+  MENSAJE_LIMITE_TIENDAS,
+  MENSAJE_PASSWORD_CUENTA,
+} from "@/composables/cuentaTienda";
 const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
 const stepTitles = [
@@ -965,6 +997,10 @@ form.value.horario = diasSemana.reduce((acc, dia) => {
   return acc;
 }, {} as Record<string, { inicio: string; fin: string }>);
 
+// Casillas "mismo horario de lunes a viernes" / "sábado y domingo igual" (useHorarioRapido.ts)
+const { mismoEntreSemana, incluirFinDeSemana, alCambiarMismo, alCambiarFinDeSemana, diasVisibles, etiquetaDia } =
+  useHorarioRapido(() => form.value.horario);
+
 function updateMinEndTime(dia: string) {
   const inicio = form.value.horario[dia].inicio;
   if (inicio) {
@@ -1032,7 +1068,29 @@ function eliminarZona(index: number) {
   form.value.zonasEntrega.splice(index, 1);
 }
 // ------------------- VALIDACIÓN Y PASOS -------------------
-const { crearTienda, telefonoExiste } = useTiendas();
+const { crearTienda } = useTiendas();
+
+/*
+ * Un celular puede tener hasta 3 tiendas con la misma contraseña (cuentaTienda.ts).
+ * Si se llega desde "Agregar otra tienda" (hay sesión de tienda), el celular y el
+ * correo vienen llenos: la tienda nueva queda en la misma cuenta.
+ */
+const sesionCuenta = leerSesionTienda();
+if (sesionCuenta) {
+  form.value.telefono = String(sesionCuenta.telefono || "").replace(/\D/g, "").slice(0, 10);
+  form.value.email = sesionCuenta.email || "";
+}
+/** Lo que trae el formulario al abrir: no cuenta como avance para el aviso de salir */
+const telefonoInicial = form.value.telefono;
+const emailInicial = form.value.email;
+
+/** El error de teléfono para una tienda nueva, o "" si se puede registrar */
+async function errorTelefonoCuenta(): Promise<string> {
+  const revision = await revisarTelefonoNuevaTienda(form.value.telefono, form.value.password);
+  if (revision === "limite") return MENSAJE_LIMITE_TIENDAS;
+  if (revision === "password") return MENSAJE_PASSWORD_CUENTA;
+  return "";
+}
 const errors = ref<any>({});
 
 // Candado de envío: crearTienda tarda (hash de contraseña + subida de logo,
@@ -1106,8 +1164,8 @@ async function validateStep() {
   }
 
   if (step.value === 3) {
-    const existTel = await telefonoExiste(form.value.telefono);
-    if (existTel) errors.value.telefono = "El teléfono ya está registrado";
+    const errorTel = await errorTelefonoCuenta();
+    if (errorTel) errors.value.telefono = errorTel;
     else if (!form.value.email) errors.value.email = "El email es obligatorio";
     else if (!/\S+@\S+\.\S+/.test(form.value.email))
       errors.value.email = "Email inválido";
@@ -1149,6 +1207,88 @@ function prevStep() {
   if (step.value > 1) step.value--;
 }
 
+// Botón "Llenar con datos de prueba": solo existe en `npm run dev`. Con
+// import.meta.env.DEV en false (build de producción) Vite elimina el botón y
+// src/dev/datosPrueba.ts del bundle.
+const BotonDatosPrueba = import.meta.env.DEV ? defineAsyncComponent(() => import('@/dev/BotonDatosPrueba.vue')) : null;
+
+/** Llena los 5 pasos de una vez (se queda en el paso actual) */
+async function llenarConDatosPrueba() {
+  if (import.meta.env.DEV) {
+    const d = await import("@/dev/datosPrueba");
+    const nombre = d.nombreTiendaPrueba();
+    Object.assign(form.value, {
+      nombreTienda: nombre,
+      descripcion: "Tienda de prueba creada en local para revisar el registro.",
+      password: d.PASSWORD_PRUEBA,
+      confirmPassword: d.PASSWORD_PRUEBA,
+      calle: d.callePrueba(),
+      numero: d.numeroPrueba(),
+      telefono: d.telefonoPrueba(),
+      email: d.correoPrueba("tienda"),
+      incluyeWhatsapp: true,
+      metodosPago: ["Efectivo", "Transferencia"],
+      blog: "¡Abrimos de prueba! Esta tienda la creó el botón de datos de prueba.",
+    });
+    if (!form.value.categoria && categorias.value[0]) form.value.categoria = categorias.value[0].id;
+
+    const logo = await d.imagenPrueba(nombre.slice(0, 2).toUpperCase(), "logo-prueba.png");
+    form.value.logo = logo;
+    logoPreview.value = URL.createObjectURL(logo);
+
+    // Ubicación: el primer municipio con alcance y la primera colonia de su lista
+    const municipio = municipios.value[0];
+    if (municipio) {
+      await seleccionarMunicipio(municipio);
+      const colonia = pueblos.value[0] ?? "Centro";
+      seleccionarPueblo(colonia);
+      await autocompletarCpPorColonia();
+    }
+    if (!form.value.cp) form.value.cp = "44100";
+
+    // Horario: lunes a viernes de 9 a 18 (useHorarioRapido lo copia a los cinco días)
+    mismoEntreSemana.value = true;
+    incluirFinDeSemana.value = false;
+    form.value.horario.Lunes = { inicio: "09:00", fin: "18:00" };
+    errors.value = {};
+  }
+}
+
+/* Salir con la flecha de regresar: si ya capturó algo, se avisa que se pierde */
+const registroTerminado = ref(false);
+const hayAvance = computed(() => {
+  const f = form.value;
+  return (
+    step.value > 1 ||
+    [f.nombreTienda, f.categoria, f.descripcion, f.password].some((v) => String(v || "").trim()) ||
+    // celular y correo cuentan solo si no son los que se llenaron solos desde la sesión
+    (f.telefono.trim() !== "" && f.telefono !== telefonoInicial) ||
+    (f.email.trim() !== "" && f.email !== emailInicial) ||
+    !!f.logo ||
+    !!f.banner
+  );
+});
+
+async function salirDelRegistro() {
+  if (hayAvance.value && !registroTerminado.value) {
+    const r = await Swal.fire({
+      icon: "warning",
+      title: "¿Salir del registro?",
+      text: "Perderás lo que llevas capturado de tu tienda.",
+      showCancelButton: true,
+      confirmButtonText: "Salir",
+      cancelButtonText: "Seguir registrando",
+      // Los dos botones siguen la paleta activa: "Seguir" con el color de botón y
+      // "Salir" con el de cabecera (siempre oscuro, texto blanco)
+      confirmButtonColor: "var(--color-bg-blue-dark)",
+      cancelButtonColor: "var(--color-bg-blue-ligth)",
+      reverseButtons: true,
+    });
+    if (!r.isConfirmed) return;
+  }
+  router.back();
+}
+
 // ------------------- ENVÍO -------------------
 async function submitStore() {
   // Primer candado: si ya se está registrando, ignorar los toques siguientes.
@@ -1170,11 +1310,13 @@ async function submitStore() {
     }
 
     // Segundo candado: el teléfono se revisó en el paso 3, pero desde entonces
-    // pudo registrarse en otra pestaña o en un intento anterior que sí llegó.
-    if (await telefonoExiste(form.value.telefono)) {
+    // pudo registrarse otra tienda con él (otra pestaña, un intento anterior que
+    // sí llegó) y llegar al máximo, o cambiar la contraseña del paso 1.
+    const errorTel = await errorTelefonoCuenta();
+    if (errorTel) {
       step.value = 3;
-      errors.value.telefono = "El teléfono ya está registrado";
-      avisar("Ese teléfono ya tiene una tienda registrada", "error");
+      errors.value.telefono = errorTel;
+      avisar(errorTel, "error");
       enviando.value = false; // se puede corregir el teléfono y reintentar
       return;
     }
@@ -1190,7 +1332,7 @@ async function submitStore() {
     // casillas no se guardan: son del formulario, no de la tienda.
     const { conEnlaceFacebook, conEnlaceInstagram, ...datos } = form.value;
 
-    await crearTienda({
+    const nuevaId = await crearTienda({
       ...datos,
       facebookUrl: conEnlaceFacebook ? normalizarEnlace(form.value.facebookUrl) || "" : "",
       instagramUrl: conEnlaceInstagram ? normalizarEnlace(form.value.instagramUrl) || "" : "",
@@ -1204,7 +1346,19 @@ async function submitStore() {
     // El aviso se ve un momento antes de mandar al login, si no la pantalla
     // cambia de golpe y no queda claro que sí se registró.
     avisar("¡Tienda registrada con éxito!", "success");
-    setTimeout(() => router.replace("/store/login"), 1800);
+    registroTerminado.value = true;
+    // Desde "Agregar otra tienda": la nueva entra a la cuenta y se vuelve al perfil,
+    // donde aparece en "Mis tiendas" sin tener que iniciar sesión otra vez
+    const sesion = leerSesionTienda();
+    if (sesion && nuevaId && String(sesion.telefono) === form.value.telefono) {
+      guardarSesionTienda({
+        ...sesion,
+        cuenta: [...sesion.cuenta, { id: String(nuevaId), nombreTienda: form.value.nombreTienda }],
+      });
+      setTimeout(() => router.replace("/store/profile"), 1800);
+    } else {
+      setTimeout(() => router.replace("/store/login"), 1800);
+    }
   } catch (err) {
     console.error("Error registrando tienda:", err);
     avisar("Ocurrió un error al registrar la tienda", "error");
@@ -1831,6 +1985,12 @@ select:focus {
 }
 
 /* Horario */
+.horario-pista {
+  display: block;
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
 .day-schedule {
   display: flex;
   align-items: center;

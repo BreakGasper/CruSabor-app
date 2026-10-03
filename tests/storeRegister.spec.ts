@@ -9,14 +9,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { flush } from './helpers';
+import { swalMock } from './setup';
 import { coloniasDeMunicipio } from '@/composables/coloniasLocales';
 import { coloniasPorMunicipioConOrigen } from '@/composables/useCodigoPostal';
 
 // --- Dobles de las dependencias pesadas de la pantalla ---
 // vi.hoisted porque vi.mock se eleva por encima de las declaraciones normales.
-const { crearTienda, telefonoExiste, replace } = vi.hoisted(() => ({
+const { crearTienda, telefonoExiste, revisarTelefono, replace } = vi.hoisted(() => ({
   crearTienda: vi.fn(),
   telefonoExiste: vi.fn(async () => false),
+  // revisarTelefonoNuevaTienda: 'libre' | 'agregar' | 'limite' | 'password'
+  revisarTelefono: vi.fn(async () => 'libre'),
   replace: vi.fn(),
 }));
 
@@ -29,6 +32,10 @@ vi.mock('@/composables/usePassword', async (original) => ({
   hashPassword: vi.fn(async (p: string) => `hash:${p}`),
 }));
 vi.mock('@/router', () => ({ default: { replace, push: vi.fn(), back: vi.fn() } }));
+vi.mock('@/composables/cuentaTienda', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  revisarTelefonoNuevaTienda: revisarTelefono,
+}));
 vi.mock('@/composables/useCodigoPostal', () => ({
   buscarPorCP: vi.fn(async () => null),
   coloniasPorMunicipioConOrigen: vi.fn(async () => ({ colonias: [], origen: 'ninguna' })),
@@ -73,6 +80,7 @@ const botonFinalizar = (wrapper: any) =>
 beforeEach(() => {
   vi.clearAllMocks();
   telefonoExiste.mockResolvedValue(false);
+  revisarTelefono.mockResolvedValue('libre');
   replace.mockClear();
 });
 
@@ -122,8 +130,8 @@ describe('StoreRegister: no duplicar la tienda', () => {
     await flush();
   });
 
-  it('si el teléfono ya existe no crea nada, regresa al paso 3 y deja reintentar', async () => {
-    telefonoExiste.mockResolvedValue(true);
+  it('si el teléfono ya llegó al máximo de tiendas no crea nada, regresa al paso 3 y deja reintentar', async () => {
+    revisarTelefono.mockResolvedValue('limite');
 
     const wrapper = await montarEnPasoFinal();
     await botonFinalizar(wrapper)!.trigger('click');
@@ -134,6 +142,25 @@ describe('StoreRegister: no duplicar la tienda', () => {
     expect((wrapper.vm as any).step).toBe(3);
     // el candado se suelta: se puede corregir el teléfono y volver a intentar
     expect((wrapper.vm as any).enviando).toBe(false);
+    expect((wrapper.vm as any).errors.telefono).toContain('máximo');
+  });
+
+  it('con un número que ya tiene tienda, pide la misma contraseña', async () => {
+    revisarTelefono.mockResolvedValue('password');
+    const wrapper = await montarEnPasoFinal();
+    await botonFinalizar(wrapper)!.trigger('click');
+    await flush();
+    expect(crearTienda).not.toHaveBeenCalled();
+    expect((wrapper.vm as any).errors.telefono).toContain('misma contraseña');
+  });
+
+  it('con la misma contraseña y lugar libre, la tienda se agrega a la cuenta', async () => {
+    revisarTelefono.mockResolvedValue('agregar');
+    crearTienda.mockResolvedValue('tienda-2');
+    const wrapper = await montarEnPasoFinal();
+    await botonFinalizar(wrapper)!.trigger('click');
+    await flush();
+    expect(crearTienda).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -325,5 +352,41 @@ describe('StoreRegister · el C.P. sigue a la colonia', () => {
 
     expect(vm.form.colonia).toBe('San Antonio');
     expect(vm.form.cp).toBe('44100'); // lo suyo se respeta: adivinar sería peor
+  });
+});
+
+describe('StoreRegister: salir con la flecha de regresar', () => {
+  const montar = async () => {
+    const wrapper = mount(StoreRegister, { global: { stubs: { TopBarFija: true } } });
+    await flush();
+    return wrapper;
+  };
+  const regresar = async (wrapper: any) => {
+    wrapper.findComponent({ name: 'TopBarFija' }).vm.$emit('back');
+    await flush();
+  };
+
+  it('sin nada capturado regresa directo, sin preguntar', async () => {
+    const router = (await import('@/router')).default as any;
+    const wrapper = await montar();
+    await regresar(wrapper);
+    expect(swalMock.fire).not.toHaveBeenCalled();
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('con pasos avanzados avisa que se pierde lo capturado; "Seguir registrando" se queda', async () => {
+    const router = (await import('@/router')).default as any;
+    const wrapper = await montar();
+    (wrapper.vm as any).step = 3;
+    await wrapper.vm.$nextTick();
+
+    swalMock.fire.mockResolvedValueOnce({ isConfirmed: false, value: '' });
+    await regresar(wrapper);
+    expect(swalMock.fire).toHaveBeenCalledWith(expect.objectContaining({ title: '¿Salir del registro?' }));
+    expect(router.back).not.toHaveBeenCalled();
+
+    swalMock.fire.mockResolvedValueOnce({ isConfirmed: true, value: '' });
+    await regresar(wrapper);
+    expect(router.back).toHaveBeenCalledTimes(1);
   });
 });

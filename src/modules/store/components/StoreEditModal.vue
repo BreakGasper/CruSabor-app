@@ -279,6 +279,7 @@ import { uploadStoreLogo, uploadStoreBanner } from '@/composables/useStorage';
 import { eliminarImagenes } from '@/composables/useCloudinary';
 import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
 import { useHorarioRapido } from '@/composables/useHorarioRapido';
+import { tiendasDelTelefono, MAX_TIENDAS_POR_TELEFONO, MENSAJE_LIMITE_TIENDAS } from '@/composables/cuentaTienda';
 
 /**
  * Edición de los datos de la tienda por su dueña o dueño.
@@ -540,6 +541,17 @@ async function guardar() {
     tab.value = tabConError;
     errorGeneral.value = 'Revisa los campos marcados.';
     return;
+  }
+
+  // Cambiar el celular no puede dejar a otro número con más del máximo de tiendas
+  if (form.telefono !== String(props.tienda.telefono || '')) {
+    const delNuevo = (await tiendasDelTelefono(form.telefono)).filter((t) => t.id !== props.tienda.tiendaId);
+    if (delNuevo.length >= MAX_TIENDAS_POR_TELEFONO) {
+      errores.telefono = MENSAJE_LIMITE_TIENDAS;
+      tab.value = 'contacto';
+      errorGeneral.value = 'Revisa los campos marcados.';
+      return;
+    }
   }
 
   guardando.value = true;

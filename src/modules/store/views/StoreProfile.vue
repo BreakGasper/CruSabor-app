@@ -400,6 +400,16 @@
 
     <!-- MENÚ FUERA -->
     <!-- MENÚ LATERAL TIPO FLOAT -->
+    <!-- Cambiar entre las tiendas del mismo celular / agregar otra (cuentaTienda.ts) -->
+    <MisTiendasModal
+      v-if="esDuenoTienda"
+      :visible="misTiendasAbierto"
+      :cuenta="cuentaTiendas"
+      :actual-id="store?.tiendaId || ''"
+      @cerrar="misTiendasAbierto = false"
+      @cambiada="alCambiarTienda"
+    />
+
     <div class="side-menu" :class="{ open: menuOpen }">
       <!-- Botón toggle -->
       <div class="menu-toggle" @click="toggleMenu">☰</div>
@@ -452,6 +462,11 @@
         </div>
 
         <div v-if="esDuenoTienda" class="menu-item-wrapper">
+          <button class="menu-item" data-testid="menu-mis-tiendas" @click="abrirMisTiendas">🏪</button>
+          <span class="menu-label">Mis tiendas<template v-if="cuentaTiendas.length > 1"> ({{ cuentaTiendas.length }})</template></span>
+        </div>
+
+        <div v-if="esDuenoTienda" class="menu-item-wrapper">
           <button class="menu-item danger" @click="closeSesionTienda">
             ⬅️
           </button>
@@ -466,6 +481,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
+import { leerSesionTienda } from '@/composables/cuentaTienda';
+import MisTiendasModal from '../components/MisTiendasModal.vue';
 import cashIcon from '@/assets/icons/money.png';
 import cardIcon from '@/assets/icons/card.png';
 import transferIcon from '@/assets/icons/trasfer.png';
@@ -766,11 +783,12 @@ async function loadStore() {
     const tienda = await obtenerTienda(tiendaId);
     if (tienda) store.value = tienda;
   } else {
+    // La tienda activa de la sesión, por su id: un celular puede tener varias.
+    // Sesiones viejas sin id: por teléfono, como antes.
+    const sesion = leerSesionTienda();
     const stored = localStorage.getItem('tiendas');
     const telefono = stored ? JSON.parse(stored)?.telefono : null;
-    if (!telefono) return;
-
-    const tienda = await tiendaLogueada(telefono);
+    const tienda = sesion?.id ? await obtenerTienda(sesion.id) : telefono ? await tiendaLogueada(telefono) : null;
     if (tienda) store.value = tienda;
   }
 
@@ -779,6 +797,20 @@ async function loadStore() {
 }
 
 const menuOpen = ref(false);
+
+/* ---------- Mis tiendas: varias tiendas con el mismo celular ---------- */
+const misTiendasAbierto = ref(false);
+const cuentaTiendas = ref(leerSesionTienda()?.cuenta ?? []);
+function abrirMisTiendas() {
+  menuOpen.value = false;
+  cuentaTiendas.value = leerSesionTienda()?.cuenta ?? [];
+  misTiendasAbierto.value = true;
+}
+/** La sesión ya apunta a la otra tienda: se recarga el perfil completo con sus datos */
+function alCambiarTienda() {
+  misTiendasAbierto.value = false;
+  window.location.assign('/store/profile');
+}
 
 /* ---------- Edición de la tienda (solo dueño) ---------- */
 const editando = ref(false);
