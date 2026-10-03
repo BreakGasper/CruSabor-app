@@ -398,82 +398,24 @@
       @saved="onTiendaGuardada"
     />
 
-    <!-- MENÚ FUERA -->
-    <!-- MENÚ LATERAL TIPO FLOAT -->
-    <!-- Cambiar entre las tiendas del mismo celular / agregar otra (cuentaTienda.ts) -->
-    <MisTiendasModal
-      v-if="esDuenoTienda"
-      :visible="misTiendasAbierto"
+    <!-- Menú: botón ☰ y panel lateral (MenuTienda.vue) -->
+    <button type="button" class="menu-toggle" aria-label="Abrir menú" :aria-expanded="menuOpen" @click="toggleMenu">
+      ☰
+      <span v-if="!esDuenoTienda && totalEnCarrito > 0" class="cart-badge">{{ totalEnCarrito }}</span>
+    </button>
+    <MenuTienda
+      :abierto="menuOpen"
+      :es-dueno="esDuenoTienda"
+      :nombre-tienda="store?.nombreTienda"
+      :logo-url="store?.logoUrl"
+      :promociones-habilitadas="promocionesHabilitadas"
+      :total-en-carrito="totalEnCarrito"
       :cuenta="cuentaTiendas"
       :actual-id="store?.tiendaId || ''"
-      @cerrar="misTiendasAbierto = false"
+      @cerrar="menuOpen = false"
+      @accion="alElegirDelMenu"
       @cambiada="alCambiarTienda"
     />
-
-    <div class="side-menu" :class="{ open: menuOpen }">
-      <!-- Botón toggle -->
-      <div class="menu-toggle" @click="toggleMenu">☰</div>
-
-      <!-- Botones -->
-      <div class="menu-items">
-        <div class="menu-item-wrapper" v-if="esDuenoTienda">
-          <button class="menu-item editar-btn" @click="abrirEdicion">✏️</button>
-          <span class="menu-label"> Editar mi tienda</span>
-        </div>
-
-        <div class="menu-item-wrapper" v-if="esDuenoTienda">
-          <button class="menu-item" @click="onPedidos">🚚</button>
-          <span class="menu-label"> Pedidos</span>
-        </div>
-
-        <div class="menu-item-wrapper" v-if="esDuenoTienda">
-          <button class="menu-item" @click="artsTienda">➕</button>
-          <span class="menu-label"> Agregar articulo</span>
-        </div>
-
-        <div class="menu-item-wrapper" v-if="esDuenoTienda && promocionesHabilitadas">
-          <button class="menu-item" @click="irAPromociones">🏷️</button>
-          <span class="menu-label">Crear promoción</span>
-        </div>
-
-        <div class="menu-item-wrapper">
-          <button class="menu-item" @click="irAArticulos">📋</button>
-          <span class="menu-label">Productos</span>
-        </div>
-
-        <div class="menu-item-wrapper" v-if="!esDuenoTienda">
-          <button class="menu-item cart-menu-item" @click="irAlCarrito">
-            🛒
-            <span v-if="totalEnCarrito > 0" class="cart-badge">{{
-              totalEnCarrito
-            }}</span>
-          </button>
-          <span class="menu-label">Mi carrito</span>
-        </div>
-
-        <div class="menu-item-wrapper">
-          <button class="menu-item" @click="abrirMaps">📍</button>
-          <span class="menu-label">Cómo llegar</span>
-        </div>
-
-        <div class="menu-item-wrapper">
-          <button class="menu-item" @click="llamar">📞</button>
-          <span class="menu-label">Llamar</span>
-        </div>
-
-        <div v-if="esDuenoTienda" class="menu-item-wrapper">
-          <button class="menu-item" data-testid="menu-mis-tiendas" @click="abrirMisTiendas">🏪</button>
-          <span class="menu-label">Mis tiendas<template v-if="cuentaTiendas.length > 1"> ({{ cuentaTiendas.length }})</template></span>
-        </div>
-
-        <div v-if="esDuenoTienda" class="menu-item-wrapper">
-          <button class="menu-item danger" @click="closeSesionTienda">
-            ⬅️
-          </button>
-          <span class="menu-label">Cerrar sesión</span>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -482,7 +424,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { leerSesionTienda } from '@/composables/cuentaTienda';
-import MisTiendasModal from '../components/MisTiendasModal.vue';
+import MenuTienda, { type AccionMenuTienda } from '../components/MenuTienda.vue';
 import cashIcon from '@/assets/icons/money.png';
 import cardIcon from '@/assets/icons/card.png';
 import transferIcon from '@/assets/icons/trasfer.png';
@@ -798,18 +740,29 @@ async function loadStore() {
 
 const menuOpen = ref(false);
 
-/* ---------- Mis tiendas: varias tiendas con el mismo celular ---------- */
-const misTiendasAbierto = ref(false);
+/* ---------- Mis tiendas: varias tiendas con el mismo celular (en el menú) ---------- */
 const cuentaTiendas = ref(leerSesionTienda()?.cuenta ?? []);
-function abrirMisTiendas() {
-  menuOpen.value = false;
-  cuentaTiendas.value = leerSesionTienda()?.cuenta ?? [];
-  misTiendasAbierto.value = true;
-}
 /** La sesión ya apunta a la otra tienda: se recarga el perfil completo con sus datos */
 function alCambiarTienda() {
-  misTiendasAbierto.value = false;
+  menuOpen.value = false;
   window.location.assign('/store/profile');
+}
+
+/** Opciones del menú lateral: cada una cierra el menú y hace lo mismo que antes */
+function alElegirDelMenu(accion: AccionMenuTienda) {
+  menuOpen.value = false;
+  const acciones: Record<AccionMenuTienda, () => void> = {
+    editar: abrirEdicion,
+    pedidos: onPedidos,
+    'agregar-articulo': artsTienda,
+    promociones: irAPromociones,
+    productos: irAArticulos,
+    carrito: irAlCarrito,
+    mapa: abrirMaps,
+    llamar,
+    'cerrar-sesion': closeSesionTienda,
+  };
+  acciones[accion]();
 }
 
 /* ---------- Edición de la tienda (solo dueño) ---------- */
@@ -855,6 +808,7 @@ const paymentIcons: Record<string, string> = {
 };
 
 function toggleMenu() {
+  if (!menuOpen.value) cuentaTiendas.value = leerSesionTienda()?.cuenta ?? [];
   menuOpen.value = !menuOpen.value;
 }
 
@@ -1420,121 +1374,26 @@ body {
 }
 /* (la regla de .back-btn vive arriba, junto al banner: botón fijo de regresar) */
 
-/* Contenedor tipo tarjeta flotante */
-/* 🔥 Fondo oscuro tipo modal */ /* CONTENEDOR */
-.side-menu {
+/* Botón ☰ del menú (el panel vive en MenuTienda.vue) */
+.menu-toggle {
   position: fixed;
-  left: 0;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-
   z-index: 999;
-  /* El contenedor no atrapa toques: solo el botón ☰ y los íconos visibles los reciben.
-     Sin esto, en móvil tapaba los botones del aviso de membresía que quedan debajo. */
-  pointer-events: none;
-}
-
-/* BOTÓN PRINCIPAL */
-.menu-toggle {
   width: 50px;
   height: 50px;
   border-radius: 50%;
+  border: none;
   background: var(--color-bg-blue-dark);
   color: #fff;
+  font-size: 1.3rem;
   box-shadow: 0 4px 10px var(--color-shadow);
-  margin-left: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  margin-bottom: 10px;
-  pointer-events: auto;
-}
-
-/* CONTENEDOR DE BOTONES */
-.menu-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateX(-20px);
-  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
-}
-
-/* CUANDO ESTÁ ABIERTO */
-.side-menu.open .menu-items {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-/* BOTONES */
-.menu-item {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 18px;
-  cursor: pointer;
-
-  box-shadow: 0 4px 10px var(--color-shadow);
-  transition: transform 0.2s;
-  flex-shrink: 0;
-}
-
-.menu-item:hover {
-  transform: scale(1.1);
-}
-
-/* BOTÓN PELIGRO */
-.menu-item.danger {
-  color: red;
-}
-
-/* WRAPPER PARA ALINEAR */
-.menu-item-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 5px;
-}
-
-/* LABEL */
-.menu-label {
-  background: var(--surface);
-  padding: 6px 12px;
-  border-radius: 10px;
-
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text);
-
-  box-shadow: 0 4px 10px var(--color-shadow);
-
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-/* CUANDO EL MENÚ ESTÁ ABIERTO */
-.side-menu.open .menu-label {
-  opacity: 1;
-  transform: translateX(0);
+  padding: 0;
 }
 
 /* En tema oscuro el azul marino de marca se pierde contra el fondo de la
@@ -1846,9 +1705,6 @@ body {
   min-width: 22px;
   text-align: center;
 }
-.cart-menu-item {
-  position: relative;
-}
 .cart-badge {
   position: absolute;
   top: -4px;
@@ -1909,11 +1765,9 @@ body {
     margin: 12px 10px;
     padding: 16px;
   }
-  .side-menu {
-    flex-direction: column-reverse;
-    align-items: flex-start;
+  .menu-toggle {
     top: auto;
-    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
     transform: none;
   }
 }

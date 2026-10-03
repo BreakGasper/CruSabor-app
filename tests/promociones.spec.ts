@@ -301,22 +301,28 @@ describe('"Crear promoción" en el menú de la tienda', () => {
     return w;
   }
 
-  const etiquetas = (w: any) => w.findAll('.menu-label').map((e: any) => e.text());
+  // El menú es un panel (MenuTienda.vue) que se teleporta a <body>: se abre con el botón ☰
+  const etiquetas = async (w: any) => {
+    await w.find('.menu-toggle').trigger('click');
+    await flushPromises();
+    return [...document.body.querySelectorAll('.mt-opcion')].map((e) => (e.querySelector('span:not(.mt-icono)')?.textContent || '').trim());
+  };
 
   it('la dueña de la tienda la ve, junto a "Agregar articulo"', async () => {
     const w = await montarPerfil();
-    expect(etiquetas(w)).toContain('Crear promoción');
+    expect(await etiquetas(w)).toContain('Crear promoción');
   });
 
   it('si el administrador apaga las promociones, desaparece del menú', async () => {
     const w = await montarPerfil({ promosOn: false });
-    expect(etiquetas(w)).not.toContain('Crear promoción');
-    expect(etiquetas(w)).toContain('Productos'); // el resto del menú sigue igual
+    const lista = await etiquetas(w);
+    expect(lista).not.toContain('Crear promoción');
+    expect(lista).toContain('Mis productos'); // el resto del menú sigue igual
   });
 
   it('un visitante no la ve aunque estén encendidas', async () => {
     const w = await montarPerfil({ dueno: false });
-    expect(etiquetas(w)).not.toContain('Crear promoción');
+    expect(await etiquetas(w)).not.toContain('Crear promoción');
   });
 });
 
