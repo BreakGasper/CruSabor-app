@@ -149,6 +149,7 @@ import {
   type TiendaDeCuenta,
 } from '@/composables/cuentaTienda';
 import { cerrarSesion } from '@/utils/sessionUser';
+import { cerrarSesionAdmin } from '@/utils/sessionAdmin';
 import eyeIcon from '@/assets/icons/eye.png';
 import eyeOffIcon from '@/assets/icons/eye-off.png';
 import { useConfiguracion } from '@/composables/useConfiguracion';
@@ -210,8 +211,9 @@ function goRegister() {
 
 /** Abre la sesión de esa tienda; las demás de la cuenta quedan para cambiar sin contraseña */
 function entrarA(tienda: TiendaDeCuenta) {
-  // Una sola sesión activa: al entrar como tienda se cierra la de cliente
+  // Una sola sesión activa: al entrar como tienda se cierran las de cliente y admin
   cerrarSesion();
+  cerrarSesionAdmin();
   guardarSesionTienda(sesionDeTienda(tienda, opciones.value.map(resumenTienda)));
   router.replace('/store/profile');
 }

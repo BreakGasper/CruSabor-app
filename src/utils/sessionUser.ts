@@ -19,6 +19,21 @@ export function guardarSesion(user: any) {
   sessionUser.value = user;
 }
 
+/** Datos del cliente que viajan en la sesión (nunca su contraseña) */
+export function sesionDeCliente(user: any) {
+  return {
+    id: user.id,
+    nombre: user.nombre,
+    telefono: user.celular,
+    email: user.email,
+    domicilio: user.calleNumero,
+    colonia: user.lugar,
+    municipio: user.municipio,
+    codigpostal: user.codigoPostal,
+    estado: user.estado,
+  };
+}
+
 export function sessionUsuarioValidation(): boolean {
   return sessionUser.value && sessionUser.value.id;
 }

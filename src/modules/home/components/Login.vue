@@ -172,7 +172,7 @@ import { useRoute } from "vue-router";
 import { validatePasswordHash, PASSWORD_MAX } from "@/composables/usePassword";
 import ForgotPassword from "./ForgotPassword.vue";
 import CustomToast from "@/components/CustomToast.vue";
-import { guardarSesion, cerrarSesion } from "@/utils/sessionUser";
+import { guardarSesion, cerrarSesion, sesionDeCliente } from "@/utils/sessionUser";
 import { findAdminByPhone, type Admin } from "@/composables/useAdmin";
 import { guardarSesionAdmin, cerrarSesionAdmin } from "@/utils/sessionAdmin";
 import { RUTA_ADMIN_HOME, RUTA_ADMIN_LOGIN } from "@/modules/admin/adminRoutes";
@@ -287,17 +287,7 @@ function abrirSesionCliente(user: any) {
   cerrarSesionAdmin();
   cerrarSesion();
 
-  guardarSesion({
-    id: user.id,
-    nombre: user.nombre,
-    telefono: user.celular,
-    email: user.email,
-    domicilio: user.calleNumero,
-    colonia: user.lugar,
-    municipio: user.municipio,
-    codigpostal: user.codigoPostal,
-    estado: user.estado,
-  });
+  guardarSesion(sesionDeCliente(user));
   router.replace(destinoTrasEntrar());
 }
 

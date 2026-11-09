@@ -35,6 +35,61 @@
     </nav>
 
     <div class="user">
+      <!-- Cambiar a los perfiles registrados con el celular del admin -->
+      <div class="notif" @keydown.escape="perfilAbierto = false">
+        <button
+          type="button"
+          class="notif-btn"
+          aria-label="Cambiar de perfil"
+          title="Cambiar de perfil"
+          data-test="abrir-perfiles"
+          @click="abrirPerfiles"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </button>
+
+        <Teleport to="body">
+          <div v-if="perfilAbierto" class="notif-overlay" @click.self="perfilAbierto = false">
+            <div class="notif-panel" role="dialog" aria-label="Cambiar de perfil">
+              <div class="notif-head">
+                <strong>Cambiar de perfil</strong>
+                <button type="button" class="notif-cerrar" aria-label="Cerrar" @click="perfilAbierto = false">✕</button>
+              </div>
+              <p v-if="cargandoPerfiles" class="notif-vacio">Buscando tus perfiles...</p>
+              <p v-else-if="errorPerfiles" class="notif-vacio">{{ errorPerfiles }}</p>
+              <ul v-else class="notif-lista">
+                <li>
+                  <div class="notif-item perfil-item perfil-actual">
+                    <span class="notif-nombre">Administrador · actual</span>
+                    <span class="notif-meta">{{ admin?.nombre }}</span>
+                  </div>
+                </li>
+                <li v-if="perfiles.cliente">
+                  <button type="button" class="notif-item perfil-item" data-test="perfil-cliente" @click="irACliente">
+                    <span class="notif-nombre">Cliente</span>
+                    <span class="notif-meta">{{ perfiles.cliente.nombre || 'Mi cuenta' }}</span>
+                  </button>
+                </li>
+                <li v-for="t in perfiles.tiendas" :key="t.id">
+                  <button type="button" class="notif-item perfil-item" data-test="perfil-tienda" @click="irATienda(t)">
+                    <span class="notif-nombre">Tienda</span>
+                    <span class="notif-meta">{{ t.nombreTienda }}</span>
+                  </button>
+                </li>
+              </ul>
+              <p v-if="!cargandoPerfiles && !errorPerfiles && !perfiles.cliente && !perfiles.tiendas.length" class="notif-vacio">
+                Tu celular no tiene otros perfiles registrados.
+              </p>
+            </div>
+          </div>
+        </Teleport>
+      </div>
+
       <!-- Notificaciones: pagos por confirmar -->
       <div class="notif" @keydown.escape="notifAbierto = false">
         <button
@@ -97,6 +152,8 @@ import ArrowBack from '@/components/ArrowBack.vue';
 import { sessionAdmin, cerrarSesionAdmin } from '@/utils/sessionAdmin';
 import { useSolicitudesPago } from '@/composables/useSolicitudesPago';
 import { PLAN_LABEL } from '@/composables/useAdminTiendas';
+import { perfilesDelCelular, cambiarACliente, cambiarATienda, type PerfilesDelCelular } from '@/composables/cambioPerfil';
+import type { TiendaDeCuenta } from '@/composables/cuentaTienda';
 
 withDefaults(defineProps<{ titulo?: string; volver?: string }>(), { titulo: 'Panel de administración' });
 
@@ -110,6 +167,39 @@ function fechaCorta(iso?: string) {
   if (!iso) return '';
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+}
+
+/* Cambio de perfil: se consulta al abrir para reflejar registros recientes */
+const perfilAbierto = ref(false);
+const cargandoPerfiles = ref(false);
+const errorPerfiles = ref('');
+const perfiles = ref<PerfilesDelCelular>({ cliente: null, tiendas: [] });
+
+async function abrirPerfiles() {
+  perfilAbierto.value = true;
+  cargandoPerfiles.value = true;
+  errorPerfiles.value = '';
+  try {
+    perfiles.value = await perfilesDelCelular(admin.value?.telefono || '');
+  } catch (e) {
+    console.error('Error al buscar los perfiles del administrador:', e);
+    errorPerfiles.value = 'No se pudieron cargar tus perfiles. Intenta de nuevo.';
+  } finally {
+    cargandoPerfiles.value = false;
+  }
+}
+
+function irACliente() {
+  if (!perfiles.value.cliente) return;
+  cambiarACliente(perfiles.value.cliente);
+  perfilAbierto.value = false;
+  router.push('/');
+}
+
+function irATienda(tienda: TiendaDeCuenta) {
+  cambiarATienda(tienda, perfiles.value.tiendas);
+  perfilAbierto.value = false;
+  router.push('/store/profile');
 }
 
 /* Alto real del header (en móvil ocupa dos renglones): se mide y se reserva */
@@ -368,6 +458,24 @@ function salir() {
 }
 .notif-item:hover {
   background: #fffbeb;
+}
+.perfil-item {
+  box-sizing: border-box;
+  width: 100%;
+  border-width: 0 0 0 3px;
+  border-style: solid;
+  border-color: #10b981;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.perfil-item:hover {
+  background: var(--surface-2);
+}
+.perfil-actual {
+  cursor: default;
+  border-color: var(--border);
 }
 .notif-nombre {
   font-weight: 700;

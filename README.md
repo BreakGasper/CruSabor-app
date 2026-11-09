@@ -150,7 +150,7 @@ Varios composables suscriben **una sola vez** un nodo completo de Firebase y lo 
 
 ### Sesiones
 
-Tres sesiones distintas en `localStorage`: `usuario` (cliente, `sessionUser`), `tiendas` (tienda) y `admin` (administrador, `sessionAdmin`). Iniciar una cierra las otras: solo hay una activa a la vez.
+Tres sesiones distintas en `localStorage`: `usuario` (cliente, `sessionUser`), `tiendas` (tienda) y `admin` (administrador, `sessionAdmin`). Iniciar una cierra las otras: solo hay una activa a la vez. La excepción es el **cambio de perfil** del admin (`cambioPerfil.ts`): desde el botón junto a la campana entra sin contraseña como el cliente o las tiendas registrados con su mismo celular, conservando su sesión de admin; un botón flotante (`VolverAdmin.vue`) lo regresa al panel.
 
 ### Tema claro y oscuro
 
