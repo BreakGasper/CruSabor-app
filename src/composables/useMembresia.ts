@@ -71,6 +71,27 @@ export function setDiasGracia(dias: number) {
 }
 export const diasGraciaConfigurados = () => diasGraciaActual;
 
+/**
+ * Prueba gratis: la primera tienda de un celular nace activa con estos días de
+ * uso premium. Se guarda como una membresía normal con plan 'prueba', así todas
+ * las reglas de venta y publicación la respetan sin casos especiales. Al vencer
+ * no tiene días de gracia: se le pide pagar de inmediato.
+ */
+export const DIAS_PRUEBA_TIENDA = 15;
+export const PLAN_PRUEBA = 'prueba';
+export const ACTOR_PRUEBA = 'Prueba gratis automática';
+
+export function membresiaDePrueba(hoy: Date = new Date()): Membresia {
+  const fin = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + DIAS_PRUEBA_TIENDA);
+  const dosDigitos = (n: number) => String(n).padStart(2, '0');
+  return {
+    plan: PLAN_PRUEBA,
+    vigenteHasta: `${fin.getFullYear()}-${dosDigitos(fin.getMonth() + 1)}-${dosDigitos(fin.getDate())}`,
+  };
+}
+
+const esPrueba = (tienda: ControlTienda | null | undefined) => tienda?.membresia?.plan === PLAN_PRUEBA;
+
 /** Convierte 'YYYY-MM-DD' al final de ese día en hora local. null si no es válida. */
 function finDeDia(fecha?: string): Date | null {
   if (!fecha) return null;
@@ -95,7 +116,7 @@ export function estadoEfectivo(
 
   const limite = finDeDia(tienda?.membresia?.vigenteHasta);
   if (!limite) return 'activa';
-  limite.setDate(limite.getDate() + Math.max(0, diasGracia));
+  limite.setDate(limite.getDate() + (esPrueba(tienda) ? 0 : Math.max(0, diasGracia)));
   return hoy.getTime() > limite.getTime() ? 'vencida' : 'activa';
 }
 
@@ -134,6 +155,17 @@ export function diasParaVencer(tienda: ControlTienda | null | undefined, hoy: Da
   return Math.round((inicioLimite.getTime() - inicioHoy.getTime()) / 86_400_000);
 }
 
+/** Etiqueta del panel admin para tiendas en prueba gratis. null si no aplica. */
+export function etiquetaPrueba(tienda: ControlTienda | null | undefined, hoy: Date = new Date()): string | null {
+  if (!esPrueba(tienda)) return null;
+  const estado = estadoEfectivo(tienda, hoy);
+  if (estado === 'vencida') return 'Prueba terminada';
+  if (estado !== 'activa') return null;
+  const dias = diasParaVencer(tienda, hoy) ?? 0;
+  if (dias === 0) return `Prueba ${DIAS_PRUEBA_TIENDA} días · termina hoy`;
+  return `Prueba ${DIAS_PRUEBA_TIENDA} días · ${dias === 1 ? 'falta 1 día' : `faltan ${dias} días`}`;
+}
+
 export interface AvisoEstado {
   tipo: 'info' | 'warning' | 'error';
   titulo: string;
@@ -163,6 +195,13 @@ export function avisoEstadoTienda(tienda: ControlTienda | null | undefined, hoy:
           : 'No puedes vender por el momento. Contacta al administrador para reactivarla.',
       };
     case 'vencida':
+      if (esPrueba(tienda)) {
+        return {
+          tipo: 'error',
+          titulo: 'Tu prueba gratis terminó',
+          detalle: `Terminó el ${tienda?.membresia?.vigenteHasta}. Tus productos dejaron de mostrarse a los clientes. Paga tu membresía para seguir vendiendo.`,
+        };
+      }
       return {
         tipo: 'error',
         titulo: 'Tu membresía venció',
@@ -186,6 +225,21 @@ export function avisoEstadoTienda(tienda: ControlTienda | null | undefined, hoy:
           tipo: 'error',
           titulo: 'Tu membresía venció',
           detalle: `Venció el ${tienda?.membresia?.vigenteHasta}. Sigues vendiendo ${restan} día${restan === 1 ? '' : 's'} más por periodo de gracia. Paga tu membresía para no perder visibilidad.`,
+        };
+      }
+      if (esPrueba(tienda)) {
+        const hasta = tienda?.membresia?.vigenteHasta;
+        if (dias <= 7) {
+          return {
+            tipo: 'warning',
+            titulo: dias === 0 ? 'Tu prueba gratis termina hoy' : `Tu prueba gratis termina en ${dias} día${dias === 1 ? '' : 's'}`,
+            detalle: `Vigente hasta el ${hasta}. Al terminar deberás pagar tu membresía para que tu tienda siga visible.`,
+          };
+        }
+        return {
+          tipo: 'info',
+          titulo: `Prueba gratis: te quedan ${dias} días`,
+          detalle: `Tienes uso premium sin costo hasta el ${hasta}. Al terminar deberás pagar tu membresía para seguir vendiendo.`,
         };
       }
       if (dias <= 7) {

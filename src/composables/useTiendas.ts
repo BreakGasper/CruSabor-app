@@ -4,7 +4,8 @@ import type { Ref } from "vue";
 import { db } from "@/firebase";
 import { ref as dbRef, push, set, get, onValue, update } from "@/services/baseDatos";
 import { uploadStoreLogo, uploadStoreGallery, uploadStoreBanner } from "@/composables/useStorage";
-import type { ControlTienda } from "@/composables/useMembresia";
+import { ACTOR_PRUEBA, membresiaDePrueba, type ControlTienda } from "@/composables/useMembresia";
+import { tiendasDelTelefono } from "@/composables/cuentaTienda";
 
 export interface Tienda extends ControlTienda {
   tiendaId?: string;
@@ -94,19 +95,31 @@ export function useTiendas() {
 
   async function crearTienda(tienda: Tienda & { logoFile?: File; galleryFiles?: File[] ; bannerFile?: File }) {
     try {
+      // Se revisa antes de crear el nodo, si no la tienda nueva se contaría a sí misma
+      const esPrimeraDelCelular = (await tiendasDelTelefono(tienda.telefono)).length === 0;
+      const ahora = new Date();
+
       // 1️⃣ Crear el nodo en Realtime Database primero para obtener el ID
       const tiendasRef = dbRef(db, "tiendas");
       const nuevaTiendaRef = push(tiendasRef);
       const tiendaId = nuevaTiendaRef.key!;
       
       // Guardar inicialmente sin logoUrl ni galleryUrls.
-      // Toda tienda nueva nace 'pendiente': no vende hasta que un administrador la apruebe.
+      // La primera tienda de un celular nace activa con su prueba gratis. Las
+      // siguientes nacen 'pendiente': no venden hasta que las aprueben o paguen.
       await set(nuevaTiendaRef, {
         ...tienda,
         logoUrl: "",
         galleryUrls: [],
-        estatus: "pendiente",
-        creadaEn: new Date().toISOString(),
+        creadaEn: ahora.toISOString(),
+        ...(esPrimeraDelCelular
+          ? {
+              estatus: "activa",
+              membresia: membresiaDePrueba(ahora),
+              aprobadaEn: ahora.toISOString(),
+              aprobadaPor: ACTOR_PRUEBA,
+            }
+          : { estatus: "pendiente" }),
       });
 
       // 2️⃣ Subir logo si existe

@@ -14,6 +14,7 @@
             <div class="nombre-row">
               <h1 class="nombre">{{ tienda.nombreTienda }}</h1>
               <span class="estatus" :class="'estatus-' + estado">{{ ESTADO_LABEL[estado] }}</span>
+              <span v-if="etiquetaPrueba(tienda)" class="estatus estatus-prueba">{{ etiquetaPrueba(tienda) }}</span>
             </div>
             <p class="meta">{{ tienda.categoria || 'Sin categoría' }}</p>
             <p class="meta">
@@ -40,7 +41,7 @@
                 <dd class="motivo">{{ tienda.motivoBloqueo }}</dd>
               </template>
               <dt>Plan</dt>
-              <dd>{{ tienda.membresia?.plan ? PLAN_LABEL[tienda.membresia.plan as PlanMembresia] || tienda.membresia.plan : 'Sin plan' }}</dd>
+              <dd>{{ tienda.membresia?.plan === PLAN_PRUEBA ? 'Prueba gratis' : tienda.membresia?.plan ? PLAN_LABEL[tienda.membresia.plan as PlanMembresia] || tienda.membresia.plan : 'Sin plan' }}</dd>
               <dt>Vigencia</dt>
               <dd>{{ textoVigencia }}</dd>
               <dt>Último pago</dt>
@@ -179,6 +180,7 @@ import {
   type PagoRegistrado,
 } from '@/composables/useAdminTiendas';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import { PLAN_PRUEBA, etiquetaPrueba } from '@/composables/useMembresia';
 import { useSolicitudesPago, atenderSolicitud, type SolicitudPago } from '@/composables/useSolicitudesPago';
 
 const route = useRoute();
@@ -467,6 +469,10 @@ async function onPagoGuardado(p: PagoRegistrado) {
 .estatus-bloqueada {
   background: #fdecea;
   color: #8a1f1b;
+}
+.estatus-prueba {
+  background: #f3e8ff;
+  color: #6b21a8;
 }
 
 .acciones {

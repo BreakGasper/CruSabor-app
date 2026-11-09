@@ -229,6 +229,7 @@ Las zonas válidas están en `SELECTOR_CABECERA` (`PullToRefresh.vue`): `.page-h
 
 - Campo de control: `tiendas/{id}/estatus` (`pendiente | activa | bloqueada`; se llama **`estatus`**, porque `estado` es el estado geográfico). El estado efectivo agrega `vencida` cuando `membresia.vigenteHasta` pasó más los `configuracion.membresia.diasGracia`.
 - Una tienda **puede vender** solo si su estado efectivo es `activa`. Tiendas anteriores a la regla (sin `estatus`) se tratan como activas. Para **publicar productos** además necesita membresía vigente (`membresiaVigente`).
+- **Prueba gratis:** la primera tienda de un celular nace `activa` con `membresia = { plan: 'prueba', vigenteHasta: hoy + DIAS_PRUEBA_TIENDA (15) }`, sin esperar aprobación. Las siguientes del mismo celular nacen `pendiente`. Al terminar no aplican los días de gracia: pasa a `vencida` y se le pide pagar.
 - El catálogo público, el carrito rápido y `guardarPedidos` bloquean tiendas que no pueden vender (`tiendasQueNoPuedenVender` → `TiendaNoDisponibleError`).
 
 ### Varias tiendas por celular (`cuentaTienda.ts`)

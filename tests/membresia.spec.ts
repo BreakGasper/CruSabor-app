@@ -19,6 +19,8 @@ import {
   tiendasQueNoPuedenVender,
   tiendasSinMembresiaVigente,
   membresiaVigente,
+  membresiaDePrueba,
+  etiquetaPrueba,
   TiendaNoDisponibleError,
   MENSAJE_TIENDA_NO_DISPONIBLE,
   __setControlPorTienda,
@@ -270,15 +272,57 @@ describe('guardarPedidos: último candado', () => {
 });
 
 describe('registro de tienda', () => {
-  it('toda tienda nueva nace pendiente', async () => {
+  const nuevaTienda = {
+    nombreTienda: 'Nueva', categoria: 'Comida', descripcion: 'd', calle: '', numero: '', colonia: '', cp: '',
+    municipio: '', estado: '', email: '', telefono: '9', incluyeWhatsapp: false, metodosPago: [],
+    envioDomicilio: true, zonasEntrega: [], horario: {},
+  };
+
+  it('la primera tienda de un celular nace activa con 15 días de prueba', async () => {
     const { crearTienda } = useTiendas();
-    const id = await crearTienda({
-      nombreTienda: 'Nueva', categoria: 'Comida', descripcion: 'd', calle: '', numero: '', colonia: '', cp: '',
-      municipio: '', estado: '', email: '', telefono: '9', incluyeWhatsapp: false, metodosPago: [],
-      envioDomicilio: true, zonasEntrega: [], horario: {},
-    });
-    expect(__getAt(`tiendas/${id}/estatus`)).toBe('pendiente');
+    const id = await crearTienda(nuevaTienda);
+    const membresia = __getAt(`tiendas/${id}/membresia`);
+    expect(__getAt(`tiendas/${id}/estatus`)).toBe('activa');
+    expect(membresia).toEqual(membresiaDePrueba());
+    expect(membresiaVigente({ estatus: 'activa', membresia })).toBe(true);
     expect(typeof __getAt(`tiendas/${id}/creadaEn`)).toBe('string');
+  });
+
+  it('las siguientes tiendas del mismo celular no repiten la prueba', async () => {
+    const { crearTienda } = useTiendas();
+    await crearTienda(nuevaTienda);
+    const id = await crearTienda(nuevaTienda);
+    expect(__getAt(`tiendas/${id}/estatus`)).toBe('pendiente');
+    expect(__getAt(`tiendas/${id}/membresia`)).toBeUndefined();
+  });
+
+  it('la prueba dura 15 días y el último día cuenta completo', () => {
+    const prueba = membresiaDePrueba(HOY);
+    expect(prueba).toEqual({ plan: 'prueba', vigenteHasta: '2026-09-21' });
+    expect(tiendaPuedeVender({ estatus: 'activa', membresia: prueba }, new Date(2026, 8, 21, 23, 30), 0)).toBe(true);
+    expect(tiendaPuedeVender({ estatus: 'activa', membresia: prueba }, new Date(2026, 8, 22, 0, 1), 0)).toBe(false);
+  });
+
+  it('al terminar la prueba se pide el pago, sin días de gracia', () => {
+    const terminada = { estatus: 'activa' as const, membresia: { plan: 'prueba', vigenteHasta: '2026-09-05' } };
+    expect(estadoEfectivo(terminada, HOY, 5)).toBe('vencida');
+    expect(membresiaVigente(terminada, HOY, 5)).toBe(false);
+    expect(avisoEstadoTienda(terminada, HOY)?.titulo).toMatch(/prueba gratis terminó/i);
+  });
+
+  it('la etiqueta del panel admin muestra los días que faltan', () => {
+    const conPrueba = (vigenteHasta: string) => ({ estatus: 'activa' as const, membresia: { plan: 'prueba', vigenteHasta } });
+    expect(etiquetaPrueba(conPrueba('2026-09-21'), HOY)).toBe('Prueba 15 días · faltan 15 días');
+    expect(etiquetaPrueba(conPrueba('2026-09-07'), HOY)).toBe('Prueba 15 días · falta 1 día');
+    expect(etiquetaPrueba(conPrueba('2026-09-06'), HOY)).toBe('Prueba 15 días · termina hoy');
+    expect(etiquetaPrueba(conPrueba('2026-09-05'), HOY)).toBe('Prueba terminada');
+    expect(etiquetaPrueba({ estatus: 'activa', membresia: { plan: 'mensual', vigenteHasta: '2026-09-21' } }, HOY)).toBeNull();
+  });
+
+  it('durante la prueba avisa cuántos días quedan', () => {
+    const conPrueba = (vigenteHasta: string) => ({ estatus: 'activa' as const, membresia: { plan: 'prueba', vigenteHasta } });
+    expect(avisoEstadoTienda(conPrueba('2026-09-21'), HOY)).toMatchObject({ tipo: 'info', titulo: 'Prueba gratis: te quedan 15 días' });
+    expect(avisoEstadoTienda(conPrueba('2026-09-09'), HOY)).toMatchObject({ tipo: 'warning', titulo: 'Tu prueba gratis termina en 3 días' });
   });
 
   it('la tienda no puede cambiar su propio estado al editar el perfil', async () => {

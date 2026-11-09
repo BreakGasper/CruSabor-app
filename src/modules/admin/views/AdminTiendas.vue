@@ -62,6 +62,7 @@
             <div class="nombre-row">
               <router-link :to="`/admin/tiendas/${t.tiendaId}`" class="nombre">{{ t.nombreTienda }}</router-link>
               <span class="estatus" :class="'estatus-' + estadoDe(t)">{{ ESTADO_LABEL[estadoDe(t)] }}</span>
+              <span v-if="etiquetaPrueba(t)" class="estatus estatus-prueba">{{ etiquetaPrueba(t) }}</span>
               <span v-if="conAviso.has(t.tiendaId || '')" class="estatus estatus-aviso" title="La tienda avisó que ya pagó; confírmalo en el tablero">Pago por confirmar</span>
             </div>
             <p class="meta">
@@ -119,7 +120,7 @@ import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
-import { estadoEfectivo, diasParaVencer, ESTADO_LABEL, type EstadoEfectivo } from '@/composables/useMembresia';
+import { estadoEfectivo, diasParaVencer, etiquetaPrueba, ESTADO_LABEL, type EstadoEfectivo } from '@/composables/useMembresia';
 import { aprobarTienda, bloquearTienda, desbloquearTienda, type PagoRegistrado } from '@/composables/useAdminTiendas';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
 import { useSolicitudesPago } from '@/composables/useSolicitudesPago';
@@ -491,6 +492,10 @@ function onPagoGuardado(p: PagoRegistrado) {
 .estatus-bloqueada {
   background: #fdecea;
   color: #8a1f1b;
+}
+.estatus-prueba {
+  background: #f3e8ff;
+  color: #6b21a8;
 }
 .estatus-aviso {
   background: #fffbeb;
