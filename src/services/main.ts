@@ -5,7 +5,6 @@ import { crearRouterPagos } from "./pagos/router.ts";
 import { crearRouterRecuperacion } from "./recuperacion/router.ts";
 import { crearRouterImagenes } from "./imagenes/router.ts";
 import { crearRouterWhatsapp } from "./whatsapp/router.ts";
-import { crearRouterTelegram } from "./telegram/router.ts";
 
 console.log(">>> Iniciando main.ts");
 
@@ -41,9 +40,6 @@ app.use("/imagenes", crearRouterImagenes());
 
 // Agente de WhatsApp (Meta Cloud API + Gemini gratuito); se apaga solo si faltan las variables
 app.use("/whatsapp", crearRouterWhatsapp());
-
-// Agente en Telegram (gratis, sin Meta): mismo agente, otro canal; se apaga solo si faltan las variables
-app.use("/telegram", crearRouterTelegram());
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
