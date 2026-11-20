@@ -76,16 +76,25 @@ export function crearRouterWhatsapp(op: OpcionesWhatsapp = {}) {
 
   router.get('/webhook', (req, res) => {
     if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === env.WHATSAPP_VERIFY_TOKEN) {
+      log('WhatsApp: webhook verificado por Meta ✅');
       return res.status(200).send(String(req.query['hub.challenge'] ?? ''));
     }
+    log('WhatsApp: verificación RECHAZADA (el token de verificación de Meta no coincide con WHATSAPP_VERIFY_TOKEN)');
     return res.sendStatus(403);
   });
 
   router.post('/webhook', (req, res) => {
     const crudo = (req as any).rawBody as Buffer | undefined;
-    if (!firmaValida(crudo, req.get('x-hub-signature-256'), env.WHATSAPP_APP_SECRET!)) return res.sendStatus(401);
+    if (!firmaValida(crudo, req.get('x-hub-signature-256'), env.WHATSAPP_APP_SECRET!)) {
+      // Casi siempre: WHATSAPP_APP_SECRET no es la clave secreta de ESTA app de Meta
+      log(`WhatsApp: aviso RECHAZADO por firma inválida (revisa WHATSAPP_APP_SECRET; cuerpo ${crudo ? 'recibido' : 'ausente'})`);
+      return res.sendStatus(401);
+    }
     res.sendStatus(200);
-    for (const m of mensajesDelAviso(req.body)) {
+    const mensajes = mensajesDelAviso(req.body);
+    // Sin contenido ni números: solo para saber que el aviso llegó (los estados de entrega no traen mensajes)
+    log(`WhatsApp: aviso recibido (${mensajes.length} mensaje(s): ${mensajes.map((m) => m.tipo).join(', ') || 'ninguno, solo estados'})`);
+    for (const m of mensajes) {
       if (yaVisto(m.id)) continue;
       void agente.procesar(m);
     }
