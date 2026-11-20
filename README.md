@@ -113,6 +113,29 @@ Antes de dar por terminado un cambio: `npm test` y `npm run type-check` deben pa
 - **Servidor**: Render hace `autoDeploy` con cada push a `main` (blueprint en `render.yaml`, health check `GET /salud`). Es plan gratuito: se duerme tras inactividad y la primera petición puede tardar ~1 minuto.
 - **Función programada** `revisarMembresias` (carpeta `functions/`, Firebase Functions v2): está escrita para correr a diario a las 06:00 hora de Ciudad de México (bloquea tiendas vencidas, envía recordatorios y deja su resumen en `configuracion/ultimaRevisionMembresias`), pero **no está desplegada**: requiere plan Blaze y el proyecto está en Spark. Mientras tanto la misma lógica se corre a mano con `node scripts/revisar-membresias.mjs` (o con el Programador de tareas de Windows).
 
+### Agente de WhatsApp (gratis)
+
+Código en `src/services/whatsapp/` (se monta en el servidor Express, `POST/GET /whatsapp/webhook`). Hace dos cosas:
+
+- **Tiendas**: escriben *entrar*, el agente comprueba que el celular de WhatsApp sea el de una tienda y pide su contraseña (el mismo hash bcrypt del login de la app; 5 fallos bloquean el número 15 min; la sesión caduca a los 30 min). Luego la tienda manda una **foto con nombre, precio y detalles**; Gemini extrae los datos, el agente muestra un resumen con botones **Publicar / Descartar** y, solo si se confirma, sube la foto a Cloudinary y crea `articulos/{id}` en esa tienda con la misma forma que el formulario de la app. Antes de publicar vuelve a comprobar la membresía. También se puede corregir el borrador escribiendo ("el precio es 120").
+- **Clientes**: preguntan por productos o tiendas; el agente busca en el catálogo (tiendas que pueden vender, artículos sin dar de baja) y Gemini redacta la respuesta usando solo esos resultados.
+
+Costo cero: Meta no cobra las respuestas dentro de las 24 h posteriores al mensaje del cliente, y Gemini tiene nivel gratuito sin tarjeta (con límites diarios; el agente limita 20 mensajes por número cada 10 min para cuidar la cuota). En el nivel gratuito Google puede usar lo enviado (fotos y textos) para mejorar sus productos.
+
+Variables (Render › Environment; sin ellas el agente queda apagado y `GET /whatsapp/estado` dice cuáles faltan):
+
+| Variable | De dónde sale |
+| --- | --- |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey (`GEMINI_MODEL` opcional, por defecto `gemini-2.5-flash`) |
+| `WHATSAPP_TOKEN` | Meta › WhatsApp › API Setup (el temporal dura 24 h; crea uno permanente con un *usuario del sistema*) |
+| `WHATSAPP_PHONE_NUMBER_ID` | Meta › WhatsApp › API Setup (no es el teléfono) |
+| `WHATSAPP_VERIFY_TOKEN` | texto que tú inventas; se pega igual al registrar el webhook |
+| `WHATSAPP_APP_SECRET` | Meta › Configuración de la app › Básica › Clave secreta |
+
+Webhook en Meta: URL `https://mavi-api.onrender.com/whatsapp/webhook`, el mismo verify token y suscripción al campo `messages`.
+
+Limitaciones: las sesiones viven en memoria (si Render duerme o reinicia el servicio hay que volver a escribir *entrar*), y en el plan gratuito de Render la primera respuesta tras la inactividad puede tardar ~1 minuto. Las reglas puras, la conversación completa y el webhook se prueban en `tests/whatsapp.spec.ts`; **no se ha probado contra Meta ni Gemini reales** (solo con simulaciones).
+
 ---
 
 ## 4. Mapa del código y convenciones

@@ -36,3 +36,14 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
+      # Agente de WhatsApp (Meta Cloud API + Gemini gratuito); sin estas variables queda apagado
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
