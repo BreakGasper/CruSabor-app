@@ -1,18 +1,17 @@
 /**
- * Agente de chat (WhatsApp / Telegram): la conversación (máquina de estados por número).
+ * Agente de WhatsApp: la conversación (máquina de estados por número).
  *
- *   anónimo ──"entrar"──▶ (comparte celular) ──▶ esperando contraseña ──ok──▶ (elige tienda) ──▶ tienda
+ *   anónimo ──"entrar"──▶ esperando contraseña ──ok──▶ (elige tienda) ──▶ tienda
  *   tienda ──foto + datos──▶ confirmando ──"sí"──▶ artículo publicado ──▶ tienda
  *
  * Seguridad:
- *  - Para publicar hace falta el MISMO login que la app: el celular del chat (WhatsApp) o el contacto compartido
- *    (Telegram) tiene que ser el de la tienda Y la contraseña (hash bcrypt en tiendas/{id}/password) tiene que coincidir.
+ *  - Para publicar hace falta el MISMO login que la app: el celular de WhatsApp tiene que ser el
+ *    de la tienda Y la contraseña (hash bcrypt en tiendas/{id}/password) tiene que coincidir.
  *  - 5 contraseñas malas bloquean ese número 15 minutos; la sesión caduca a los 30 minutos.
  *  - Nada se publica sin que la tienda confirme el resumen. La IA solo propone datos, y todo lo
  *    que devuelve se valida (logica.ts) antes de mostrarse o guardarse.
  *  - La IA no tiene herramientas ni acceso a la base: solo recibe texto y devuelve texto/JSON.
  *
- * Es independiente del canal (WhatsApp, Telegram…): cada uno traduce sus avisos a `MensajeEntrante`.
  * Las sesiones viven en memoria (como los códigos de recuperación): si el servidor se reinicia,
  * se vuelve a entrar. Todo lo externo (WhatsApp, IA, base, Cloudinary) se inyecta para probarlo.
  */
@@ -41,7 +40,7 @@ import {
   type CategoriaLite,
 } from './logica.ts';
 
-type Estado = 'anonimo' | 'telefono' | 'password' | 'eligiendo' | 'tienda' | 'confirmando';
+type Estado = 'anonimo' | 'password' | 'eligiendo' | 'tienda' | 'confirmando';
 interface TiendaSesion {
   id: string;
   nombreTienda: string;
@@ -53,8 +52,6 @@ interface Sesion {
   bloqueadoHasta: number;
   marcas: number[];
   candidatas: (TiendaSesion & { password?: string })[];
-  /** Celular con el que se está entrando (el del chat, o el contacto compartido) */
-  telefono?: string;
   tienda?: TiendaSesion;
   borrador?: Borrador;
   imagen?: { mime: string; bytes: Buffer };
@@ -122,44 +119,25 @@ export function crearAgente(deps: DepsAgente) {
 
   /* ---------- login ---------- */
 
-  /** Intentos fallidos POR CELULAR DE TIENDA (no solo por chat): frena adivinar una contraseña desde muchas cuentas */
-  const fallosPorTelefono = new Map<string, { intentos: number; bloqueadoHasta: number }>();
-  const telefonoBloqueado = (tel: string) => ahora().getTime() < (fallosPorTelefono.get(tel)?.bloqueadoHasta ?? 0);
-
   async function iniciarLogin(de: string, s: Sesion) {
-    if (deps.canal.pideTelefono) {
-      // Telegram no da el celular: se pide compartir el contacto (lo verifica el canal, no se teclea)
-      s.estado = 'telefono';
-      return deps.canal.pideTelefono(de, '📱 Para comprobar que eres tú, toca el botón y comparte *tu número de celular* (el mismo con el que registraste tu tienda).');
-    }
-    return buscarTiendas(de, s, diezDigitos(de));
-  }
-
-  async function buscarTiendas(de: string, s: Sesion, tel: string) {
+    const tel = diezDigitos(de);
     const todas = ((await (await deps.almacen()).leer('tiendas')) ?? {}) as Record<string, any>;
     const mias = Object.entries(todas)
       .filter(([, t]) => t && typeof t === 'object' && soloDigitos(t.telefono) === tel && t.password)
       .map(([id, t]) => ({ id, nombreTienda: String(t.nombreTienda ?? 'Tienda'), password: String(t.password) }));
     if (!mias.length) {
-      s.estado = 'anonimo';
-      return decir(de, `Ese número no tiene una tienda registrada. Regístrala en ${deps.urlApp} con ese mismo celular y luego escribe *entrar*.`);
+      return decir(de, `Este número no tiene una tienda registrada. Regístrala en ${deps.urlApp} con este mismo celular y luego escribe *entrar*.`);
     }
     s.candidatas = mias;
-    s.telefono = tel;
     s.estado = 'password';
     await decir(
       de,
-      '🔐 Escribe la *contraseña de tu tienda* (la misma de la app).\n\n' +
-        (deps.canal.borrarMensaje ? 'Borraré tu mensaje en cuanto lo lea. ' : 'Por seguridad, después *elimina ese mensaje* del chat (mantén pulsado → Eliminar). ') +
-        'Para salir escribe *cancelar*.',
+      '🔐 Escribe la *contraseña de tu tienda* (la misma de la app).\n\nPor seguridad, después *elimina ese mensaje* del chat (mantén pulsado → Eliminar). Para salir escribe *cancelar*.',
     );
   }
 
-  async function revisarPassword(de: string, s: Sesion, m: MensajeEntrante) {
-    const password = m.texto;
-    if (m.idMensaje && deps.canal.borrarMensaje) await deps.canal.borrarMensaje(de, m.idMensaje).catch(() => {});
-    const tel = s.telefono ?? '';
-    if (ahora().getTime() < s.bloqueadoHasta || telefonoBloqueado(tel)) {
+  async function revisarPassword(de: string, s: Sesion, password: string) {
+    if (ahora().getTime() < s.bloqueadoHasta) {
       return decir(de, `⛔ Demasiados intentos. Vuelve a intentar en unos minutos.`);
     }
     const validas: typeof s.candidatas = [];
@@ -167,13 +145,6 @@ export function crearAgente(deps: DepsAgente) {
 
     if (!validas.length) {
       s.intentos += 1;
-      const f = fallosPorTelefono.get(tel) ?? { intentos: 0, bloqueadoHasta: 0 };
-      f.intentos += 1;
-      if (f.intentos >= MAX_INTENTOS_PASSWORD * 2) {
-        f.intentos = 0;
-        f.bloqueadoHasta = ahora().getTime() + MINUTOS_BLOQUEO * 60_000;
-      }
-      fallosPorTelefono.set(tel, f);
       if (s.intentos >= MAX_INTENTOS_PASSWORD) {
         s.bloqueadoHasta = ahora().getTime() + MINUTOS_BLOQUEO * 60_000;
         s.intentos = 0;
@@ -185,7 +156,6 @@ export function crearAgente(deps: DepsAgente) {
     }
 
     s.intentos = 0;
-    fallosPorTelefono.delete(tel);
     s.candidatas = validas;
     if (validas.length > 1) {
       s.estado = 'eligiendo';
@@ -287,9 +257,9 @@ export function crearAgente(deps: DepsAgente) {
     }
     s.ultima = t;
 
-    if (m.tipo === 'otro' || (m.tipo === 'contacto' && s.estado !== 'telefono')) return decir(de, 'Por ahora solo entiendo mensajes de texto y fotos.');
+    if (m.tipo === 'otro') return decir(de, 'Por ahora solo entiendo mensajes de texto y fotos.');
 
-    const cmd = m.tipo === 'texto' ? comandoDe(m.texto) : m.tipo === 'contacto' ? null : m.texto === 'cancelar' ? 'cancelar' : null;
+    const cmd = m.tipo === 'texto' ? comandoDe(m.texto) : m.texto === 'cancelar' ? 'cancelar' : null;
     if (cmd === 'salir') {
       const marcas = s.marcas;
       Object.assign(s, nuevaSesion(), { marcas });
@@ -307,13 +277,9 @@ export function crearAgente(deps: DepsAgente) {
     }
 
     switch (s.estado) {
-      case 'telefono':
-        if (m.tipo !== 'contacto' || !m.telefono) return decir(de, 'Toca el botón *Compartir mi número* para continuar, o escribe *cancelar*.');
-        return buscarTiendas(de, s, diezDigitos(m.telefono));
-
       case 'password':
         if (m.tipo !== 'texto') return decir(de, 'Necesito tu contraseña en texto, o escribe *cancelar*.');
-        return revisarPassword(de, s, m);
+        return revisarPassword(de, s, m.texto);
 
       case 'eligiendo': {
         const i = Number(soloDigitos(m.texto)) - 1;
