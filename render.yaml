@@ -47,3 +47,8 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      # Agente en Telegram (gratis, sin Meta); el webhook se registra solo con API_PUBLIC_URL
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false

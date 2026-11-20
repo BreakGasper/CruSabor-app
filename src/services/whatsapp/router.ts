@@ -10,8 +10,8 @@
  * (pagos, correo, imágenes) sigue funcionando igual.
  */
 import { Router } from 'express';
-import { crearAgente } from './agente.ts';
-import { crearGemini, type Cerebro } from './gemini.ts';
+import { crearAgente } from '../asistente/agente.ts';
+import { crearGemini, type Cerebro } from '../asistente/gemini.ts';
 import { crearCanalMeta, firmaValida, mensajesDelAviso, type Canal } from './meta.ts';
 import { crearAlmacen, type Almacen } from '../pagos/almacen.ts';
 

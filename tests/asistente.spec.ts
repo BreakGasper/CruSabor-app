@@ -10,8 +10,8 @@ import type { AddressInfo } from 'node:net';
 import {
   comandoDe, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
   buscarCatalogo, construirArticulo, MAX_MENSAJES_POR_VENTANA,
-} from '../src/services/whatsapp/logica.ts';
-import { crearAgente } from '../src/services/whatsapp/agente.ts';
+} from '../src/services/asistente/logica.ts';
+import { crearAgente } from '../src/services/asistente/agente.ts';
 import { crearRouterWhatsapp, variablesFaltantes } from '../src/services/whatsapp/router.ts';
 import { mensajesDelAviso } from '../src/services/whatsapp/meta.ts';
 import { membresiaVigente } from '../src/composables/useMembresia.ts';

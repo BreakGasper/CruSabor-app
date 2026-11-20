@@ -7,14 +7,11 @@
  *   WHATSAPP_APP_SECRET       secreto de la app de Meta; con él se comprueba que el aviso viene de Meta
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { Canal, MensajeEntrante } from '../asistente/canal.ts';
+
+export type { Canal, MensajeEntrante };
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
-
-export interface Canal {
-  enviarTexto: (a: string, texto: string) => Promise<void>;
-  enviarBotones: (a: string, texto: string, botones: { id: string; titulo: string }[]) => Promise<void>;
-  descargarImagen: (mediaId: string) => Promise<{ mime: string; bytes: Buffer }>;
-}
 
 /** Firma del webhook: HMAC-SHA256 del cuerpo CRUDO con el secreto de la app */
 export function firmaValida(cuerpo: Buffer | undefined, cabecera: string | undefined, secreto: string): boolean {
@@ -68,14 +65,6 @@ export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fet
 }
 
 /** Saca de un aviso de Meta los mensajes que nos interesan (texto, foto, botón) */
-export interface MensajeEntrante {
-  id: string;
-  de: string;
-  tipo: 'texto' | 'imagen' | 'boton' | 'otro';
-  texto: string;
-  mediaId?: string;
-}
-
 export function mensajesDelAviso(body: any): MensajeEntrante[] {
   const salida: MensajeEntrante[] = [];
   for (const entrada of body?.entry ?? []) {
