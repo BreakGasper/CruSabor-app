@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import { crearRouterPagos } from "./pagos/router.ts";
 import { crearRouterRecuperacion } from "./recuperacion/router.ts";
 import { crearRouterImagenes } from "./imagenes/router.ts";
+import { crearRouterWhatsapp } from "./whatsapp/router.ts";
+import { crearRouterTelegram } from "./telegram/router.ts";
 
 console.log(">>> Iniciando main.ts");
 
@@ -19,7 +21,8 @@ console.log("MP_WEBHOOK_SECRET:", process.env.MP_WEBHOOK_SECRET ? "Cargado ✅" 
 console.log("API_PUBLIC_URL:", process.env.API_PUBLIC_URL || "(vacía: Mercado Pago no podrá avisar los pagos)");
 
 const app = express();
-app.use(express.json());
+// rawBody: Meta firma el cuerpo EXACTO del aviso de WhatsApp y hay que comprobar esa firma
+app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
 // La app puede llamar desde su URL publicada y desde el servidor de desarrollo de Vite
 const origenes = [process.env.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173"].filter(Boolean) as string[];
@@ -35,6 +38,12 @@ app.use("/pagos", crearRouterPagos());
 
 // Borrar de Cloudinary la imagen que se reemplazó (la api_secret vive aquí, no en la app)
 app.use("/imagenes", crearRouterImagenes());
+
+// Agente de WhatsApp (Meta Cloud API + Gemini gratuito); se apaga solo si faltan las variables
+app.use("/whatsapp", crearRouterWhatsapp());
+
+// Agente en Telegram (gratis, sin Meta): mismo agente, otro canal; se apaga solo si faltan las variables
+app.use("/telegram", crearRouterTelegram());
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
