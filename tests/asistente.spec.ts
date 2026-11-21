@@ -9,7 +9,7 @@ import { createHmac, createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
   comandoDe, rolDe, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
-  buscarCatalogo, construirArticulo, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda,
+  buscarCatalogo, construirArticulo, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
   MAX_MENSAJES_POR_VENTANA,
 } from '../src/services/asistente/logica.ts';
 import { crearAgente } from '../src/services/asistente/agente.ts';
@@ -201,6 +201,32 @@ describe('lo que ve un cliente', () => {
     expect(r.tiendas[0].horario.Martes).toBe('cerrado');
     expect(r.articulos.map((a) => a.nombre).sort()).toEqual(['Galletas', 'Pastel de chocolate']); // preguntar por la tienda trae sus artículos
   });
+  it('"lista de tiendas" y "¿qué tiendas hay?" muestran un listado (antes no encontraban nada)', () => {
+    const muchas: any = { ...tiendas, t3: { nombreTienda: 'Abarrotes Lupe', categoria: 'Abarrotes', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' } } };
+    for (const pregunta of ['lista de tiendas', '¿qué tiendas hay?', 'todas las tiendas disponibles', 'tiendas']) {
+      const r = buscarCatalogo(muchas, arts, pregunta, HOY);
+      expect(r.tiendas.map((t) => t.nombre)).toEqual(['Abarrotes Lupe', 'Dulce Hogar']); // ordenadas; la de membresía vencida no aparece
+      expect(r.articulos).toEqual([]);
+    }
+    // con un filtro real sigue buscando normal
+    expect(buscarCatalogo(muchas, arts, 'tiendas en Zapopan', HOY).tiendas.map((t) => t.nombre)).toEqual(['Dulce Hogar']);
+  });
+
+  it('"¿qué productos tienen?" muestra los artículos más recientes de tiendas que pueden vender', () => {
+    const con: any = { ...arts, a1: { ...arts.a1, fecha_hora: '2026-11-01' }, a4: { ...arts.a4, fecha_hora: '2026-11-15' } };
+    const r = buscarCatalogo(tiendas, con, 'lista de productos', HOY);
+    expect(r.articulos.map((a) => a.nombre)).toEqual(['Galletas', 'Pastel de chocolate']);
+    expect(r.tiendas).toEqual([]);
+  });
+
+  it('respuestaSinIA: listado de tiendas, y detalle completo cuando es una sola', () => {
+    const lista = respuestaSinIA(buscarCatalogo({ ...tiendas, t3: { nombreTienda: 'Abarrotes Lupe', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' } } } as any, arts, 'lista de tiendas', HOY), 'https://app.test');
+    expect(lista).toMatch(/no está disponible[\s\S]*Tiendas[\s\S]*• \*Abarrotes Lupe\*[\s\S]*• \*Dulce Hogar\* — Postres, Zapopan[\s\S]*https:\/\/app\.test/);
+    const una = respuestaSinIA(buscarCatalogo(tiendas, arts, 'horario de Dulce Hogar', HOY), 'https://app.test');
+    expect(una).toMatch(/Dulce Hogar[\s\S]*Hidalgo 12[\s\S]*3331112222 · WhatsApp[\s\S]*Lun 09:00-18:00[\s\S]*Mar cerrado[\s\S]*Efectivo, Tarjeta[\s\S]*Envío a domicilio: sí/);
+    expect(una).not.toContain('HASH-SECRETO');
+  });
+
   it('nunca expone la contraseña ni datos internos', () => {
     const pub = JSON.stringify(tiendaPublica(tiendas.t1));
     expect(pub).not.toContain('HASH-SECRETO');
@@ -373,6 +399,32 @@ describe('Gemini', () => {
     const e: any = await preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {}, ahoraMs: () => t })).catch((x: any) => x);
     expect(e.message).toMatch(/Gemini 503/);
     expect(llamadas.filter((m) => m !== 'LISTA').length).toBeLessThanOrEqual(2);
+  });
+
+  it('una cuota agotada (429) no se reintenta en el mismo modelo: pasa de inmediato a otro, que tiene su propia cuota', async () => {
+    const esperas: number[] = [];
+    const r429 = () => new Response('{"error":{"code":429,"message":"You exceeded your current quota"}}', { status: 429 });
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429, 'gemini-3.7-flash-lite': ok('con otra cuota') }, [modelo('gemini-3.7-flash-lite')]);
+    const g = crearGemini({ llave: 'k', fetchFn, esperar: async (ms) => { esperas.push(ms); } });
+    expect(await preguntar(g)).toBe('con otra cuota');
+    expect(llamadas).toEqual(['gemini-3.8-flash', 'LISTA', 'gemini-3.7-flash-lite']);
+    expect(esperas).toEqual([]);
+  });
+
+  it('si todos los modelos tienen la cuota agotada, el error es 429 (para avisar al usuario)', async () => {
+    const r429 = () => new Response('{"error":{"code":429}}', { status: 429 });
+    const { fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429, 'gemini-3.7-flash': r429 }, [modelo('gemini-3.7-flash')]);
+    const e: any = await preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {} })).catch((x: any) => x);
+    expect(e.message).toMatch(/^Gemini 429 \(modelo gemini-3\.7-flash\)/);
+  });
+
+  it('los alternos se eligen con criterio: primero los "lite" (más cuota) y los más nuevos; nunca omni, imagen, voz ni embeddings', async () => {
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': () => new Response('{"error":{"code":404}}', { status: 404 }) }, [
+      modelo('gemini-omni-1.2-flash'), modelo('gemini-3.7-flash'), modelo('gemini-3.6-flash-lite'), modelo('gemini-3.7-flash-lite'),
+      modelo('gemini-3.7-flash-image'), modelo('gemini-3.7-flash-live'), modelo('gemini-2.0-flash'), modelo('gemini-embedding-001', ['embedContent']),
+    ]);
+    await preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {} })).catch(() => {});
+    expect(llamadas.filter((m) => m !== 'LISTA')).toEqual(['gemini-3.8-flash', 'gemini-3.7-flash-lite', 'gemini-3.6-flash-lite', 'gemini-3.7-flash']);
   });
 
   it('un error de Gemini no filtra la llave', async () => {
@@ -603,7 +655,7 @@ describe('IA saturada o foto que no se puede descargar', () => {
     x.cerebro.interpretarAdmin = async () => { throw new Error('Gemini 503 (modelo x): demanda'); };
     await x.entrar();
     await x.di({ texto: 'abro de lunes a viernes' });
-    expect(ultimo(x.enviados)).toMatch(/saturado[\s\S]*Inténtalo de nuevo en un minuto/);
+    expect(ultimo(x.enviados)).toMatch(/saturado[\s\S]*Inténtalo de nuevo en unos minutos/);
     expect(ultimo(x.enviados)).not.toMatch(/reintentar/);
   });
 
@@ -615,6 +667,34 @@ describe('IA saturada o foto que no se puede descargar', () => {
     expect(ultimo(x.enviados)).toMatch(/No pude descargar tu foto/);
     expect(x.logs.some((l) => /no se pudo descargar la foto/.test(l))).toBe(true);
     expect(x.bd.articulos).toEqual({});
+  });
+});
+
+describe('cuando la IA no está disponible', () => {
+  it('un cliente que pide la lista de tiendas recibe la lista aunque Gemini esté sin cuota', async () => {
+    const x = montar({ tiendas: { t1: tiendaBase({ nombreTienda: 'Dulce', municipio: 'Zapopan' }), t2: tiendaBase({ nombreTienda: 'Ropa Bonita', telefono: '8122222222' }) } });
+    x.cerebro.responderCliente = async () => { throw new Error('Gemini 429 (modelo gemini-3.7-flash): You exceeded your current quota'); };
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'lista de tiendas' });
+    expect(ultimo(x.enviados)).toMatch(/no está disponible[\s\S]*• \*Dulce\*[\s\S]*• \*Ropa Bonita\*/);
+    expect(x.logs.some((l) => /se contesta sin IA/.test(l))).toBe(true);
+    expect(x.enviados.join('\n')).not.toMatch(/Tuve un problema/);
+  });
+
+  it('si no hay nada que mostrar y la IA no está, avisa que se agotó la cuota (sin culpar a otra cosa)', async () => {
+    const x = montar();
+    x.cerebro.responderCliente = async () => { throw new Error('Gemini 429 (modelo gemini-3.7-flash): You exceeded your current quota'); };
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'zzz algo que no existe' });
+    expect(ultimo(x.enviados)).toMatch(/Se agotó el uso gratuito de mi inteligencia artificial/);
+  });
+
+  it('para la tienda con una foto, el aviso de cuota ofrece "reintentar"', async () => {
+    const x = montar();
+    x.cerebro.extraerArticulo = async () => { throw new Error('Gemini 429 (modelo gemini-3.7-flash): quota'); };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(ultimo(x.enviados)).toMatch(/Se agotó el uso gratuito[\s\S]*Escribe \*reintentar\*/);
   });
 });
 

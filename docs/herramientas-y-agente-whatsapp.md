@@ -90,7 +90,7 @@ Código: `src/services/asistente/` (agente, reglas, Gemini) y `src/services/what
 1. Crear una llave en https://aistudio.google.com/apikey (sin tarjeta).
 2. En Render: `GEMINI_API_KEY`.
 3. Modelo por defecto: `gemini-3.8-flash`. Se puede cambiar **sin tocar el código** con la variable opcional `GEMINI_MODEL`.
-4. El agente reintenta solo, hasta 2 veces, si Google responde 429 o 5xx (por ejemplo 503 por alta demanda) y 1 vez si no responde en 30 s. Si el modelo sigue saturado o ya no existe, prueba solo otro modelo Flash que Google ofrezca (o los de `GEMINI_FALLBACK_MODEL`, opcional, separados por coma). Si aun así falla, avisa al usuario y, si mandó una foto, puede escribir *reintentar* para repetir con la misma foto.
+4. El agente reintenta solo, hasta 2 veces, si Google responde 429 o 5xx (por ejemplo 503 por alta demanda) y 1 vez si no responde en 30 s. Si el modelo sigue saturado o ya no existe, prueba solo otro modelo Flash que Google ofrezca (o los de `GEMINI_FALLBACK_MODEL`, opcional, separados por coma). Si es cuota agotada (429) pasa directo a otro modelo. Si aun así falla, a los clientes les responde con una lista simple sin IA (tiendas, artículos, horario…) y a las tiendas les avisa y, si mandó una foto, puede escribir *reintentar* para repetir con la misma foto.
 
 > Aviso: en el nivel gratuito, Google puede usar las fotos y textos enviados para mejorar sus productos.
 
@@ -153,6 +153,7 @@ El token que da Meta en *Paso 1. Probar* dura unas 24 horas. Para uno permanente
 | `/whatsapp/estado` decía `"activo": false` | Faltaban variables en Render | Agregar las que liste `faltan` |
 | El "hola" real no llegaba al servidor | App sin publicar y/o la cuenta de WhatsApp sin suscribirse a webhooks | Encender *Suscribirse a webhooks*, completar los requisitos de prueba y publicar |
 | `Gemini 404: models/gemini-2.5-flash is no longer available` | Google retiró ese modelo para cuentas nuevas | Modelo `gemini-3.8-flash` (o `GEMINI_MODEL`) |
+| `Gemini 429 … exceeded your current quota` | Se agotó la cuota gratuita de Gemini (cada modelo tiene la suya; las pruebas con reintentos la consumen rápido) | El agente prueba otros modelos (los "lite" primero) y, para clientes, responde con una lista simple sin IA. Ver el uso en https://aistudio.google.com/rate-limit; se renueva solo (la diaria, a medianoche de California) |
 | `Gemini 503: high demand` o `Gemini: sin respuesta en 30 s` | Pico de demanda de Google | Pasajero; el agente reintenta, prueba otro modelo Flash y, si no, pide escribir *reintentar* |
 | `WhatsApp envío 401 … code 190` | Token temporal vencido | Generar uno nuevo o crear el token permanente (2.6) |
 | `131037 … needs display name approval` | El número emisor (el que da WhatsApp) aún no tiene aprobado su nombre visible | Enviar el nombre en Administrador de WhatsApp › número › Perfil › Nombre para mostrar y esperar la aprobación; mientras, usar el número de prueba |

@@ -49,6 +49,7 @@ import {
   permitirMensaje,
   resumenBorrador,
   resumenTienda,
+  respuestaSinIA,
   rolDe,
   soloDigitos,
   tienePermisoPublicar,
@@ -483,7 +484,16 @@ export function crearAgente(deps: DepsAgente) {
   async function atenderCliente(de: string, texto: string) {
     const { tiendas, articulos } = await catalogo();
     const encontrado = buscarCatalogo(tiendas, articulos, texto, ahora());
-    await decir(de, (await deps.cerebro.responderCliente({ pregunta: texto, catalogo: encontrado, urlApp: deps.urlApp, ahora: momento() })) || INTRO_CLIENTE);
+    let respuesta: string;
+    try {
+      respuesta = await deps.cerebro.responderCliente({ pregunta: texto, catalogo: encontrado, urlApp: deps.urlApp, ahora: momento() });
+    } catch (e: any) {
+      // Sin IA (cuota agotada o saturación) igual se entrega lo que se encontró, en una lista simple
+      log('WhatsApp: la IA no respondió; se contesta sin IA:', String(e?.message ?? e).slice(0, 160));
+      if (encontrado.tiendas.length || encontrado.articulos.length) return decir(de, respuestaSinIA(encontrado, deps.urlApp));
+      throw e;
+    }
+    await decir(de, respuesta || INTRO_CLIENTE);
   }
 
   /* ---------- entrada ---------- */
@@ -628,13 +638,18 @@ export function crearAgente(deps: DepsAgente) {
         log('WhatsApp: error al atender un mensaje:', e?.message ?? e);
         const s = sesiones.get(m.de);
         if (s) s.ocupado = false;
-        const ia = /^Gemini/.test(String(e?.message ?? ''));
+        const msg = String(e?.message ?? '');
+        const ia = /^Gemini/.test(msg);
+        const cuota = /^Gemini 429/.test(msg);
         const conFoto = Boolean(s?.imagen);
+        const reintento = conFoto ? 'Escribe *reintentar* y lo vuelvo a intentar con tu foto.' : 'Inténtalo de nuevo en unos minutos.';
         await decir(
           m.de,
-          ia
-            ? `Mi asistente de inteligencia artificial está saturado en este momento 😕 ${conFoto ? 'Escribe *reintentar* y lo vuelvo a intentar con tu foto.' : 'Inténtalo de nuevo en un minuto.'}`
-            : 'Tuve un problema para atenderte. Inténtalo de nuevo en un momento.',
+          cuota
+            ? `Se agotó el uso gratuito de mi inteligencia artificial por ahora 😕 ${reintento} Si ya se usó mucho hoy, puede tardar hasta mañana.`
+            : ia
+              ? `Mi asistente de inteligencia artificial está saturado en este momento 😕 ${reintento}`
+              : 'Tuve un problema para atenderte. Inténtalo de nuevo en un momento.',
         ).catch(() => {});
       })
       .finally(() => {
