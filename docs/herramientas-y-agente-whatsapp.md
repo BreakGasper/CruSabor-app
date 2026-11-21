@@ -154,6 +154,8 @@ El token que da Meta en *Paso 1. Probar* dura unas 24 horas. Para uno permanente
 | `Gemini 404: models/gemini-2.5-flash is no longer available` | Google retiró ese modelo para cuentas nuevas | Modelo `gemini-3.8-flash` (o `GEMINI_MODEL`) |
 | `Gemini 503: high demand` | Pico de demanda de Google | Pasajero; el agente ya reintenta solo |
 | `WhatsApp envío 401 … code 190` | Token temporal vencido | Generar uno nuevo o crear el token permanente (2.6) |
+| `131037 … needs display name approval` | El número emisor (el que da WhatsApp) aún no tiene aprobado su nombre visible | Enviar el nombre en Administrador de WhatsApp › número › Perfil › Nombre para mostrar y esperar la aprobación; mientras, usar el número de prueba |
+| `131030 Recipient phone number not in allowed list` | Con el número de prueba, el celular no está en la lista de destinatarios (o México: `521…` vs `52…`) | Agregar y verificar el celular en *Paso 1. Probar › Destinatario*; el agente ya reintenta con el otro formato del número |
 | Respuestas que no salen del número nuevo | `WHATSAPP_PHONE_NUMBER_ID` apuntaba a otro número | Usar el identificador del número con el que se chatea |
 
 ---

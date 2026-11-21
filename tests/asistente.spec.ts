@@ -127,6 +127,53 @@ describe('canal de Meta: errores', () => {
   });
 });
 
+describe('canal de Meta: números de México (52 con o sin el 1)', () => {
+  const montarFalso = (aceptado: string) => {
+    const destinos: string[] = [];
+    const logs: string[] = [];
+    const fetchFn = (async (_u: string, init: any) => {
+      const to = JSON.parse(init.body).to;
+      destinos.push(to);
+      return to === aceptado
+        ? new Response('{}', { status: 200 })
+        : new Response('{"error":{"message":"(#131030) Recipient phone number not in allowed list","code":131030,"type":"OAuthException"}}', { status: 400 });
+    }) as any;
+    return { destinos, logs, canal: crearCanalMeta({ token: 't', phoneNumberId: '1358790853995153', fetchFn, log: (...a) => logs.push(a.join(' ')) }) };
+  };
+
+  it('si 521… no está autorizado reintenta con 52… y recuerda cuál sirvió', async () => {
+    const { canal, destinos, logs } = montarFalso('528111111111');
+    await canal.enviarTexto('5218111111111', 'hola');
+    expect(destinos).toEqual(['5218111111111', '528111111111']);
+    expect(logs.join('\n')).toMatch(/otro formato del número de México/);
+    await canal.enviarTexto('5218111111111', 'otra');
+    expect(destinos.slice(2)).toEqual(['528111111111']); // directo, sin volver a fallar
+  });
+
+  it('también al revés (52… → 521…)', async () => {
+    const { canal, destinos } = montarFalso('5218111111111');
+    await canal.enviarTexto('528111111111', 'hola');
+    expect(destinos).toEqual(['528111111111', '5218111111111']);
+  });
+
+  it('si ninguno de los dos formatos está autorizado, falla con el error original (solo un reintento)', async () => {
+    const { canal, destinos } = montarFalso('nunca');
+    const e: any = await canal.enviarTexto('5218111111111', 'hola').catch((x) => x);
+    expect(e.message).toMatch(/131030/);
+    expect(destinos).toHaveLength(2);
+  });
+
+  it('otros errores y números que no son de México no se reintentan', async () => {
+    let n = 0;
+    const otro = (async () => { n++; return new Response('{"error":{"code":131037}}', { status: 400 }); }) as any;
+    await crearCanalMeta({ token: 't', phoneNumberId: '1', fetchFn: otro, log: () => {} }).enviarTexto('5218111111111', 'x').catch(() => {});
+    expect(n).toBe(1);
+    const { canal, destinos } = montarFalso('nunca');
+    await canal.enviarTexto('14155550123', 'x').catch(() => {});
+    expect(destinos).toEqual(['14155550123']);
+  });
+});
+
 describe('lo que ve un cliente', () => {
   const tiendas = {
     t1: { nombreTienda: 'Dulce Hogar', categoria: 'Postres', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' }, password: 'HASH-SECRETO', calle: 'Hidalgo', numero: '12', colonia: 'Centro', cp: '45000', municipio: 'Zapopan', estado: 'Jalisco', telefono: '3331112222', incluyeWhatsapp: true, email: 'dulce@ej.mx', metodosPago: ['Efectivo', 'Tarjeta'], envioDomicilio: true, zonasEntrega: ['Centro'], horario: { Lunes: { inicio: '09:00', fin: '18:00' }, Martes: { inicio: '', fin: '' } }, faq: 'Hacemos pedidos con 2 días' },
