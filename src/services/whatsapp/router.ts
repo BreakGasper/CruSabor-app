@@ -11,7 +11,8 @@
  */
 import { Router } from 'express';
 import { crearAgente } from '../asistente/agente.ts';
-import { crearGemini, type Cerebro } from '../asistente/gemini.ts';
+import { crearGemini, listarModelos, type Cerebro } from '../asistente/gemini.ts';
+import { timingSafeEqual } from 'node:crypto';
 import { crearCanalMeta, firmaValida, mensajesDelAviso, type Canal } from './meta.ts';
 import { crearAlmacen, type Almacen } from '../pagos/almacen.ts';
 import { crearRouterImagenes } from '../imagenes/router.ts';
@@ -39,6 +40,7 @@ export interface OpcionesWhatsapp {
   almacen?: () => Promise<Almacen>;
   subirImagen?: (bytes: Buffer, mime: string) => Promise<string>;
   eliminarImagenes?: (urls: string[]) => Promise<unknown>;
+  listarModelos?: () => Promise<string[]>;
   log?: (...a: any[]) => void;
 }
 
@@ -79,6 +81,22 @@ export function crearRouterWhatsapp(op: OpcionesWhatsapp = {}) {
     vistos.set(id, ahora);
     return false;
   };
+
+  /**
+   * Diagnóstico: qué modelos de Gemini puede usar esta clave (para armar GEMINI_MODEL). Protegido con el mismo
+   * token de verificación del webhook. No devuelve la llave ni nada secreto, solo nombres de modelos.
+   */
+  router.get('/modelos', async (req, res) => {
+    const dado = Buffer.from(String(req.query.token ?? ''));
+    const esperado = Buffer.from(String(env.WHATSAPP_VERIFY_TOKEN ?? ''));
+    if (!esperado.length || dado.length !== esperado.length || !timingSafeEqual(dado, esperado)) return res.sendStatus(403);
+    try {
+      const modelos = await (op.listarModelos ?? (() => listarModelos({ llave: env.GEMINI_API_KEY! })))();
+      return res.json({ configurado: env.GEMINI_MODEL || 'gemini-3.8-flash (por defecto)', disponibles: modelos });
+    } catch (e: any) {
+      return res.status(502).json({ error: String(e?.message ?? e).slice(0, 200) });
+    }
+  });
 
   router.get('/webhook', (req, res) => {
     if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === env.WHATSAPP_VERIFY_TOKEN) {

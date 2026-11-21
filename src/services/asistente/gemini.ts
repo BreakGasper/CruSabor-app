@@ -51,23 +51,23 @@ interface OpGemini {
 type Intento = { ok: true; texto: string } | { ok: false; status: number; texto: string; timeout?: boolean };
 
 async function llamar(modelo: string, body: any, op: OpGemini): Promise<Intento> {
-  let res: Response;
   try {
-    res = await op.fetchFn(`${BASE}/${modelo}:generateContent`, {
+    const res = await op.fetchFn(`${BASE}/${modelo}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': op.llave },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(MS_POR_INTENTO),
     });
+    // Leer el cuerpo también puede tardar o cortarse: por eso va DENTRO del try (el mismo tope de tiempo lo cubre)
+    if (res.ok) {
+      const data: any = await res.json();
+      return { ok: true, texto: String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim() };
+    }
+    return { ok: false, status: res.status, texto: (await res.text()).slice(0, 300) };
   } catch (e: any) {
     const timeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
     return { ok: false, status: 0, timeout, texto: timeout ? '' : String(e?.message ?? e).slice(0, 150) };
   }
-  if (res.ok) {
-    const data: any = await res.json();
-    return { ok: true, texto: String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim() };
-  }
-  return { ok: false, status: res.status, texto: (await res.text()).slice(0, 300) };
 }
 
 /** Segundos que Google pide esperar ("retryDelay": "23s" o "Please retry in 23.4s"), si los dice */
@@ -97,6 +97,12 @@ async function generar(body: any, op: OpGemini): Promise<string> {
   const modelos = [op.modelo];
   let probadosAlternos = false;
   let ultimo = 'Gemini: sin respuesta';
+  /** Último motivo de cada modelo de la cadena: el error final cuenta TODA la historia, no solo el último modelo */
+  const resumen = new Map<string, string>();
+  const fallo = (modelo: string, texto: string) => {
+    ultimo = texto;
+    resumen.set(modelo, texto);
+  };
 
   for (let pasada = 0; pasada < 2; pasada++) {
     let soloCuota = true;
@@ -108,10 +114,10 @@ async function generar(body: any, op: OpGemini): Promise<string> {
       if (apartado && apartado.hasta > op.ahoraMs()) {
         // Sigue apartado: ni se intenta
         if (apartado.motivo === 'cuota') {
-          ultimo = `Gemini 429 (modelo ${modelo}): cuota por minuto agotada, disponible en ${Math.ceil((apartado.hasta - op.ahoraMs()) / 1000)} s`;
+          fallo(modelo, `Gemini 429 (modelo ${modelo}): cuota por minuto agotada, disponible en ${Math.ceil((apartado.hasta - op.ahoraMs()) / 1000)} s`);
           libreEn = Math.min(libreEn, apartado.hasta);
         } else {
-          ultimo = `Gemini 404 (modelo ${modelo}): no disponible para esta cuenta`;
+          fallo(modelo, `Gemini 404 (modelo ${modelo}): no disponible para esta cuenta`);
           soloCuota = false;
         }
       } else {
@@ -121,9 +127,12 @@ async function generar(body: any, op: OpGemini): Promise<string> {
             if (i > 0) op.log(`Gemini: respondió el modelo ${modelo} (los anteriores de la cadena no estaban disponibles)`);
             return r.texto;
           }
-          ultimo = r.timeout
-            ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})`
-            : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`;
+          fallo(
+            modelo,
+            r.timeout ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})` : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`,
+          );
+          // Los 429 y 404 ya se registran abajo; el resto (503, timeouts, red) también deja huella
+          if (r.status !== 429 && r.status !== 404) op.log(`Gemini: intento fallido con ${modelo}: ${(r.timeout ? 'sin respuesta en ' + MS_POR_INTENTO / 1000 + ' s' : `${r.status || 'sin conexión'} ${r.texto}`).replace(/\s+/g, ' ').slice(0, 160)}`);
           if (r.status === 429) {
             // "limit: 0" = este modelo no está incluido en el plan gratuito; si no, es la cuota por minuto
             const sinPlan = /limit:\s*0\b/.test(r.texto);
@@ -162,7 +171,21 @@ async function generar(body: any, op: OpGemini): Promise<string> {
     if (!(soloCuota && Number.isFinite(libreEn) && espera <= ESPERA_MAX_CUOTA_MS && cabe)) break;
     await op.esperar(Math.max(espera, 0) + 250);
   }
-  throw new Error(ultimo);
+  const otros = [...resumen.entries()].filter(([m]) => !ultimo.includes(`(modelo ${m})`)).map(([, t]) => t.replace(/\s+/g, ' ').slice(0, 140));
+  throw new Error(otros.length ? `${ultimo} || Antes: ${otros.join(' | ')}` : ultimo);
+}
+
+/** Modelos que ESTA clave puede usar para generar texto (para diagnóstico y para elegir la cadena de GEMINI_MODEL) */
+export async function listarModelos(op: { llave: string; fetchFn?: typeof fetch }): Promise<string[]> {
+  const fetchFn = op.fetchFn ?? fetch;
+  const res = await fetchFn(`${BASE}?pageSize=200`, { headers: { 'x-goog-api-key': op.llave }, signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`Gemini ${res.status} al listar modelos`);
+  const data: any = await res.json();
+  return (data?.models ?? [])
+    .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+    .map((m: any) => String(m.name ?? '').replace(/^models\//, ''))
+    .filter((n: string) => /^gemini-/i.test(n))
+    .sort();
 }
 
 const TEXTO = { type: 'STRING' };
