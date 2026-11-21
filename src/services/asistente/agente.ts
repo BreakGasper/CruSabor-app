@@ -44,6 +44,7 @@ import {
   esNo,
   esSi,
   momentoMx,
+  normalizar,
   perfilParaIA,
   permitirMensaje,
   resumenBorrador,
@@ -428,7 +429,13 @@ export function crearAgente(deps: DepsAgente) {
   }
 
   async function recibirFoto(de: string, s: Sesion, m: MensajeEntrante) {
-    const img = await deps.canal.descargarImagen(m.mediaId!);
+    let img: { mime: string; bytes: Buffer };
+    try {
+      img = await deps.canal.descargarImagen(m.mediaId!);
+    } catch (e: any) {
+      log('WhatsApp: no se pudo descargar la foto:', String(e?.message ?? e).slice(0, 200));
+      return decir(de, 'No pude descargar tu foto 😕 Mándala de nuevo en un momento.');
+    }
     if (!MIMES_IMAGEN.includes(img.mime) || img.bytes.length > MAX_BYTES_IMAGEN) {
       return decir(de, 'Mándame la foto como JPG, PNG o WebP de máximo 5 MB.');
     }
@@ -441,6 +448,8 @@ export function crearAgente(deps: DepsAgente) {
     const campo = /\b(logo|logotipo)\b/.test(pie) ? 'logoUrl' : /\b(portada|banner)\b/.test(pie) ? 'bannerUrl' : null;
     if (campo) return pedirConfirmacionPerfil(de, s, { cambios: {}, lineas: [campo === 'logoUrl' ? 'Poner esta foto como el *logo* de la tienda' : 'Poner esta foto como la *portada* de la tienda'], imagenCampo: campo });
     s.textos = m.texto ? [m.texto] : [];
+    // Leer la foto con la IA puede tardar: se avisa para que no parezca que no pasó nada
+    await decir(de, '📸 Recibí tu foto, estoy leyendo los datos…');
     await proponer(de, s, m.texto, { mime: img.mime, base64: img.bytes.toString('base64') });
   }
 
@@ -591,6 +600,10 @@ export function crearAgente(deps: DepsAgente) {
       default:
         if (m.tipo === 'imagen') return recibirFoto(de, s, m);
         if (m.tipo !== 'texto') return decir(de, menuAdmin(s.tienda.nombreTienda));
+        if (s.imagen && /^(reintentar|reintenta|otra vez|de nuevo|intenta de nuevo|vuelve a intentar)$/.test(normalizar(m.texto))) {
+          // La IA estaba saturada: se repite con la foto y los datos que ya se tenían
+          return proponer(de, s, s.textos.join('\n'), { mime: s.imagen.mime, base64: s.imagen.bytes.toString('base64') });
+        }
         if (s.imagen && cmd !== 'datos') {
           // Faltó un dato del artículo: se vuelve a intentar con la foto ya recibida y lo que se ha escrito
           s.textos.push(m.texto);
@@ -615,7 +628,14 @@ export function crearAgente(deps: DepsAgente) {
         log('WhatsApp: error al atender un mensaje:', e?.message ?? e);
         const s = sesiones.get(m.de);
         if (s) s.ocupado = false;
-        await decir(m.de, 'Tuve un problema para atenderte. Inténtalo de nuevo en un momento.').catch(() => {});
+        const ia = /^Gemini/.test(String(e?.message ?? ''));
+        const conFoto = Boolean(s?.imagen);
+        await decir(
+          m.de,
+          ia
+            ? `Mi asistente de inteligencia artificial está saturado en este momento 😕 ${conFoto ? 'Escribe *reintentar* y lo vuelvo a intentar con tu foto.' : 'Inténtalo de nuevo en un minuto.'}`
+            : 'Tuve un problema para atenderte. Inténtalo de nuevo en un momento.',
+        ).catch(() => {});
       })
       .finally(() => {
         if (cola.get(m.de) === siguiente) cola.delete(m.de);

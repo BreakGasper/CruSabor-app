@@ -301,16 +301,80 @@ describe('Gemini', () => {
     expect(n).toBe(3);
     expect(esperas).toEqual([1500, 4000]);
   });
-  it('si Google sigue caído, se rinde tras los reintentos; y un 404 no se reintenta', async () => {
-    let n = 0;
-    const caido = (async () => { n++; return new Response('{"error":{"code":503}}', { status: 503 }); }) as any;
-    await expect(crearGemini({ llave: 'k', fetchFn: caido, esperar: async () => {} }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 503/);
-    expect(n).toBe(3);
-    let m = 0;
-    const noExiste = (async () => { m++; return new Response('{"error":{"code":404}}', { status: 404 }); }) as any;
-    await expect(crearGemini({ llave: 'k', fetchFn: noExiste, esperar: async () => {} }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
-    expect(m).toBe(1);
+  /** fetch falso: responde según el modelo de la URL y a la lista de modelos */
+  const falsoPorModelo = (resp: Record<string, () => Response | Promise<Response>>, lista?: any[]) => {
+    const llamadas: string[] = [];
+    const fetchFn = (async (url: string) => {
+      if (url.includes(':generateContent')) {
+        const modelo = /models\/([^:]+):/.exec(url)![1];
+        llamadas.push(modelo);
+        return resp[modelo] ? resp[modelo]() : new Response('{"error":{"code":404}}', { status: 404 });
+      }
+      llamadas.push('LISTA');
+      return new Response(JSON.stringify({ models: lista ?? [] }), { status: 200 });
+    }) as any;
+    return { llamadas, fetchFn };
+  };
+  const ok = (t: string) => () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: t }] } }] }), { status: 200 });
+  const r503 = () => new Response('{"error":{"code":503,"status":"UNAVAILABLE"}}', { status: 503 });
+  const timeout = () => { const e: any = new Error('The operation was aborted due to timeout'); e.name = 'TimeoutError'; throw e; };
+  const modelo = (name: string, metodos = ['generateContent']) => ({ name: `models/${name}`, supportedGenerationMethods: metodos });
+  const preguntar = (g: any) => g.responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' });
+
+  it('si el modelo principal sigue saturado tras los reintentos, prueba otro modelo Flash que Google ofrece', async () => {
+    const { llamadas, fetchFn } = falsoPorModelo(
+      { 'gemini-3.8-flash': r503, 'gemini-3.7-flash': ok('Respuesta del alterno') },
+      [modelo('gemini-3.8-flash'), modelo('gemini-3.7-flash'), modelo('gemini-3.7-flash-image'), modelo('gemini-3.7-flash-tts'), modelo('gemini-embedding-001', ['embedContent']), modelo('gemini-2.0-pro')],
+    );
+    const g = crearGemini({ llave: 'k', fetchFn, esperar: async () => {} });
+    expect(await preguntar(g)).toBe('Respuesta del alterno');
+    // 3 intentos al principal, la consulta de modelos y el alterno; sin tocar los de imagen, voz ni embeddings
+    expect(llamadas).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.8-flash', 'LISTA', 'gemini-3.7-flash']);
   });
+
+  it('un timeout se reintenta una sola vez y luego pasa al otro modelo (cada timeout cuesta 30 s)', async () => {
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': timeout as any, 'gemini-3.7-flash': ok('ya') }, [modelo('gemini-3.7-flash')]);
+    const g = crearGemini({ llave: 'k', fetchFn, esperar: async () => {} });
+    expect(await preguntar(g)).toBe('ya');
+    expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(2);
+  });
+
+  it('si el modelo ya no existe (404) pasa al siguiente sin reintentar ni esperar', async () => {
+    const esperas: number[] = [];
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.7-flash': ok('del alterno') }, [modelo('gemini-3.7-flash')]);
+    const g = crearGemini({ llave: 'k', fetchFn, esperar: async (ms) => { esperas.push(ms); } });
+    expect(await preguntar(g)).toBe('del alterno');
+    expect(llamadas).toEqual(['gemini-3.8-flash', 'LISTA', 'gemini-3.7-flash']);
+    expect(esperas).toEqual([]);
+  });
+
+  it('GEMINI_FALLBACK_MODEL fija los alternos a mano (sin consultar la lista)', async () => {
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r503, 'mi-modelo': ok('manual') });
+    const g = crearGemini({ llave: 'k', fetchFn, modeloAlterno: 'models/mi-modelo', esperar: async () => {} });
+    expect(await preguntar(g)).toBe('manual');
+    expect(llamadas).not.toContain('LISTA');
+  });
+
+  it('un error de verdad (llave mala, petición inválida) falla de inmediato, sin probar otros modelos', async () => {
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': () => new Response('{"error":{"code":403}}', { status: 403 }) });
+    await expect(preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {} }))).rejects.toThrow(/Gemini 403/);
+    expect(llamadas).toEqual(['gemini-3.8-flash']);
+  });
+
+  it('si todos fallan, el error dice cuál fue el último modelo y si fue por falta de respuesta', async () => {
+    const { fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r503, 'gemini-3.7-flash': timeout as any }, [modelo('gemini-3.7-flash')]);
+    const e: any = await preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {} })).catch((x: any) => x);
+    expect(e.message).toMatch(/^Gemini: sin respuesta en 30 s \(modelo gemini-3\.7-flash\)/);
+  });
+
+  it('no sigue intentando indefinidamente: pasado el tiempo total se rinde', async () => {
+    let t = 0;
+    const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': () => { t += 50_000; return r503(); } }, [modelo('gemini-3.7-flash')]);
+    const e: any = await preguntar(crearGemini({ llave: 'k', fetchFn, esperar: async () => {}, ahoraMs: () => t })).catch((x: any) => x);
+    expect(e.message).toMatch(/Gemini 503/);
+    expect(llamadas.filter((m) => m !== 'LISTA').length).toBeLessThanOrEqual(2);
+  });
+
   it('un error de Gemini no filtra la llave', async () => {
     const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
     await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
@@ -368,21 +432,23 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
     actualizar: async (c: Record<string, any>) => { for (const [r, v] of Object.entries(c)) poner(r, v); },
     nuevoId: () => 'art1',
   });
-  const crear = () => crearAgente({
-    canal: {
+  const canal: any = {
       enviarTexto: async (_a, t) => { enviados.push(t); },
       enviarBotones: async (_a, t, b) => {
         if (extra.sinBotones) throw new Error('WhatsApp envío 400: interactive no permitido');
         botones.push(b.map((x) => x.id)); enviados.push(t + ' [' + b.map((x) => x.id).join(',') + ']');
       },
       descargarImagen: async () => ({ mime: 'image/jpeg', bytes: Buffer.from('foto') }),
-    },
-    cerebro: {
+  };
+  const cerebro: any = {
       extraerArticulo: async ({ texto, borradorActual }) =>
         extra.extraerCrudo ?? (borradorActual ? { ...borradorActual, precio: Number(texto.match(/\d+/)?.[0]) } : { nombre: 'Pastel de chocolate', precio: 350, categoriaId: 'c1' }),
       responderCliente: async (a) => { respuestasCliente.push(a); return `Encontré ${a.catalogo.articulos.length} artículo(s)`; },
       interpretarAdmin: async ({ texto }) => (extra.admin ? extra.admin(texto) : { accion: 'otro' }),
-    },
+  };
+  const crear = () => crearAgente({
+    canal,
+    cerebro,
     almacen,
     subirImagen: async () => { subidas++; return `https://img/foto${subidas}.jpg`; },
     eliminarImagenes: async (urls) => {
@@ -401,7 +467,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const boton = (id: string, de = TEL) => di({ tipo: 'boton', texto: id }, de);
   const entrar = async (de = TEL) => { await di({ texto: 'entrar' }, de); await di({ texto: 'secreto1' }, de); };
   return {
-    bd, enviados, logs, botones, respuestasCliente, di, boton, entrar,
+    bd, enviados, logs, botones, respuestasCliente, di, boton, entrar, canal, cerebro,
     avanzar: (min: number) => { reloj += min * 60_000; },
     subidas: () => subidas,
     borradas,
@@ -511,6 +577,44 @@ describe('si WhatsApp rechaza los botones, el agente sigue funcionando por texto
     await c.di({ texto: 'menú' });
     await c.di({ texto: 'tienda' });
     expect(ultimo(c.enviados)).toMatch(/Sesión de hoy activa/);
+  });
+});
+
+describe('IA saturada o foto que no se puede descargar', () => {
+  it('avisa que leerá la foto; si la IA falla lo dice con claridad y "reintentar" repite con la misma foto', async () => {
+    let falla = true;
+    const x = montar();
+    // El cerebro de prueba se reemplaza: falla una vez y luego responde
+    const original = x.cerebro.extraerArticulo;
+    x.cerebro.extraerArticulo = async (a: any) => { if (falla) { falla = false; throw new Error('Gemini: sin respuesta en 30 s (modelo gemini-3.8-flash)'); } return original(a); };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate $350' });
+    expect(x.enviados.some((t) => /Recibí tu foto, estoy leyendo los datos/.test(t))).toBe(true);
+    expect(ultimo(x.enviados)).toMatch(/inteligencia artificial está saturado[\s\S]*Escribe \*reintentar\*/);
+    expect(x.bd.articulos).toEqual({});
+    await x.di({ texto: 'reintentar' });
+    expect(ultimo(x.enviados)).toMatch(/Revisa el artículo[\s\S]*Pastel de chocolate/);
+    await x.boton('guardar');
+    expect(x.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', tiendaId: 't1' });
+  });
+
+  it('sin foto, el aviso de IA saturada no promete "reintentar"', async () => {
+    const x = montar();
+    x.cerebro.interpretarAdmin = async () => { throw new Error('Gemini 503 (modelo x): demanda'); };
+    await x.entrar();
+    await x.di({ texto: 'abro de lunes a viernes' });
+    expect(ultimo(x.enviados)).toMatch(/saturado[\s\S]*Inténtalo de nuevo en un minuto/);
+    expect(ultimo(x.enviados)).not.toMatch(/reintentar/);
+  });
+
+  it('si no se puede descargar la foto de WhatsApp, lo dice y lo registra (sin tumbar nada)', async () => {
+    const x = montar();
+    x.canal.descargarImagen = async () => { throw new Error('The operation was aborted due to timeout'); };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(ultimo(x.enviados)).toMatch(/No pude descargar tu foto/);
+    expect(x.logs.some((l) => /no se pudo descargar la foto/.test(l))).toBe(true);
+    expect(x.bd.articulos).toEqual({});
   });
 });
 

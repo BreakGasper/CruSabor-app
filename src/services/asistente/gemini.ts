@@ -3,6 +3,8 @@
  *
  *   GEMINI_API_KEY  llave de https://aistudio.google.com/apikey (gratis, sin tarjeta)
  *   GEMINI_MODEL    por defecto gemini-3.8-flash (cámbialo si Google lo renombra)
+ *   GEMINI_FALLBACK_MODEL  opcional: modelo(s) a probar si el principal está saturado (separados por coma).
+ *                   Si no se define, se eligen solos entre los modelos Flash que Google ofrece.
  *
  * Aviso de privacidad: en el nivel gratuito Google puede usar lo que se envía (fotos y textos)
  * para mejorar sus productos. No mandes aquí nada que no quieras que Google vea.
@@ -25,29 +27,77 @@ export interface Cerebro {
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-/** Errores de Google que suelen ser pasajeros (picos de demanda, cuota por minuto): vale la pena reintentar */
+/** Errores de Google que suelen ser pasajeros (picos de demanda, cuota por minuto, red): vale la pena reintentar */
 const REINTENTABLES = new Set([429, 500, 502, 503, 504]);
 const ESPERAS_MS = [1500, 4000];
+/** Cada intento tiene su propio tope; el total evita que el usuario espere de más */
+const MS_POR_INTENTO = 30_000;
+const MS_TOTAL = 80_000;
 
-async function generar(
-  body: any,
-  op: { llave: string; modelo: string; fetchFn: typeof fetch; esperar: (ms: number) => Promise<void> },
-): Promise<string> {
-  let ultimo = '';
-  for (let intento = 0; intento <= ESPERAS_MS.length; intento++) {
-    const res = await op.fetchFn(`${BASE}/${op.modelo}:generateContent`, {
+interface OpGemini {
+  llave: string;
+  modelo: string;
+  fetchFn: typeof fetch;
+  esperar: (ms: number) => Promise<void>;
+  ahoraMs: () => number;
+  /** Otros modelos a probar si el principal está saturado o ya no existe */
+  alternos: () => Promise<string[]>;
+}
+
+type Intento = { ok: true; texto: string } | { ok: false; status: number; texto: string; timeout?: boolean };
+
+async function llamar(modelo: string, body: any, op: OpGemini): Promise<Intento> {
+  let res: Response;
+  try {
+    res = await op.fetchFn(`${BASE}/${modelo}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': op.llave },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(MS_POR_INTENTO),
     });
-    if (res.ok) {
-      const data: any = await res.json();
-      return String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim();
+  } catch (e: any) {
+    const timeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+    return { ok: false, status: 0, timeout, texto: timeout ? '' : String(e?.message ?? e).slice(0, 150) };
+  }
+  if (res.ok) {
+    const data: any = await res.json();
+    return { ok: true, texto: String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim() };
+  }
+  return { ok: false, status: res.status, texto: (await res.text()).slice(0, 300) };
+}
+
+/**
+ * Llama a Gemini con paciencia: reintenta los errores pasajeros (503, 429, timeouts) y, si el modelo
+ * principal sigue saturado o ya no existe (404), prueba otros modelos Flash. Un error "de verdad"
+ * (llave mala, petición inválida) falla de inmediato.
+ */
+async function generar(body: any, op: OpGemini): Promise<string> {
+  const inicio = op.ahoraMs();
+  const modelos = [op.modelo];
+  let probadosAlternos = false;
+  let ultimo = 'Gemini: sin respuesta';
+
+  for (let i = 0; i < modelos.length; i++) {
+    const modelo = modelos[i];
+    for (let intento = 0; ; intento++) {
+      const r = await llamar(modelo, body, op);
+      if (r.ok) return r.texto;
+      ultimo = r.timeout
+        ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})`
+        : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`;
+      if (r.status === 404) break; // modelo retirado: pasar al siguiente
+      const reintentable = r.status === 0 || REINTENTABLES.has(r.status);
+      if (!reintentable) throw new Error(ultimo);
+      // Un timeout ya costó 30 s: solo se reintenta una vez
+      const maxReintentos = r.timeout ? 1 : ESPERAS_MS.length;
+      if (intento >= maxReintentos || op.ahoraMs() - inicio > MS_TOTAL) break;
+      await op.esperar(ESPERAS_MS[intento]);
     }
-    ultimo = `Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`;
-    if (!REINTENTABLES.has(res.status) || intento === ESPERAS_MS.length) break;
-    await op.esperar(ESPERAS_MS[intento]);
+    if (op.ahoraMs() - inicio > MS_TOTAL) break;
+    if (!probadosAlternos) {
+      probadosAlternos = true;
+      modelos.push(...(await op.alternos()));
+    }
   }
   throw new Error(ultimo);
 }
@@ -93,12 +143,41 @@ const ESQUEMA_ARTICULO = {
   },
 };
 
-export function crearGemini(op: { llave?: string; modelo?: string; fetchFn?: typeof fetch; esperar?: (ms: number) => Promise<void> } = {}): Cerebro {
+export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno?: string; fetchFn?: typeof fetch; esperar?: (ms: number) => Promise<void>; ahoraMs?: () => number } = {}): Cerebro {
   const llave = op.llave ?? process.env.GEMINI_API_KEY ?? '';
   const modelo = op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-3.8-flash');
   const fetchFn = op.fetchFn ?? fetch;
   if (!llave) throw new Error('Falta GEMINI_API_KEY');
-  const cfg = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))) };
+  const ahoraMs = op.ahoraMs ?? (() => Date.now());
+
+  // Otros modelos Flash para cuando el principal esté saturado. GEMINI_FALLBACK_MODEL (uno o varios, separados por coma)
+  // los fija a mano; si no, se consultan a Google una vez por hora (los más nuevos primero).
+  let cacheAlternos: { en: number; lista: string[] } | null = null;
+  const alternos = async (): Promise<string[]> => {
+    const fijos = (op.modeloAlterno ?? process.env.GEMINI_FALLBACK_MODEL ?? '').split(',').map((x) => x.trim().replace(/^models\//, '')).filter((x) => x && x !== modelo);
+    if (fijos.length) return fijos;
+    if (cacheAlternos && ahoraMs() - cacheAlternos.en < 3_600_000) return cacheAlternos.lista;
+    let lista: string[] = [];
+    try {
+      const res = await fetchFn(`${BASE}?pageSize=200`, { headers: { 'x-goog-api-key': llave }, signal: AbortSignal.timeout(10_000) });
+      if (res.ok) {
+        const data: any = await res.json();
+        lista = (data?.models ?? [])
+          .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map((m: any) => String(m.name ?? '').replace(/^models\//, ''))
+          .filter((n: string) => /^gemini-.*flash/i.test(n) && !/(image|tts|embed|live|audio|robotics|computer|vision)/i.test(n) && n !== modelo)
+          .sort()
+          .reverse()
+          .slice(0, 2);
+      }
+    } catch {
+      // sin lista no hay alternos: se queda con el modelo principal
+    }
+    cacheAlternos = { en: ahoraMs(), lista };
+    return lista;
+  };
+
+  const cfg: OpGemini = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))), ahoraMs, alternos };
 
   return {
     async extraerArticulo({ texto, imagen, categorias, borradorActual }) {
