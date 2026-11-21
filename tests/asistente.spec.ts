@@ -117,6 +117,16 @@ describe('canal de Meta', () => {
   });
 });
 
+describe('canal de Meta: errores', () => {
+  it('el error de envío dice desde qué número se intentó (últimos 4 dígitos) y no filtra el token', async () => {
+    const fetchFn = (async () => new Response('{"error":{"code":131037}}', { status: 400 })) as any;
+    const canal = crearCanalMeta({ token: 'TOKEN-SECRETO', phoneNumberId: '1436909166179242', fetchFn, log: () => {} });
+    const e: any = await canal.enviarTexto('5218111111111', 'hola').catch((x) => x);
+    expect(e.message).toMatch(/WhatsApp envío 400 \(desde el número …9242\): .*131037/);
+    expect(e.message).not.toMatch(/TOKEN-SECRETO|1436909166179242/);
+  });
+});
+
 describe('lo que ve un cliente', () => {
   const tiendas = {
     t1: { nombreTienda: 'Dulce Hogar', categoria: 'Postres', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' }, password: 'HASH-SECRETO', calle: 'Hidalgo', numero: '12', colonia: 'Centro', cp: '45000', municipio: 'Zapopan', estado: 'Jalisco', telefono: '3331112222', incluyeWhatsapp: true, email: 'dulce@ej.mx', metodosPago: ['Efectivo', 'Tarjeta'], envioDomicilio: true, zonasEntrega: ['Centro'], horario: { Lunes: { inicio: '09:00', fin: '18:00' }, Martes: { inicio: '', fin: '' } }, faq: 'Hacemos pedidos con 2 días' },
