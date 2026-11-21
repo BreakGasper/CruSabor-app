@@ -115,7 +115,7 @@ Código: `src/services/asistente/` (agente, reglas, Gemini) y `src/services/what
 | --- | --- |
 | `API_PUBLIC_URL` | La URL del servicio en Render |
 | `GEMINI_API_KEY` | Google AI Studio |
-| `GEMINI_MODEL` (opcional) | Nombre del modelo, si Google retira el actual |
+| `GEMINI_MODEL` (opcional) | Modelo, o **cadena de modelos separada por comas en orden de preferencia**. Cuando a uno se le acaba su cuota por minuto, se sigue con el siguiente. Recomendado (suma ~20 solicitudes por minuto gratis): `gemini-3.8-flash,gemini-2.5-flash-lite,gemini-2.5-flash`. Los que no existan para tu cuenta se saltan solos |
 | `GEMINI_FALLBACK_MODEL` (opcional) | Modelo(s) de respaldo, separados por coma; si no se define, se eligen solos |
 | `WHATSAPP_PHONE_NUMBER_ID` | Meta › identificador del **número de teléfono** (no el de la cuenta, no el celular) |
 | `WHATSAPP_TOKEN` | Token de acceso; ver 2.6 |

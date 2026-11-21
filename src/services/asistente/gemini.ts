@@ -2,7 +2,8 @@
  * Cliente de Gemini (nivel gratuito de Google AI Studio). Sin SDK: una llamada HTTP.
  *
  *   GEMINI_API_KEY  llave de https://aistudio.google.com/apikey (gratis, sin tarjeta)
- *   GEMINI_MODEL    por defecto gemini-3.8-flash (cámbialo si Google lo renombra)
+ *   GEMINI_MODEL    por defecto gemini-3.8-flash. Puede ser una CADENA separada por comas, en orden de preferencia:
+ *                   "gemini-3.8-flash,gemini-2.5-flash-lite". Cuando a un modelo se le acaba su cuota se sigue con el siguiente.
  *   GEMINI_FALLBACK_MODEL  opcional: modelo(s) a probar si el principal está saturado (separados por coma).
  *                   Si no se define, se eligen solos entre los modelos Flash que Google ofrece.
  *
@@ -42,8 +43,9 @@ interface OpGemini {
   ahoraMs: () => number;
   /** Otros modelos a probar si el principal está saturado o ya no existe */
   alternos: () => Promise<string[]>;
-  /** Modelos con la cuota por minuto agotada: hasta cuándo (ms) no se les vuelve a llamar */
-  enfriando: Map<string, number>;
+  /** Modelos apartados: hasta cuándo (ms) no se les vuelve a llamar y por qué (cuota por minuto, o no disponible para esta cuenta) */
+  enfriando: Map<string, { hasta: number; motivo: 'cuota' | 'no-disponible' }>;
+  log: (...a: any[]) => void;
 }
 
 type Intento = { ok: true; texto: string } | { ok: false; status: number; texto: string; timeout?: boolean };
@@ -78,14 +80,16 @@ function retardoPedido(texto: string): number | null {
 const ESPERA_MAX_CUOTA_MS = 25_000;
 /** Si Google no dice cuánto, la cuota gratuita es por minuto */
 const ENFRIAMIENTO_POR_DEFECTO_MS = 60_000;
+/** Un modelo que no existe para esta cuenta (404) o con límite 0 en el plan gratuito no se arregla esperando: se aparta una hora */
+const APARTADO_LARGO_MS = 3_600_000;
 
 /**
- * Llama a Gemini con paciencia:
+ * Llama a Gemini con paciencia y con una CADENA de modelos:
  *  - reintenta los errores pasajeros (503, timeouts) con pausas cortas;
- *  - una cuota por minuto agotada (429) NO se reintenta en el mismo modelo: se le da un "enfriamiento" (lo que pida
- *    Google, o 60 s) y mientras dure no se le llama, para no gastar más cuota ni tiempo; se prueba otro modelo Flash;
- *  - si TODOS están en enfriamiento y falta poco, espera y vuelve a intentar una vez; si falta mucho, falla enseguida;
- *  - un modelo que ya no existe (404) pasa al siguiente;
+ *  - una cuota por minuto agotada (429) NO se reintenta en el mismo modelo: se aparta lo que pida Google (o 60 s) y se
+ *    sigue con el siguiente de la cadena; mientras dure no se le llama, para no gastar cuota ni tiempo;
+ *  - un modelo que no existe (404) o con "limit: 0" (no incluido en el plan gratuito) se aparta una hora;
+ *  - si TODOS están sin cuota y falta poco, espera y vuelve a intentar una vez; si falta mucho, falla enseguida;
  *  - un error "de verdad" (llave mala, petición inválida) falla de inmediato.
  */
 async function generar(body: any, op: OpGemini): Promise<string> {
@@ -100,26 +104,43 @@ async function generar(body: any, op: OpGemini): Promise<string> {
 
     for (let i = 0; i < modelos.length; i++) {
       const modelo = modelos[i];
-      const libre = op.enfriando.get(modelo) ?? 0;
-      if (libre > op.ahoraMs()) {
-        // Su cuota por minuto sigue agotada: ni se intenta
-        ultimo = `Gemini 429 (modelo ${modelo}): cuota por minuto agotada, disponible en ${Math.ceil((libre - op.ahoraMs()) / 1000)} s`;
-        libreEn = Math.min(libreEn, libre);
+      const apartado = op.enfriando.get(modelo);
+      if (apartado && apartado.hasta > op.ahoraMs()) {
+        // Sigue apartado: ni se intenta
+        if (apartado.motivo === 'cuota') {
+          ultimo = `Gemini 429 (modelo ${modelo}): cuota por minuto agotada, disponible en ${Math.ceil((apartado.hasta - op.ahoraMs()) / 1000)} s`;
+          libreEn = Math.min(libreEn, apartado.hasta);
+        } else {
+          ultimo = `Gemini 404 (modelo ${modelo}): no disponible para esta cuenta`;
+          soloCuota = false;
+        }
       } else {
         for (let intento = 0; ; intento++) {
           const r = await llamar(modelo, body, op);
-          if (r.ok) return r.texto;
+          if (r.ok) {
+            if (i > 0) op.log(`Gemini: respondió el modelo ${modelo} (los anteriores de la cadena no estaban disponibles)`);
+            return r.texto;
+          }
           ultimo = r.timeout
             ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})`
             : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`;
           if (r.status === 429) {
-            const hasta = op.ahoraMs() + (retardoPedido(r.texto) ?? ENFRIAMIENTO_POR_DEFECTO_MS);
-            op.enfriando.set(modelo, hasta);
-            libreEn = Math.min(libreEn, hasta);
+            // "limit: 0" = este modelo no está incluido en el plan gratuito; si no, es la cuota por minuto
+            const sinPlan = /limit:\s*0\b/.test(r.texto);
+            const espera = sinPlan ? APARTADO_LARGO_MS : (retardoPedido(r.texto) ?? ENFRIAMIENTO_POR_DEFECTO_MS);
+            const hasta = op.ahoraMs() + espera;
+            op.enfriando.set(modelo, { hasta, motivo: sinPlan ? 'no-disponible' : 'cuota' });
+            op.log(`Gemini: el modelo ${modelo} ${sinPlan ? 'no está incluido en el plan gratuito' : 'agotó su cuota por minuto'}; se aparta ${Math.round(espera / 1000)} s y se sigue con otro`);
+            if (sinPlan) soloCuota = false;
+            else libreEn = Math.min(libreEn, hasta);
             break;
           }
           soloCuota = false;
-          if (r.status === 404) break; // modelo retirado: pasar al siguiente
+          if (r.status === 404) {
+            op.enfriando.set(modelo, { hasta: op.ahoraMs() + APARTADO_LARGO_MS, motivo: 'no-disponible' });
+            op.log(`Gemini: el modelo ${modelo} no está disponible para esta cuenta; se aparta y se sigue con otro`);
+            break;
+          }
           const reintentable = r.status === 0 || REINTENTABLES.has(r.status);
           if (!reintentable) throw new Error(ultimo);
           // Un timeout ya costó 30 s: solo se reintenta una vez
@@ -135,7 +156,7 @@ async function generar(body: any, op: OpGemini): Promise<string> {
       }
     }
 
-    // Todos con cuota agotada: si falta poco para que se libere el primero, se espera y se prueba otra vez
+    // Todos sin cuota por minuto: si falta poco para que se libere el primero, se espera y se prueba otra vez
     const espera = libreEn - op.ahoraMs();
     const cabe = op.ahoraMs() - inicio + espera < MS_TOTAL;
     if (!(soloCuota && Number.isFinite(libreEn) && espera <= ESPERA_MAX_CUOTA_MS && cabe)) break;
@@ -185,18 +206,21 @@ const ESQUEMA_ARTICULO = {
   },
 };
 
-export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno?: string; fetchFn?: typeof fetch; esperar?: (ms: number) => Promise<void>; ahoraMs?: () => number } = {}): Cerebro {
+export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno?: string; fetchFn?: typeof fetch; esperar?: (ms: number) => Promise<void>; ahoraMs?: () => number; log?: (...a: any[]) => void } = {}): Cerebro {
   const llave = op.llave ?? process.env.GEMINI_API_KEY ?? '';
-  const modelo = op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-3.8-flash');
+  // GEMINI_MODEL puede ser una cadena "a,b,c": el primero es el principal y el resto, sus respaldos en orden
+  const cadena = (op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-3.8-flash')).split(',').map((x) => x.trim().replace(/^models\//, '')).filter(Boolean);
+  const modelo = cadena[0] ?? 'gemini-3.8-flash';
+  const log = op.log ?? console.log;
   const fetchFn = op.fetchFn ?? fetch;
   if (!llave) throw new Error('Falta GEMINI_API_KEY');
   const ahoraMs = op.ahoraMs ?? (() => Date.now());
 
-  // Otros modelos Flash para cuando el principal esté saturado. GEMINI_FALLBACK_MODEL (uno o varios, separados por coma)
-  // los fija a mano; si no, se consultan a Google una vez por hora (los más nuevos primero).
+  // Respaldos: los que se pongan a mano (el resto de la cadena de GEMINI_MODEL y/o GEMINI_FALLBACK_MODEL, en ese orden);
+  // si no hay ninguno, se consultan a Google una vez por hora (los "lite" primero, luego los más nuevos).
   let cacheAlternos: { en: number; lista: string[] } | null = null;
   const alternos = async (): Promise<string[]> => {
-    const fijos = (op.modeloAlterno ?? process.env.GEMINI_FALLBACK_MODEL ?? '').split(',').map((x) => x.trim().replace(/^models\//, '')).filter((x) => x && x !== modelo);
+    const fijos = [...cadena.slice(1), ...(op.modeloAlterno ?? process.env.GEMINI_FALLBACK_MODEL ?? '').split(',').map((x) => x.trim().replace(/^models\//, ''))].filter((x, i, a) => x && x !== modelo && a.indexOf(x) === i);
     if (fijos.length) return fijos;
     if (cacheAlternos && ahoraMs() - cacheAlternos.en < 3_600_000) return cacheAlternos.lista;
     let lista: string[] = [];
@@ -220,7 +244,7 @@ export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno
     return lista;
   };
 
-  const cfg: OpGemini = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))), ahoraMs, alternos, enfriando: new Map() };
+  const cfg: OpGemini = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))), ahoraMs, alternos, enfriando: new Map(), log };
 
   return {
     async extraerArticulo({ texto, imagen, categorias, borradorActual }) {
