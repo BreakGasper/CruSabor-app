@@ -89,7 +89,8 @@ async function generar(body: any, op: OpGemini): Promise<string> {
       const reintentable = r.status === 0 || REINTENTABLES.has(r.status);
       if (!reintentable) throw new Error(ultimo);
       // Un timeout ya costó 30 s: solo se reintenta una vez
-      const maxReintentos = r.timeout ? 1 : ESPERAS_MS.length;
+      // Una cuota agotada (429) no se arregla esperando segundos: se pasa a otro modelo, que tiene su propia cuota
+      const maxReintentos = r.timeout ? 1 : r.status === 429 ? 0 : ESPERAS_MS.length;
       if (intento >= maxReintentos || op.ahoraMs() - inicio > MS_TOTAL) break;
       await op.esperar(ESPERAS_MS[intento]);
     }
@@ -162,13 +163,14 @@ export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno
       const res = await fetchFn(`${BASE}?pageSize=200`, { headers: { 'x-goog-api-key': llave }, signal: AbortSignal.timeout(10_000) });
       if (res.ok) {
         const data: any = await res.json();
+        const version = (n: string) => Number(/^gemini-(\d+(?:\.\d+)?)-/.exec(n)?.[1] ?? 0);
         lista = (data?.models ?? [])
           .filter((m: any) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
           .map((m: any) => String(m.name ?? '').replace(/^models\//, ''))
-          .filter((n: string) => /^gemini-.*flash/i.test(n) && !/(image|tts|embed|live|audio|robotics|computer|vision)/i.test(n) && n !== modelo)
-          .sort()
-          .reverse()
-          .slice(0, 2);
+          .filter((n: string) => /^gemini-\d.*flash/i.test(n) && !/(image|tts|embed|live|audio|robotics|computer|vision|omni|native|dialog)/i.test(n) && n !== modelo)
+          // Primero los "lite" (más cuota gratuita) y, entre iguales, los más nuevos
+          .sort((a: string, b: string) => Number(/lite/i.test(b)) - Number(/lite/i.test(a)) || version(b) - version(a) || b.localeCompare(a))
+          .slice(0, 3);
       }
     } catch {
       // sin lista no hay alternos: se queda con el modelo principal

@@ -392,7 +392,53 @@ export function buscarCatalogo(
     visibles.filter(([, a]: [string, any]) => String(a.tiendaId) === id).slice(0, 4).forEach(([, a]) => guardar(a));
   }
 
+  // Preguntas generales sin filtro ("¿qué tiendas hay?", "lista de tiendas", "¿qué venden?"): se muestra un listado
+  const texto0 = normalizar(consulta);
+  const pideTiendas = /\b(tiendas?|negocios?|comercios?)\b/.test(texto0);
+  const pideArticulos = /\b(productos?|articulos?|catalogo|venden|ofrecen)\b/.test(texto0);
+  if ((pideTiendas || pideArticulos) && claves.every((k) => PALABRAS_DE_LISTADO.has(k))) {
+    const listaTiendas = [...vendedoras.values()].sort((a, b) => String(a.nombreTienda).localeCompare(String(b.nombreTienda), 'es')).slice(0, 10).map(tiendaPublica);
+    const listaArticulos = [...visibles]
+      .sort(([, a]: any, [, b]: any) => String(b.fecha_hora ?? '').localeCompare(String(a.fecha_hora ?? '')))
+      .slice(0, 8)
+      .map(([, a]) => articuloPublico(a));
+    return { articulos: pideArticulos ? listaArticulos : [], tiendas: pideTiendas ? listaTiendas : [] };
+  }
+
   return { articulos: [...arts.values()].slice(0, 8), tiendas: tiendasOrdenadas.map(({ t }) => tiendaPublica(t)) };
+}
+
+/** Palabras que, solas, significan "muéstrame todo" y no un filtro */
+const PALABRAS_DE_LISTADO = new Set([
+  'lista', 'listado', 'todas', 'todos', 'disponibles', 'registradas', 'existen', 'nuevas', 'nuevos', 'recientes', 'ultimos', 'ultimas',
+  // el sustantivo mismo ("productos", "negocios"…) tampoco es un filtro
+  'productos', 'producto', 'articulos', 'articulo', 'catalogo', 'venden', 'ofrecen', 'negocios', 'negocio', 'comercios', 'comercio',
+]);
+
+/**
+ * Respuesta de emergencia SIN inteligencia artificial, para cuando Gemini no está disponible (cuota o saturación):
+ * lo mismo que se le habría dado a la IA, pero en una lista simple.
+ */
+export function respuestaSinIA(c: ResultadoCatalogo, urlApp: string): string {
+  const l = ['Ahora mismo mi asistente de IA no está disponible 😕, pero esto es lo que encontré:'];
+  if (c.tiendas.length === 1) {
+    const t = c.tiendas[0];
+    l.push(`🏪 *${t.nombre}*${t.categoria ? ` (${t.categoria})` : ''}`);
+    if (t.direccion) l.push(`📍 ${t.direccion}`);
+    if (t.telefono) l.push(`📞 ${t.telefono}${t.whatsapp ? ' · WhatsApp' : ''}`);
+    l.push('🕘 ' + DIAS_SEMANA.map((d) => `${d.slice(0, 3)} ${t.horario[d]}`).join(' · '));
+    if (t.metodosPago.length) l.push(`💳 ${t.metodosPago.join(', ')}`);
+    l.push(`🚚 Envío a domicilio: ${t.envioDomicilio ? 'sí' : 'no'}`);
+  } else if (c.tiendas.length) {
+    l.push('🏪 *Tiendas*');
+    for (const t of c.tiendas) l.push(`• *${t.nombre}*${t.categoria ? ` — ${t.categoria}` : ''}${t.municipio ? `, ${t.municipio}` : ''}`);
+  }
+  if (c.articulos.length) {
+    l.push('🛍️ *Artículos*');
+    for (const a of c.articulos) l.push(`• *${a.nombre}* — $${a.precio.toLocaleString('es-MX')}${a.tienda ? ` en ${a.tienda}` : ''}${a.disponible ? '' : ' (agotado)'}`);
+  }
+  l.push(`Más detalle en ${urlApp}`);
+  return l.join('\n');
 }
 
 /* ---------------- cambios al perfil de la tienda (lo que se puede pedir por chat) ---------------- */
