@@ -2,7 +2,7 @@
  * Cliente de Gemini (nivel gratuito de Google AI Studio). Sin SDK: una llamada HTTP.
  *
  *   GEMINI_API_KEY  llave de https://aistudio.google.com/apikey (gratis, sin tarjeta)
- *   GEMINI_MODEL    por defecto gemini-2.5-flash (cámbialo si Google lo renombra)
+ *   GEMINI_MODEL    por defecto gemini-3.8-flash (cámbialo si Google lo renombra)
  *
  * Aviso de privacidad: en el nivel gratuito Google puede usar lo que se envía (fotos y textos)
  * para mejorar sus productos. No mandes aquí nada que no quieras que Google vea.
@@ -54,7 +54,7 @@ const ESQUEMA_ARTICULO = {
 
 export function crearGemini(op: { llave?: string; modelo?: string; fetchFn?: typeof fetch } = {}): Cerebro {
   const llave = op.llave ?? process.env.GEMINI_API_KEY ?? '';
-  const modelo = op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-2.5-flash');
+  const modelo = op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-3.8-flash');
   const fetchFn = op.fetchFn ?? fetch;
   if (!llave) throw new Error('Falta GEMINI_API_KEY');
   const cfg = { llave, modelo, fetchFn };
@@ -97,7 +97,8 @@ export function crearGemini(op: { llave?: string; modelo?: string; fetchFn?: typ
         {
           systemInstruction: { parts: [{ text: sistema }] },
           contents: [{ role: 'user', parts: [{ text: `Catálogo:\n${JSON.stringify(catalogo)}\n\nPregunta del cliente:\n${pregunta.slice(0, 500)}` }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 400 },
+          // Sin maxOutputTokens: en los modelos con razonamiento ese tope también cuenta el "pensar" y podía dejar la respuesta vacía
+          generationConfig: { temperature: 0.3 },
         },
         cfg,
       );
