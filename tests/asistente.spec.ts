@@ -9,7 +9,7 @@ import { createHmac, createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
   comandoDe, rolDe, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
-  buscarCatalogo, construirArticulo, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
+  buscarCatalogo, construirArticulo, detectaBajoPedido, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
   MAX_MENSAJES_POR_VENTANA,
 } from '../src/services/asistente/logica.ts';
 import { crearAgente } from '../src/services/asistente/agente.ts';
@@ -42,6 +42,17 @@ describe('reglas puras', () => {
     expect(esSi('publicar')).toBe(true);
     expect(esNo('no gracias')).toBe(true);
     expect(esSi('nunca')).toBe(false);
+  });
+  it('detecta "bajo pedido" con una regla fija (sí, no, o no dice nada)', () => {
+    for (const t of ['Pastel de boda $1500 bajo pedido', 'es SOBRE PEDIDO', 'Lo hacemos por encargo', 'solo por pedido', 'se elabora cuando lo piden', 'a pedido', 'Bajo Pedido.']) {
+      expect(detectaBajoPedido(t), t).toBe(true);
+    }
+    for (const t of ['ya no es bajo pedido', 'no es sobre pedido', 'sin bajo pedido', 'ya no es por encargo']) {
+      expect(detectaBajoPedido(t), t).toBe(false);
+    }
+    for (const t of ['Pastel de chocolate $350', 'tengo 5 piezas', 'el precio es 120', 'pedido de un cliente', 'mi pedido llegó', '']) {
+      expect(detectaBajoPedido(t), t).toBeNull();
+    }
   });
   it('lee precios escritos de varias formas', () => {
     expect(leerPrecio('$1,250.50')).toBe(1250.5);
@@ -839,6 +850,57 @@ describe('cuando la IA no está disponible', () => {
     await x.entrar();
     await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
     expect(ultimo(x.enviados)).toMatch(/Se agotó el uso gratuito[\s\S]*Escribe \*reintentar\*/);
+  });
+});
+
+describe('artículos bajo pedido', () => {
+  it('si la tienda lo escribe, se publica bajo pedido aunque la IA no lo haya marcado: sin existencias y con la etiqueta', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel de boda', precio: 1500, stock: 5, porPedido: false } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de boda $1500 bajo pedido, 5 piezas' });
+    expect(ultimo(x.enviados)).toMatch(/Pastel de boda[\s\S]*Bajo pedido/);
+    expect(ultimo(x.enviados)).not.toMatch(/Existencias/);
+    await x.boton('guardar');
+    const a = x.bd.articulos.art1;
+    expect(a.porPedido).toBe(true);
+    expect(a.variantes[0]).toMatchObject({ tieneStock: false, stock: -1 });
+  });
+
+  it('sin decirlo, un artículo normal NO queda bajo pedido; y "ya no es bajo pedido" lo corrige antes de publicar', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350, stock: 4 } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350, 4 piezas' });
+    expect(ultimo(x.enviados)).toMatch(/Existencias: 4/);
+    await x.di({ texto: 'es bajo pedido' });
+    expect(ultimo(x.enviados)).toMatch(/Bajo pedido/);
+    await x.di({ texto: 'ya no es bajo pedido' });
+    expect(ultimo(x.enviados)).not.toMatch(/Bajo pedido/);
+    await x.boton('guardar');
+    expect(x.bd.articulos.art1.porPedido).toBe(false);
+  });
+
+  it('corregir otro dato (el precio) no cambia si es bajo pedido', async () => {
+    const x = montar();
+    // Como la IA real: al corregir, devuelve el borrador completo con el cambio pedido
+    x.cerebro.extraerArticulo = async ({ texto, borradorActual }: any) =>
+      borradorActual ? { ...borradorActual, precio: Number(texto.match(/\d+/)?.[0]) } : { nombre: 'Pastel', precio: 350 };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350 por encargo' });
+    expect(ultimo(x.enviados)).toMatch(/Bajo pedido/);
+    await x.di({ texto: 'el precio es 400' });
+    expect(ultimo(x.enviados)).toMatch(/\$400[\s\S]*Bajo pedido/);
+  });
+
+  it('el menú de la tienda explica cómo publicar bajo pedido', async () => {
+    const x = montar();
+    await x.entrar();
+    expect(x.enviados.join('\n')).toMatch(/escribe \*bajo pedido\* \(no lleva existencias\)/);
+  });
+
+  it('los clientes ven los artículos bajo pedido como disponibles y marcados', () => {
+    const tiendas = { t1: { nombreTienda: 'Dulce', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' } } };
+    const arts = { a1: { nombre: 'Pastel de boda', precio: 1500, tiendaId: 't1', tiendaNombre: 'Dulce', porPedido: true, variantes: [{ stock: -1, tieneStock: false }] } };
+    expect(buscarCatalogo(tiendas, arts, 'pastel de boda', HOY).articulos[0]).toMatchObject({ porPedido: true, disponible: true });
   });
 });
 
