@@ -22,10 +22,11 @@ export function firmaValida(cuerpo: Buffer | undefined, cabecera: string | undef
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fetchFn?: typeof fetch } = {}): Canal {
+export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fetchFn?: typeof fetch; log?: (...a: any[]) => void } = {}): Canal {
   const token = op.token ?? process.env.WHATSAPP_TOKEN ?? '';
   const id = op.phoneNumberId ?? process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
   const fetchFn = op.fetchFn ?? fetch;
+  const log = op.log ?? console.log;
   if (!token || !id) throw new Error('Faltan WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID');
   const auth = { Authorization: `Bearer ${token}` };
 
@@ -37,6 +38,9 @@ export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fet
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`WhatsApp envío ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    // Solo los últimos 4 dígitos del identificador: si la respuesta no aparece en el chat esperado, casi
+    // siempre es porque sale desde OTRO número (WHATSAPP_PHONE_NUMBER_ID apunta a otro)
+    log(`WhatsApp: respuesta enviada desde el número con identificador …${id.slice(-4)}`);
   }
 
   return {
