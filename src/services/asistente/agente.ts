@@ -44,10 +44,13 @@ import {
   diezDigitos,
   esNo,
   esSi,
+  leerPrecio,
   momentoMx,
+  nombreDelTexto,
   normalizar,
   perfilParaIA,
   permitirMensaje,
+  precioDelTexto,
   resumenBorrador,
   resumenTienda,
   respuestaSinIA,
@@ -417,7 +420,22 @@ export function crearAgente(deps: DepsAgente) {
 
   async function proponer(de: string, s: Sesion, texto: string, imagen?: Imagen, borradorActual?: Borrador) {
     const cats = await categorias();
-    const crudo = await deps.cerebro.extraerArticulo({ texto, imagen, categorias: cats, borradorActual });
+    const crudo: any = { ...(await deps.cerebro.extraerArticulo({ texto, imagen, categorias: cats, borradorActual })) };
+    // Red de seguridad: si la IA no devolvió el precio o el nombre pero la tienda SÍ los escribió, se leen del texto con reglas fijas
+    if (!(leerPrecio(crudo.precio) && (leerPrecio(crudo.precio) as number) > 0)) {
+      const escrito = precioDelTexto(texto);
+      if (escrito !== null) {
+        crudo.precio = escrito;
+        log('WhatsApp: la IA no devolvió el precio; se tomó del texto escrito');
+      }
+    }
+    if (!String(crudo.nombre ?? '').trim() && !borradorActual) {
+      const escrito = nombreDelTexto(texto);
+      if (escrito) {
+        crudo.nombre = escrito;
+        log('WhatsApp: la IA no devolvió el nombre; se tomó del texto escrito');
+      }
+    }
     const v = validarBorrador(crudo, cats);
     if (!v.ok) {
       return decir(de, `No pude leer ${v.falta.join(' ni ')}. Escríbelo (ej. "Pastel de chocolate, $350") y lo vuelvo a intentar con la misma foto.`);

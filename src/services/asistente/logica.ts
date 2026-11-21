@@ -135,6 +135,38 @@ const texto = (v: unknown, max: number) =>
     .trim()
     .slice(0, max);
 
+/**
+ * Precio escrito por la tienda en su mensaje ("$350", "350 pesos", "precio 350", "Pastel 350").
+ * Es la red de seguridad cuando la IA no devuelve el precio aunque venga escrito: se lee con reglas fijas.
+ * null si no se encuentra uno confiable (nunca se inventa).
+ */
+export function precioDelTexto(texto: unknown): number | null {
+  const t = String(texto ?? '');
+  const num = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)';
+  const valor = (m: RegExpExecArray | null) => (m ? Number(m[1].replace(/,/g, '')) : null);
+  // 1) con signo de pesos; 2) con "pesos/mxn"; 3) "precio ... N"
+  const claro = valor(new RegExp(`\\$\\s*${num}`).exec(t)) ?? valor(new RegExp(`${num}\\s*(?:pesos|mxn|mx|m\\.n\\.)\\b`, 'i').exec(t)) ?? valor(new RegExp(`precio\\s*(?:de|es|:)?\\s*\\$?\\s*${num}`, 'i').exec(t));
+  if (claro !== null) return claro > 0 && claro <= MAX_PRECIO ? claro : null;
+  // 4) un único número suelto que no sea cantidad, medida ni talla ("Pastel de chocolate 350")
+  const sueltos: number[] = [];
+  const re = new RegExp(`(?<![\\w.])${num}(?![\\w.])(\\s*[a-záéíóúñ.]+)?`, 'gi');
+  for (let m = re.exec(t); m; m = re.exec(t)) {
+    const unidad = normalizar(m[2] ?? '').replace(/\.$/, '');
+    const antes = normalizar(t.slice(Math.max(0, m.index - 12), m.index));
+    if (/^(pz|pza|pzas|pieza|piezas|unidad|unidades|kg|kilo|kilos|g|gr|gramo|gramos|ml|l|lt|litro|litros|cm|mm|m|mts|metro|metros|ano|anos|dia|dias|hora|horas|personas|porciones|colores|tamanos)$/.test(unidad)) continue;
+    if (/(talla|tamano|numero|no|num|medida|cantidad|existencia|existencias|stock|hay|tengo|tenemos)\s*$/.test(antes)) continue;
+    sueltos.push(Number(m[1].replace(/,/g, '')));
+  }
+  return sueltos.length === 1 && sueltos[0] > 0 && sueltos[0] <= MAX_PRECIO ? sueltos[0] : null;
+}
+
+/** Nombre probable al inicio del mensaje: lo que va antes de la primera coma, salto de línea, "$" o número ("Pastel de chocolate, $350…") */
+export function nombreDelTexto(texto: unknown): string {
+  const primero = String(texto ?? '').split(/[\n,;]|\$|\d/)[0] ?? '';
+  const limpio = primero.replace(/\b(precio|cuesta|vale|a)\b\s*$/i, '').replace(/\s+/g, ' ').trim();
+  return /\p{L}{2,}/u.test(limpio) ? limpio.slice(0, 80) : '';
+}
+
 /** "$1,250.50", "120 pesos", 99 → número; null si no hay un precio utilizable */
 export function leerPrecio(v: unknown): number | null {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
