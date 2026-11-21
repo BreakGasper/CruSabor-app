@@ -14,7 +14,7 @@ import {
 } from '../src/services/asistente/logica.ts';
 import { crearAgente } from '../src/services/asistente/agente.ts';
 import { crearRouterWhatsapp, variablesFaltantes } from '../src/services/whatsapp/router.ts';
-import { mensajesDelAviso } from '../src/services/whatsapp/meta.ts';
+import { mensajesDelAviso, crearCanalMeta } from '../src/services/whatsapp/meta.ts';
 import { crearGemini } from '../src/services/asistente/gemini.ts';
 import { membresiaVigente } from '../src/composables/useMembresia.ts';
 
@@ -101,6 +101,19 @@ describe('reglas puras', () => {
     // 05:30 UTC del 21 todavía es 23:30 del 20 en México
     expect(diaMx(new Date('2026-11-21T05:30:00Z').getTime())).toBe('2026-11-20');
     expect(diaMx(new Date('2026-11-21T06:00:00Z').getTime())).toBe('2026-11-21');
+  });
+});
+
+describe('canal de Meta', () => {
+  it('registra desde qué número sale la respuesta (solo los últimos 4 dígitos) y nunca el token', async () => {
+    const logs: string[] = [];
+    const llamadas: string[] = [];
+    const fetchFn = (async (url: string) => { llamadas.push(url); return new Response('{}', { status: 200 }); }) as any;
+    const canal = crearCanalMeta({ token: 'TOKEN-SECRETO', phoneNumberId: '1436909166179242', fetchFn, log: (...a) => logs.push(a.join(' ')) });
+    await canal.enviarTexto('5218111111111', 'hola');
+    expect(llamadas[0]).toContain('/1436909166179242/messages');
+    expect(logs).toEqual(['WhatsApp: respuesta enviada desde el número con identificador …9242']);
+    expect(logs.join()).not.toMatch(/TOKEN-SECRETO|1436909166179242/);
   });
 });
 
@@ -278,6 +291,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
     articulos: {},
   };
   const enviados: string[] = [];
+  const logs: string[] = [];
   const botones: string[][] = [];
   const respuestasCliente: any[] = [];
   let reloj = HOY.getTime();
@@ -319,7 +333,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
     secreto: SECRETO,
     ahora: () => new Date(reloj),
     sku: () => 'CRU-TEST',
-    log: () => {},
+    log: (...a) => { logs.push(a.join(' ')); },
   });
   let agente = crear();
   let n = 0;
@@ -327,7 +341,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const boton = (id: string, de = TEL) => di({ tipo: 'boton', texto: id }, de);
   const entrar = async (de = TEL) => { await di({ texto: 'entrar' }, de); await di({ texto: 'secreto1' }, de); };
   return {
-    bd, enviados, botones, respuestasCliente, di, boton, entrar,
+    bd, enviados, logs, botones, respuestasCliente, di, boton, entrar,
     avanzar: (min: number) => { reloj += min * 60_000; },
     subidas: () => subidas,
     borradas,
@@ -386,6 +400,24 @@ describe('roles: cliente o tienda', () => {
     expect(ultimo(x.enviados)).toMatch(/no tiene una tienda registrada/);
     await x.di({ texto: 'quiero pasteles' }); // sigue sin rol: vuelve a preguntar
     expect(ultimo(x.enviados)).toMatch(/Soy cliente/);
+  });
+});
+
+describe('registros de diagnóstico (sin contenido ni números)', () => {
+  it('dice en qué paso quedó cada mensaje y no filtra textos, contraseñas ni teléfonos', async () => {
+    const c = montar();
+    await c.di({ texto: 'hola' });
+    await c.di({ texto: 'soy tienda' });
+    await c.di({ texto: 'secreto1' });
+    const diag = c.logs.filter((l) => l.startsWith('WhatsApp: mensaje atendido'));
+    expect(diag).toHaveLength(3);
+    expect(diag[0]).toMatch(/texto; rol=sin elegir; paso=anonimo; \d+ ms/);
+    expect(diag[1]).toMatch(/rol=tienda; paso=password/);
+    expect(diag[2]).toMatch(/rol=tienda; paso=tienda/);
+    const todo = c.logs.join('\n');
+    expect(todo).not.toContain('secreto1');
+    expect(todo).not.toContain('8111111111');
+    expect(todo).not.toContain(TEL);
   });
 });
 

@@ -59,7 +59,7 @@ export function crearRouterWhatsapp(op: OpcionesWhatsapp = {}) {
 
   const borradorDeImagenes = crearRouterImagenes({ env, almacen: op.almacen, log });
   const agente = crearAgente({
-    canal: op.canal ?? crearCanalMeta(),
+    canal: op.canal ?? crearCanalMeta({ log }),
     cerebro: op.cerebro ?? crearGemini(),
     almacen: op.almacen ?? crearAlmacen,
     subirImagen: op.subirImagen ?? ((b, m) => subirACloudinary(b, m)),

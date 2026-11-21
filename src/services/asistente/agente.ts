@@ -581,8 +581,14 @@ export function crearAgente(deps: DepsAgente) {
   /** Un mensaje a la vez por número (dos fotos seguidas no se pisan) y sin tumbar el servidor si algo falla */
   function procesar(m: MensajeEntrante): Promise<void> {
     const previo = cola.get(m.de) ?? Promise.resolve();
+    const inicio = Date.now();
     const siguiente = previo
       .then(() => manejar(m))
+      .then(() => {
+        // Sin contenido ni número: solo en qué paso quedó la conversación y cuánto tardó
+        const s = sesiones.get(m.de);
+        log(`WhatsApp: mensaje atendido (${m.tipo}; rol=${s?.rol ?? 'sin elegir'}; paso=${s?.estado ?? '—'}; ${Date.now() - inicio} ms)`);
+      })
       .catch(async (e) => {
         log('WhatsApp: error al atender un mensaje:', e?.message ?? e);
         const s = sesiones.get(m.de);
