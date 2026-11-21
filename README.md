@@ -115,10 +115,21 @@ Antes de dar por terminado un cambio: `npm test` y `npm run type-check` deben pa
 
 ### Agente de WhatsApp (gratis)
 
-El agente (`src/services/asistente/`) es independiente del canal; se monta en el servidor Express con el canal de **WhatsApp** (`src/services/whatsapp/`, `POST/GET /whatsapp/webhook`, Meta Cloud API). Hace dos cosas:
+El agente (`src/services/asistente/`) es independiente del canal; se monta en el servidor Express con el canal de **WhatsApp** (`src/services/whatsapp/`, `POST/GET /whatsapp/webhook`, Meta Cloud API).
 
-- **Tiendas**: escriben *entrar*, el agente comprueba que el celular de WhatsApp sea el de una tienda y pide su contraseña (el mismo hash bcrypt del login de la app; 5 fallos bloquean el número 15 min; la sesión caduca a los 30 min). Luego la tienda manda una **foto con nombre, precio y detalles**; Gemini extrae los datos, el agente muestra un resumen con botones **Publicar / Descartar** y, solo si se confirma, sube la foto a Cloudinary y crea `articulos/{id}` en esa tienda con la misma forma que el formulario de la app. Antes de publicar vuelve a comprobar la membresía. También se puede corregir el borrador escribiendo ("el precio es 120").
-- **Clientes**: preguntan por productos o tiendas; el agente busca en el catálogo (tiendas que pueden vender, artículos sin dar de baja) y Gemini redacta la respuesta usando solo esos resultados.
+Lo primero que hace es preguntar **¿cliente o tienda?** (botones *Soy cliente* / *Soy tienda*; *menú* vuelve a preguntar):
+
+- **Cliente** (solo consulta): artículos, precios, existencias, colores y tamaños; de cada tienda, horario (y si está abierta ahora, en hora de México), dirección, teléfono, correo, redes, formas de pago, envío y preguntas frecuentes, es decir, lo mismo que muestra el perfil público de la app. Gemini redacta la respuesta usando **solo** esos datos. No puede cambiar nada.
+- **Tienda** (administra **solo la suya**): escribe *entrar*; el agente comprueba que el celular de WhatsApp sea el de una tienda y pide su contraseña (el mismo hash bcrypt del login de la app; 5 fallos bloquean el número 15 min). La sesión **dura hasta el fin del día (hora de México)** y al día siguiente hay que entrar de nuevo. Puede:
+  - **Publicar artículos:** una foto con nombre, precio y detalles; Gemini extrae los datos, el agente muestra el resumen con **Publicar / Descartar** y, solo si confirma, sube la foto a Cloudinary y crea `articulos/{id}` con la misma forma que el formulario de la app. Antes de publicar vuelve a comprobar la membresía. También se puede corregir el borrador ("el precio es 120").
+  - **Ver los datos de su tienda** (*mi tienda*): perfil, horario, pagos, envío, membresía y número de artículos.
+  - **Cambiar su perfil** en lenguaje natural ("abro de lunes a viernes de 9 a 6", "acepto tarjeta", "hago envíos a Centro y Zapopan", "mi descripción es…"): descripción, dirección, correo, redes, horario, formas de pago, envío y zonas, preguntas frecuentes y certificaciones. **Logo y portada** con una foto cuyo mensaje diga *logo* o *portada*. Siempre muestra el cambio y exige confirmar; los días del horario que no se mencionan se conservan.
+  - **No** se pueden cambiar por chat: nombre de la tienda (viaja copiado en cada artículo y lo sincroniza la app), celular (es la identidad del login), contraseña, categoría, estado ni membresía. Para borrar un dato hay que usar la app (un valor vacío significa "sin cambio").
+
+Seguridad del agente de tienda:
+- La tienda sobre la que escribe sale **siempre de la sesión**, nunca de lo que diga el mensaje, y solo se escriben los campos de `CAMPOS_EDITABLES` (`logica.ts`), aunque la IA proponga otros.
+- La sesión del día se guarda en `whatsappSesiones/{hash del número}` para sobrevivir a que Render se duerma o reinicie. La base acepta escrituras abiertas, así que cada registro va **firmado con HMAC** (secreto: `WHATSAPP_APP_SECRET`): un registro inventado, copiado de otro número o de otro día no sirve, y el celular tiene que seguir siendo el dueño de la tienda. *Salir* lo borra.
+- La IA no tiene herramientas ni acceso a la base: recibe texto y devuelve texto o JSON, y todo se valida antes de mostrarse o guardarse.
 
 Costo cero: Meta no cobra las respuestas dentro de las 24 h posteriores al mensaje del cliente, y Gemini tiene nivel gratuito sin tarjeta (con límites diarios; el agente limita 20 mensajes por número cada 10 min para cuidar la cuota). En el nivel gratuito Google puede usar lo enviado (fotos y textos) para mejorar sus productos.
 
