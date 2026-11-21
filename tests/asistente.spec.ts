@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { createHmac, createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
-  comandoDe, rolDe, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
+  comandoDe, rolDe, precioDelTexto, nombreDelTexto, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
   buscarCatalogo, construirArticulo, detectaBajoPedido, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
   MAX_MENSAJES_POR_VENTANA,
 } from '../src/services/asistente/logica.ts';
@@ -54,6 +54,37 @@ describe('reglas puras', () => {
       expect(detectaBajoPedido(t), t).toBeNull();
     }
   });
+  it('precioDelTexto: lee el precio que la tienda escribió (red de seguridad si la IA no lo devuelve)', () => {
+    const casos: [string, number | null][] = [
+      ['Pastel de chocolate, $350, 5 piezas, marca Dulce Hogar, color café, tamaño grande', 350],
+      ['Pastel $1,250.50 5 piezas', 1250.5],
+      ['Pastel de chocolate 350 pesos', 350],
+      ['vale 99 MXN', 99],
+      ['Precio: 120', 120],
+      ['el precio es $75', 75],
+      ['Pastel de chocolate 350', 350],              // número suelto único
+      ['Pastel de chocolate, 5 piezas', null],       // 5 es una cantidad, no un precio
+      ['Camisa talla 32 azul', null],                // talla
+      ['Pastel 2 kg', null],                         // medida
+      ['Pastel, 5 piezas, $350', 350],               // el signo $ manda sobre los demás números
+      ['Pastel 350 y 400', null],                    // ambiguo: no se adivina
+      ['Pastel de chocolate', null],
+      ['$0', null],
+      ['$9999999999', null],                          // absurdo
+      ['', null],
+    ];
+    for (const [texto, esperado] of casos) expect(precioDelTexto(texto), texto).toBe(esperado);
+  });
+
+  it('nombreDelTexto: lo que va antes de la primera coma, $ o número', () => {
+    expect(nombreDelTexto('Pastel de chocolate, $350, 5 piezas')).toBe('Pastel de chocolate');
+    expect(nombreDelTexto('Pastel de chocolate $350')).toBe('Pastel de chocolate');
+    expect(nombreDelTexto('Camisa azul\nTalla M $200')).toBe('Camisa azul');
+    expect(nombreDelTexto('$350')).toBe('');
+    expect(nombreDelTexto('350')).toBe('');
+    expect(nombreDelTexto('')).toBe('');
+  });
+
   it('lee precios escritos de varias formas', () => {
     expect(leerPrecio('$1,250.50')).toBe(1250.5);
     expect(leerPrecio('120 pesos')).toBe(120);
@@ -876,6 +907,45 @@ describe('cuando la IA no está disponible', () => {
     await x.entrar();
     await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
     expect(ultimo(x.enviados)).toMatch(/Se agotó el uso gratuito[\s\S]*Escribe \*reintentar\*/);
+  });
+});
+
+describe('la IA no devuelve el precio o el nombre, pero la tienda sí los escribió', () => {
+  it('toma el precio del texto: ya no dice "no pude leer el precio" si estaba escrito', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel de chocolate' } }); // la IA olvidó el precio
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate, $350, 5 piezas, marca Dulce Hogar, color café, tamaño grande' });
+    expect(ultimo(x.enviados)).toMatch(/Revisa el artículo[\s\S]*Pastel de chocolate[\s\S]*\$350/);
+    expect(x.logs.some((l) => /no devolvió el precio; se tomó del texto escrito/.test(l))).toBe(true);
+    await x.boton('guardar');
+    expect(x.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', precio: 350, tiendaId: 't1' });
+  });
+
+  it('si la IA devuelve vacío (ni nombre ni precio), el nombre y el precio salen del texto', async () => {
+    const x = montar({ extraerCrudo: {} });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate, $350' });
+    expect(ultimo(x.enviados)).toMatch(/Pastel de chocolate[\s\S]*\$350/);
+    expect(x.logs.some((l) => /no devolvió el nombre; se tomó del texto escrito/.test(l))).toBe(true);
+  });
+
+  it('si el precio NO está escrito en ningún lado, lo sigue pidiendo (no se inventa)', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel de chocolate' } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate, 5 piezas' });
+    expect(ultimo(x.enviados)).toMatch(/No pude leer el precio/);
+    expect(x.bd.articulos).toEqual({});
+    // y al escribirlo en otro mensaje se junta con la misma foto
+    x.cerebro.extraerArticulo = async () => ({ nombre: 'Pastel de chocolate' });
+    await x.di({ texto: 'cuesta $350' });
+    expect(ultimo(x.enviados)).toMatch(/Revisa el artículo[\s\S]*\$350/);
+  });
+
+  it('el precio que devuelve la IA tiene prioridad sobre el del texto', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 400 } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(ultimo(x.enviados)).toMatch(/\$400/);
   });
 });
 
