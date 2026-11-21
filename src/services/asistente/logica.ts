@@ -115,6 +115,19 @@ export interface Borrador {
   porPedido: boolean;
 }
 
+/**
+ * ¿El mensaje dice que el artículo es BAJO PEDIDO ("bajo pedido", "sobre pedido", "por encargo", "a pedido")?
+ * true = sí lo dice; false = dice que ya NO lo es; null = no dice nada (se respeta lo que ya había).
+ * Es una regla fija y no depende de que la IA lo adivine: de esto depende que la tienda no controle existencias.
+ */
+export function detectaBajoPedido(texto: unknown): boolean | null {
+  const t = normalizar(texto);
+  if (!t) return null;
+  if (/\b(no|ya no|sin)\s+(es\s+|va a ser\s+|sera\s+)?((bajo|sobre)\s+pedido|por\s+(pedido|encargo)|a\s+pedido)\b/.test(t)) return false;
+  if (/\b(bajo|sobre)\s+pedido\b|\bpor\s+(pedido|encargo)\b|\ba\s+pedido\b|\bencargo\b|\bse (hace|elabora|prepara)n?\s+(cuando|al)\s+(lo|los|la|las)?\s*(piden|piden|encargan|ordenan)\b/.test(t)) return true;
+  return null;
+}
+
 const texto = (v: unknown, max: number) =>
   String(v ?? '')
     .replace(/[\u0000-\u001f\u007f]/g, ' ')

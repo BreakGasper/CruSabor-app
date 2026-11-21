@@ -39,6 +39,7 @@ import {
   buscarCatalogo,
   comandoDe,
   construirArticulo,
+  detectaBajoPedido,
   diaMx,
   diezDigitos,
   esNo,
@@ -249,7 +250,7 @@ export function crearAgente(deps: DepsAgente) {
 
   const menuAdmin = (nombre: string) =>
     `🏪 Administras *${nombre}*. Puedo ayudarte con:\n\n` +
-    '📸 *Publicar un artículo:* mándame una foto con nombre, precio y detalles en el mismo mensaje.\n' +
+    '📸 *Publicar un artículo:* mándame una foto con nombre, precio y detalles en el mismo mensaje. Si lo elaboras cuando te lo piden, escribe *bajo pedido* (no lleva existencias).\n' +
     '📋 *Ver los datos de tu tienda:* escribe *mi tienda*.\n' +
     '✏️ *Cambiar tu perfil:* por ejemplo "abro de lunes a viernes de 9 a 6", "acepto tarjeta", "hago envíos a Centro y Zapopan" o "mi descripción es…".\n' +
     '🖼️ *Logo o portada:* manda la foto con la palabra *logo* o *portada*.\n\n' +
@@ -420,6 +421,12 @@ export function crearAgente(deps: DepsAgente) {
     const v = validarBorrador(crudo, cats);
     if (!v.ok) {
       return decir(de, `No pude leer ${v.falta.join(' ni ')}. Escríbelo (ej. "Pastel de chocolate, $350") y lo vuelvo a intentar con la misma foto.`);
+    }
+    // "Bajo pedido" se decide con una regla fija sobre lo que escribió la tienda, no solo con lo que adivine la IA
+    const bajoPedido = detectaBajoPedido(texto);
+    if (bajoPedido !== null) {
+      v.borrador.porPedido = bajoPedido;
+      if (bajoPedido) v.borrador.stock = -1; // bajo pedido nunca controla existencias
     }
     s.borrador = v.borrador;
     s.estado = 'confirmando';
