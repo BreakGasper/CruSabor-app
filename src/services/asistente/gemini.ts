@@ -23,16 +23,31 @@ export interface Cerebro {
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-async function generar(body: any, op: { llave: string; modelo: string; fetchFn: typeof fetch }): Promise<string> {
-  const res = await op.fetchFn(`${BASE}/${op.modelo}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': op.llave },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const data: any = await res.json();
-  return String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim();
+/** Errores de Google que suelen ser pasajeros (picos de demanda, cuota por minuto): vale la pena reintentar */
+const REINTENTABLES = new Set([429, 500, 502, 503, 504]);
+const ESPERAS_MS = [1500, 4000];
+
+async function generar(
+  body: any,
+  op: { llave: string; modelo: string; fetchFn: typeof fetch; esperar: (ms: number) => Promise<void> },
+): Promise<string> {
+  let ultimo = '';
+  for (let intento = 0; intento <= ESPERAS_MS.length; intento++) {
+    const res = await op.fetchFn(`${BASE}/${op.modelo}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': op.llave },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (res.ok) {
+      const data: any = await res.json();
+      return String(data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '').trim();
+    }
+    ultimo = `Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`;
+    if (!REINTENTABLES.has(res.status) || intento === ESPERAS_MS.length) break;
+    await op.esperar(ESPERAS_MS[intento]);
+  }
+  throw new Error(ultimo);
 }
 
 const ESQUEMA_ARTICULO = {
@@ -52,12 +67,12 @@ const ESQUEMA_ARTICULO = {
   },
 };
 
-export function crearGemini(op: { llave?: string; modelo?: string; fetchFn?: typeof fetch } = {}): Cerebro {
+export function crearGemini(op: { llave?: string; modelo?: string; fetchFn?: typeof fetch; esperar?: (ms: number) => Promise<void> } = {}): Cerebro {
   const llave = op.llave ?? process.env.GEMINI_API_KEY ?? '';
   const modelo = op.modelo ?? (process.env.GEMINI_MODEL || 'gemini-3.8-flash');
   const fetchFn = op.fetchFn ?? fetch;
   if (!llave) throw new Error('Falta GEMINI_API_KEY');
-  const cfg = { llave, modelo, fetchFn };
+  const cfg = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))) };
 
   return {
     async extraerArticulo({ texto, imagen, categorias, borradorActual }) {
