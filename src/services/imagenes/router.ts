@@ -91,15 +91,19 @@ export function crearRouterImagenes(op: OpcionesRouterImagenes = {}) {
     res.json({ activo: Boolean(cfg), faltan });
   });
 
-  router.post('/eliminar', async (req, res) => {
+  /**
+   * Borra las imágenes indicadas que ya nadie usa. La comparten el endpoint de la app y el agente de
+   * WhatsApp (al cambiar el logo o la portada). Nunca lanza: lo peor que pasa es que una imagen quede huérfana.
+   */
+  async function eliminar(urls: unknown): Promise<{ http: number; cuerpo: Record<string, unknown> }> {
     const cfg = configDesdeEntorno(env);
     if (!cfg) {
       // Falta configurar: no es un error del que llama, simplemente no se borra
-      return res.json({ borradas: 0, omitidas: 0, activo: false });
+      return { http: 200, cuerpo: { borradas: 0, omitidas: 0, activo: false } };
     }
 
-    const ids = idsBorrables(req.body?.urls);
-    if (!ids.length) return res.json({ borradas: 0, omitidas: 0, activo: true });
+    const ids = idsBorrables(urls);
+    if (!ids.length) return { http: 200, cuerpo: { borradas: 0, omitidas: 0, activo: true } };
 
     // Solo huérfanas: lo que la base siga referenciando no se toca
     let usadas: Set<string>;
@@ -107,7 +111,7 @@ export function crearRouterImagenes(op: OpcionesRouterImagenes = {}) {
       usadas = await enUso();
     } catch (e) {
       log('Imágenes: no se pudo revisar la base; no se borra nada', e);
-      return res.status(503).json({ borradas: 0, omitidas: ids.length, activo: true, motivo: 'base-no-disponible' });
+      return { http: 503, cuerpo: { borradas: 0, omitidas: ids.length, activo: true, motivo: 'base-no-disponible' } };
     }
     const huerfanas = ids.filter((id) => !usadas.has(id));
     const enUsoCount = ids.length - huerfanas.length;
@@ -126,8 +130,13 @@ export function crearRouterImagenes(op: OpcionesRouterImagenes = {}) {
         log('Imágenes: no se pudo borrar', id, e);
       }
     }
-    res.json({ borradas, omitidas, enUso: enUsoCount, activo: true });
+    return { http: 200, cuerpo: { borradas, omitidas, enUso: enUsoCount, activo: true } };
+  }
+
+  router.post('/eliminar', async (req, res) => {
+    const r = await eliminar(req.body?.urls);
+    res.status(r.http).json(r.cuerpo);
   });
 
-  return router;
+  return Object.assign(router, { eliminar });
 }

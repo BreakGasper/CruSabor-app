@@ -164,4 +164,4 @@ El token que da Meta en *Paso 1. Probar* dura unas 24 horas. Para uno permanente
 - Los límites gratuitos de Gemini son diarios.
 - Para usar **tu número real de negocio** se añade en el Administrador de WhatsApp (*Añadir número de teléfono*) y se verifica por SMS o llamada; ese número no puede estar activo en la app normal de WhatsApp sin migrarlo. Después hay que cambiar `WHATSAPP_PHONE_NUMBER_ID`.
 - No se implementó consultar el estado de un pedido por WhatsApp, ni editar, pausar o dar de baja artículos ya publicados.
-- Cambiar el logo o la portada no borra la imagen anterior de Cloudinary.
+- Al cambiar el logo o la portada se borra la imagen anterior de Cloudinary solo si están configuradas `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en Render; si no, queda huérfana.
