@@ -42,6 +42,8 @@ interface OpGemini {
   ahoraMs: () => number;
   /** Otros modelos a probar si el principal está saturado o ya no existe */
   alternos: () => Promise<string[]>;
+  /** Modelos con la cuota por minuto agotada: hasta cuándo (ms) no se les vuelve a llamar */
+  enfriando: Map<string, number>;
 }
 
 type Intento = { ok: true; texto: string } | { ok: false; status: number; texto: string; timeout?: boolean };
@@ -66,10 +68,25 @@ async function llamar(modelo: string, body: any, op: OpGemini): Promise<Intento>
   return { ok: false, status: res.status, texto: (await res.text()).slice(0, 300) };
 }
 
+/** Segundos que Google pide esperar ("retryDelay": "23s" o "Please retry in 23.4s"), si los dice */
+function retardoPedido(texto: string): number | null {
+  const m = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(texto) ?? /retry in (\d+(?:\.\d+)?)\s*s/i.exec(texto);
+  return m ? Math.ceil(Number(m[1]) * 1000) : null;
+}
+
+/** Lo más que vale la pena esperar a que se libere una cuota por minuto antes de rendirse */
+const ESPERA_MAX_CUOTA_MS = 25_000;
+/** Si Google no dice cuánto, la cuota gratuita es por minuto */
+const ENFRIAMIENTO_POR_DEFECTO_MS = 60_000;
+
 /**
- * Llama a Gemini con paciencia: reintenta los errores pasajeros (503, 429, timeouts) y, si el modelo
- * principal sigue saturado o ya no existe (404), prueba otros modelos Flash. Un error "de verdad"
- * (llave mala, petición inválida) falla de inmediato.
+ * Llama a Gemini con paciencia:
+ *  - reintenta los errores pasajeros (503, timeouts) con pausas cortas;
+ *  - una cuota por minuto agotada (429) NO se reintenta en el mismo modelo: se le da un "enfriamiento" (lo que pida
+ *    Google, o 60 s) y mientras dure no se le llama, para no gastar más cuota ni tiempo; se prueba otro modelo Flash;
+ *  - si TODOS están en enfriamiento y falta poco, espera y vuelve a intentar una vez; si falta mucho, falla enseguida;
+ *  - un modelo que ya no existe (404) pasa al siguiente;
+ *  - un error "de verdad" (llave mala, petición inválida) falla de inmediato.
  */
 async function generar(body: any, op: OpGemini): Promise<string> {
   const inicio = op.ahoraMs();
@@ -77,28 +94,52 @@ async function generar(body: any, op: OpGemini): Promise<string> {
   let probadosAlternos = false;
   let ultimo = 'Gemini: sin respuesta';
 
-  for (let i = 0; i < modelos.length; i++) {
-    const modelo = modelos[i];
-    for (let intento = 0; ; intento++) {
-      const r = await llamar(modelo, body, op);
-      if (r.ok) return r.texto;
-      ultimo = r.timeout
-        ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})`
-        : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`;
-      if (r.status === 404) break; // modelo retirado: pasar al siguiente
-      const reintentable = r.status === 0 || REINTENTABLES.has(r.status);
-      if (!reintentable) throw new Error(ultimo);
-      // Un timeout ya costó 30 s: solo se reintenta una vez
-      // Una cuota agotada (429) no se arregla esperando segundos: se pasa a otro modelo, que tiene su propia cuota
-      const maxReintentos = r.timeout ? 1 : r.status === 429 ? 0 : ESPERAS_MS.length;
-      if (intento >= maxReintentos || op.ahoraMs() - inicio > MS_TOTAL) break;
-      await op.esperar(ESPERAS_MS[intento]);
+  for (let pasada = 0; pasada < 2; pasada++) {
+    let soloCuota = true;
+    let libreEn = Infinity;
+
+    for (let i = 0; i < modelos.length; i++) {
+      const modelo = modelos[i];
+      const libre = op.enfriando.get(modelo) ?? 0;
+      if (libre > op.ahoraMs()) {
+        // Su cuota por minuto sigue agotada: ni se intenta
+        ultimo = `Gemini 429 (modelo ${modelo}): cuota por minuto agotada, disponible en ${Math.ceil((libre - op.ahoraMs()) / 1000)} s`;
+        libreEn = Math.min(libreEn, libre);
+      } else {
+        for (let intento = 0; ; intento++) {
+          const r = await llamar(modelo, body, op);
+          if (r.ok) return r.texto;
+          ultimo = r.timeout
+            ? `Gemini: sin respuesta en ${MS_POR_INTENTO / 1000} s (modelo ${modelo})`
+            : `Gemini ${r.status || 'sin conexión'} (modelo ${modelo}): ${r.texto}`;
+          if (r.status === 429) {
+            const hasta = op.ahoraMs() + (retardoPedido(r.texto) ?? ENFRIAMIENTO_POR_DEFECTO_MS);
+            op.enfriando.set(modelo, hasta);
+            libreEn = Math.min(libreEn, hasta);
+            break;
+          }
+          soloCuota = false;
+          if (r.status === 404) break; // modelo retirado: pasar al siguiente
+          const reintentable = r.status === 0 || REINTENTABLES.has(r.status);
+          if (!reintentable) throw new Error(ultimo);
+          // Un timeout ya costó 30 s: solo se reintenta una vez
+          const maxReintentos = r.timeout ? 1 : ESPERAS_MS.length;
+          if (intento >= maxReintentos || op.ahoraMs() - inicio > MS_TOTAL) break;
+          await op.esperar(ESPERAS_MS[intento]);
+        }
+      }
+      if (op.ahoraMs() - inicio > MS_TOTAL) break;
+      if (i === 0 && !probadosAlternos) {
+        probadosAlternos = true;
+        modelos.push(...(await op.alternos()));
+      }
     }
-    if (op.ahoraMs() - inicio > MS_TOTAL) break;
-    if (!probadosAlternos) {
-      probadosAlternos = true;
-      modelos.push(...(await op.alternos()));
-    }
+
+    // Todos con cuota agotada: si falta poco para que se libere el primero, se espera y se prueba otra vez
+    const espera = libreEn - op.ahoraMs();
+    const cabe = op.ahoraMs() - inicio + espera < MS_TOTAL;
+    if (!(soloCuota && Number.isFinite(libreEn) && espera <= ESPERA_MAX_CUOTA_MS && cabe)) break;
+    await op.esperar(Math.max(espera, 0) + 250);
   }
   throw new Error(ultimo);
 }
@@ -179,7 +220,7 @@ export function crearGemini(op: { llave?: string; modelo?: string; modeloAlterno
     return lista;
   };
 
-  const cfg: OpGemini = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))), ahoraMs, alternos };
+  const cfg: OpGemini = { llave, modelo, fetchFn, esperar: op.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))), ahoraMs, alternos, enfriando: new Map() };
 
   return {
     async extraerArticulo({ texto, imagen, categorias, borradorActual }) {
