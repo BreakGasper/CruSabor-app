@@ -282,6 +282,9 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const respuestasCliente: any[] = [];
   let reloj = HOY.getTime();
   let subidas = 0;
+  /** Cada borrado pedido, con el logo que tenía la tienda EN ESE MOMENTO (para comprobar que fue después de guardar) */
+  const borradas: { urls: string[]; logoAlBorrar: any; bannerAlBorrar: any }[] = [];
+  let fallaBorrado = false;
   const poner = (ruta: string, valor: any) => {
     const partes = ruta.split('/');
     let o = bd;
@@ -307,7 +310,11 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
       interpretarAdmin: async ({ texto }) => (extra.admin ? extra.admin(texto) : { accion: 'otro' }),
     },
     almacen,
-    subirImagen: async () => { subidas++; return 'https://img/foto.jpg'; },
+    subirImagen: async () => { subidas++; return `https://img/foto${subidas}.jpg`; },
+    eliminarImagenes: async (urls) => {
+      borradas.push({ urls, logoAlBorrar: bd.tiendas.t1?.logoUrl, bannerAlBorrar: bd.tiendas.t1?.bannerUrl });
+      if (fallaBorrado) throw new Error('Cloudinary caído');
+    },
     urlApp: 'https://app.test',
     secreto: SECRETO,
     ahora: () => new Date(reloj),
@@ -323,6 +330,8 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
     bd, enviados, botones, respuestasCliente, di, boton, entrar,
     avanzar: (min: number) => { reloj += min * 60_000; },
     subidas: () => subidas,
+    borradas,
+    fallarBorrado: () => { fallaBorrado = true; },
     /** Simula que Render se durmió o reinició: se pierde toda la memoria del agente */
     reiniciar: () => { agente = crear(); },
   };
@@ -434,7 +443,7 @@ describe('tienda: artículos', () => {
     expect(c.bd.articulos).toEqual({});
     await c.boton('guardar');
     expect(ultimo(c.enviados)).toMatch(/ya está publicado/);
-    expect(c.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', precio: 350, tiendaId: 't1', tiendaNombre: 'Dulce', url: 'https://img/foto.jpg', categoriaId: 'c1' });
+    expect(c.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', precio: 350, tiendaId: 't1', tiendaNombre: 'Dulce', url: 'https://img/foto1.jpg', categoriaId: 'c1' });
     expect(c.subidas()).toBe(1);
   });
 
@@ -538,11 +547,50 @@ describe('tienda: sus datos y su perfil', () => {
     expect(ultimo(c.enviados)).toMatch(/\*logo\* de la tienda[\s\S]*\[guardar,cancelar\]/);
     expect(c.subidas()).toBe(0);
     await c.boton('guardar');
-    expect(c.bd.tiendas.t1.logoUrl).toBe('https://img/foto.jpg');
+    expect(c.bd.tiendas.t1.logoUrl).toBe('https://img/foto1.jpg');
     expect(c.bd.articulos).toEqual({});
     await c.di({ tipo: 'imagen', mediaId: 'i2', texto: 'portada nueva' });
     await c.boton('guardar');
-    expect(c.bd.tiendas.t1.bannerUrl).toBe('https://img/foto.jpg');
+    expect(c.bd.tiendas.t1.bannerUrl).toBe('https://img/foto2.jpg');
+  });
+
+  it('al cambiar el logo o la portada borra la imagen ANTERIOR de Cloudinary, y solo después de guardar la nueva', async () => {
+    c.bd.tiendas.t1.logoUrl = 'https://res.cloudinary.com/x/image/upload/v1/viejo-logo.jpg';
+    c.bd.tiendas.t1.bannerUrl = 'https://res.cloudinary.com/x/image/upload/v1/vieja-portada.jpg';
+    await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'nuevo logo' });
+    expect(c.borradas).toHaveLength(0); // sin confirmar no se toca nada
+    await c.boton('guardar');
+    expect(c.borradas).toHaveLength(1);
+    expect(c.borradas[0].urls).toEqual(['https://res.cloudinary.com/x/image/upload/v1/viejo-logo.jpg']);
+    expect(c.borradas[0].logoAlBorrar).toBe('https://img/foto1.jpg'); // ya estaba guardado el nuevo cuando se borró el viejo
+    await c.di({ tipo: 'imagen', mediaId: 'i2', texto: 'portada' });
+    await c.boton('guardar');
+    expect(c.borradas[1].urls).toEqual(['https://res.cloudinary.com/x/image/upload/v1/vieja-portada.jpg']);
+    // la portada nueva no toca el logo
+    expect(c.bd.tiendas.t1.logoUrl).toBe('https://img/foto1.jpg');
+  });
+
+  it('si la tienda no tenía logo, no hay nada que borrar', async () => {
+    await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'logo' });
+    await c.boton('guardar');
+    expect(c.bd.tiendas.t1.logoUrl).toBe('https://img/foto1.jpg');
+    expect(c.borradas).toHaveLength(0);
+  });
+
+  it('si el borrado en Cloudinary falla, el cambio se guarda igual', async () => {
+    c.bd.tiendas.t1.logoUrl = 'https://res.cloudinary.com/x/image/upload/v1/viejo.jpg';
+    c.fallarBorrado();
+    await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'logo' });
+    await c.boton('guardar');
+    expect(ultimo(c.enviados)).toMatch(/ya quedó guardado/);
+    expect(c.bd.tiendas.t1.logoUrl).toBe('https://img/foto1.jpg');
+  });
+
+  it('un cambio de texto (horario, pagos…) no borra ninguna imagen', async () => {
+    c.bd.tiendas.t1.logoUrl = 'https://res.cloudinary.com/x/image/upload/v1/logo.jpg';
+    await c.di({ texto: 'abro martes de 9 a 6' });
+    await c.boton('guardar');
+    expect(c.borradas).toHaveLength(0);
   });
 });
 

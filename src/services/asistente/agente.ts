@@ -95,6 +95,8 @@ export interface DepsAgente {
   almacen: () => Promise<Almacen>;
   /** Sube la foto (Cloudinary) y devuelve la URL pública */
   subirImagen: (bytes: Buffer, mime: string) => Promise<string>;
+  /** Borra de Cloudinary las imágenes reemplazadas que ya nadie usa. Opcional: sin él, se quedan huérfanas */
+  eliminarImagenes?: (urls: string[]) => Promise<unknown>;
   urlApp: string;
   /** Secreto para firmar la sesión guardada. Sin él, la sesión solo vive en memoria */
   secreto?: string;
@@ -370,8 +372,15 @@ export function crearAgente(deps: DepsAgente) {
       const rutas: Record<string, any> = {};
       for (const [campo, valor] of Object.entries(cambios)) if (permitidos.has(campo)) rutas[`tiendas/${s.tienda.id}/${campo}`] = valor;
       if (!Object.keys(rutas).length) return decir(de, 'No hay nada que guardar.');
+      // Lo que había antes, para borrarlo DESPUÉS de guardar lo nuevo (si se borrara antes y el guardado
+      // fallara, la tienda se quedaría sin logo)
+      const anterior = p.imagenCampo ? String((await leerTienda(s.tienda.id))?.[p.imagenCampo] ?? '') : '';
       await (await deps.almacen()).actualizar(rutas);
       log(`WhatsApp: perfil de la tienda ${s.tienda.id} actualizado (${Object.keys(rutas).length} campo(s))`);
+      if (anterior && p.imagenCampo && anterior !== cambios[p.imagenCampo]) {
+        // Sin await y sin lanzar: si falla, la imagen vieja solo queda huérfana, como antes
+        void Promise.resolve(deps.eliminarImagenes?.([anterior])).catch((e) => log('WhatsApp: no se pudo borrar la imagen anterior:', e?.message ?? e));
+      }
       cache = null;
       s.perfil = undefined;
       s.imagen = undefined;

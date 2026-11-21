@@ -14,6 +14,7 @@ import { crearAgente } from '../asistente/agente.ts';
 import { crearGemini, type Cerebro } from '../asistente/gemini.ts';
 import { crearCanalMeta, firmaValida, mensajesDelAviso, type Canal } from './meta.ts';
 import { crearAlmacen, type Almacen } from '../pagos/almacen.ts';
+import { crearRouterImagenes } from '../imagenes/router.ts';
 
 const REQUERIDAS = ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'GEMINI_API_KEY'];
 
@@ -37,6 +38,7 @@ export interface OpcionesWhatsapp {
   cerebro?: Cerebro;
   almacen?: () => Promise<Almacen>;
   subirImagen?: (bytes: Buffer, mime: string) => Promise<string>;
+  eliminarImagenes?: (urls: string[]) => Promise<unknown>;
   log?: (...a: any[]) => void;
 }
 
@@ -55,11 +57,14 @@ export function crearRouterWhatsapp(op: OpcionesWhatsapp = {}) {
     return router;
   }
 
+  const borradorDeImagenes = crearRouterImagenes({ env, almacen: op.almacen, log });
   const agente = crearAgente({
     canal: op.canal ?? crearCanalMeta(),
     cerebro: op.cerebro ?? crearGemini(),
     almacen: op.almacen ?? crearAlmacen,
     subirImagen: op.subirImagen ?? ((b, m) => subirACloudinary(b, m)),
+    // El mismo borrado de la app: solo quita imágenes que la base ya no usa
+    eliminarImagenes: op.eliminarImagenes ?? ((urls) => borradorDeImagenes.eliminar(urls)),
     urlApp: env.FRONTEND_URL || 'https://mrapp-b8d1e.web.app',
     secreto: env.WHATSAPP_APP_SECRET,
     log,
