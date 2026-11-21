@@ -140,6 +140,25 @@ export function crearAgente(deps: DepsAgente) {
   const secreto = deps.secreto ?? process.env.WHATSAPP_APP_SECRET ?? '';
   const cola = new Map<string, Promise<void>>();
   const decir = (a: string, t: string) => deps.canal.enviarTexto(a, t);
+  /**
+   * Pregunta con botones; si WhatsApp los rechaza (o falla el envío interactivo), manda la MISMA pregunta como texto
+   * y dice qué palabra escribir. El agente entiende las dos formas, así que nunca se queda mudo por un botón.
+   */
+  async function conBotones(a: string, texto: string, botones: { id: string; titulo: string }[], alterno: string) {
+    try {
+      if (texto.length > 900) {
+        // WhatsApp limita a ~1000 caracteres el texto de un mensaje con botones: el detalle va aparte y los botones llevan solo la pregunta
+        await decir(a, texto);
+        await deps.canal.enviarBotones(a, '👆 ¿Qué hago?', botones);
+        return;
+      }
+      await deps.canal.enviarBotones(a, texto, botones);
+    } catch (e: any) {
+      log('WhatsApp: no se pudieron enviar los botones; se manda como texto:', String(e?.message ?? e).slice(0, 200));
+      // Si el detalle largo ya salió, solo falta decir cómo contestar
+      await decir(a, texto.length > 900 ? alterno : `${texto}\n\n${alterno}`);
+    }
+  }
   const momento = () => {
     const m = momentoMx(ahora().getTime());
     return `${m.dia} ${m.hora}`;
@@ -236,7 +255,7 @@ export function crearAgente(deps: DepsAgente) {
 
   async function preguntarRol(de: string, s: Sesion) {
     const sesion = s.tienda ? `\n\n(Tienes sesión abierta hoy como *${s.tienda.nombreTienda}*; si eliges tienda, entras sin contraseña.)` : '';
-    await deps.canal.enviarBotones(de, `👋 ¡Hola! Soy el asistente de *Crustore*. ¿Qué quieres hacer?\n\n🛒 *Soy cliente:* consultar artículos, precios, tiendas, horarios y ubicaciones.\n🏪 *Soy tienda:* administrar tu tienda.${sesion}`, BOTONES_ROL);
+    await conBotones(de, `👋 ¡Hola! Soy el asistente de *Crustore*. ¿Qué quieres hacer?\n\n🛒 *Soy cliente:* consultar artículos, precios, tiendas, horarios y ubicaciones.\n🏪 *Soy tienda:* administrar tu tienda.${sesion}`, BOTONES_ROL, 'Responde *cliente* o *tienda*.');
   }
 
   async function elegirRol(de: string, s: Sesion, rol: Rol) {
@@ -330,10 +349,10 @@ export function crearAgente(deps: DepsAgente) {
   async function pedirConfirmacionPerfil(de: string, s: Sesion, perfil: PerfilPendiente, extra = '') {
     s.perfil = perfil;
     s.estado = 'confirmandoPerfil';
-    await deps.canal.enviarBotones(de, `Voy a cambiar en *${s.tienda!.nombreTienda}*:\n\n${perfil.lineas.map((l) => `• ${l}`).join('\n')}${extra}\n\n¿Lo guardo? (o escríbeme otro cambio)`, [
+    await conBotones(de, `Voy a cambiar en *${s.tienda!.nombreTienda}*:\n\n${perfil.lineas.map((l) => `• ${l}`).join('\n')}${extra}\n\n¿Lo guardo? (o escríbeme otro cambio)`, [
       { id: 'guardar', titulo: '✅ Guardar' },
       { id: 'cancelar', titulo: '❌ Cancelar' },
-    ]);
+    ], 'Responde *sí* para guardar o *no* para cancelar.');
   }
 
   async function textoDeTienda(de: string, s: Sesion, texto: string) {
@@ -402,10 +421,10 @@ export function crearAgente(deps: DepsAgente) {
     }
     s.borrador = v.borrador;
     s.estado = 'confirmando';
-    await deps.canal.enviarBotones(de, `Revisa el artículo:\n\n${resumenBorrador(v.borrador, s.tienda!.nombreTienda)}\n\n¿Lo publico? (también puedes escribirme un cambio, ej. "el precio es 120")`, [
+    await conBotones(de, `Revisa el artículo:\n\n${resumenBorrador(v.borrador, s.tienda!.nombreTienda)}\n\n¿Lo publico? (también puedes escribirme un cambio, ej. "el precio es 120")`, [
       { id: 'guardar', titulo: '✅ Publicar' },
       { id: 'cancelar', titulo: '❌ Descartar' },
-    ]);
+    ], 'Responde *sí* para publicar o *no* para descartar.');
   }
 
   async function recibirFoto(de: string, s: Sesion, m: MensajeEntrante) {
@@ -521,7 +540,10 @@ export function crearAgente(deps: DepsAgente) {
     // Elegir o cambiar de rol
     const eleccion = boton === 'rol_cliente' || boton === 'rol_tienda' ? rolDe(boton) : cmd === 'entrar' ? 'tienda' : !s.rol && m.tipo === 'texto' ? rolDe(texto) : null;
     if (eleccion) return elegirRol(de, s, eleccion);
-    if (cmd === 'menu') return preguntarRol(de, s);
+    if (cmd === 'menu') {
+      s.rol = undefined; // la respuesta por texto ("cliente" / "tienda") solo se lee mientras no hay rol elegido
+      return preguntarRol(de, s);
+    }
     if (!s.rol) return preguntarRol(de, s);
 
     /* ---------------- CLIENTE ---------------- */

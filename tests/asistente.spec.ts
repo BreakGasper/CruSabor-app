@@ -284,7 +284,7 @@ const tiendaBase = (extra: any = {}) => ({
   horario: { Lunes: { inicio: '09:00', fin: '18:00' } }, metodosPago: ['Efectivo'], ...extra,
 });
 
-function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any } = {}) {
+function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any; sinBotones?: boolean } = {}) {
   const bd: Record<string, any> = {
     tiendas: extra.tiendas ?? { t1: tiendaBase() },
     categorias: { c1: { id: 'c1', nombre: 'Postres' } },
@@ -314,7 +314,10 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const crear = () => crearAgente({
     canal: {
       enviarTexto: async (_a, t) => { enviados.push(t); },
-      enviarBotones: async (_a, t, b) => { botones.push(b.map((x) => x.id)); enviados.push(t + ' [' + b.map((x) => x.id).join(',') + ']'); },
+      enviarBotones: async (_a, t, b) => {
+        if (extra.sinBotones) throw new Error('WhatsApp envío 400: interactive no permitido');
+        botones.push(b.map((x) => x.id)); enviados.push(t + ' [' + b.map((x) => x.id).join(',') + ']');
+      },
       descargarImagen: async () => ({ mime: 'image/jpeg', bytes: Buffer.from('foto') }),
     },
     cerebro: {
@@ -418,6 +421,54 @@ describe('registros de diagnóstico (sin contenido ni números)', () => {
     expect(todo).not.toContain('secreto1');
     expect(todo).not.toContain('8111111111');
     expect(todo).not.toContain(TEL);
+  });
+});
+
+describe('si WhatsApp rechaza los botones, el agente sigue funcionando por texto', () => {
+  it('menú, login, artículo y perfil se pueden hacer escribiendo palabras', async () => {
+    const c = montar({ sinBotones: true, admin: () => ({ accion: 'editar_perfil', cambios: { descripcion: 'Rica repostería' } }) });
+    await c.di({ texto: 'hola' });
+    expect(ultimo(c.enviados)).toMatch(/¿Qué quieres hacer\?[\s\S]*Responde \*cliente\* o \*tienda\*/);
+    expect(c.logs.some((l) => /no se pudieron enviar los botones/.test(l))).toBe(true);
+    await c.di({ texto: 'soy tienda' });
+    expect(ultimo(c.enviados)).toMatch(/contraseña de tu tienda/);
+    await c.di({ texto: 'secreto1' });
+    await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(ultimo(c.enviados)).toMatch(/Revisa el artículo[\s\S]*Responde \*sí\* para publicar o \*no\* para descartar/);
+    await c.di({ texto: 'sí' });
+    expect(c.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', tiendaId: 't1' });
+    await c.di({ texto: 'mi descripción es rica repostería' });
+    expect(ultimo(c.enviados)).toMatch(/Responde \*sí\* para guardar o \*no\* para cancelar/);
+    await c.di({ texto: 'sí' });
+    expect(c.bd.tiendas.t1.descripcion).toBe('Rica repostería');
+  });
+
+  it('después de "menú", responder por texto "cliente" funciona aunque ya hubiera un rol elegido', async () => {
+    const c = montar({ sinBotones: true });
+    await c.di({ texto: 'hola' });
+    await c.di({ texto: 'tienda' });
+    await c.di({ texto: 'secreto1' });
+    await c.di({ texto: 'menú' });
+    await c.di({ texto: 'cliente' });
+    expect(ultimo(c.enviados)).toMatch(/Modo cliente/);
+    await c.di({ texto: 'menú' });
+    await c.di({ texto: 'tienda' });
+    expect(ultimo(c.enviados)).toMatch(/Sesión de hoy activa/);
+  });
+});
+
+describe('mensajes largos con botones', () => {
+  it('un resumen de más de ~1000 caracteres va como texto y los botones solo llevan la pregunta', async () => {
+    const largo = 'x'.repeat(600);
+    const c = montar({ extraerCrudo: { nombre: 'N'.repeat(80), precio: 350, descripcion: largo, marca: largo, color: largo, tamano: largo, material: largo } });
+    await c.entrar();
+    await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    const ultimos = c.enviados.slice(-2);
+    expect(ultimos[0]).toMatch(/Revisa el artículo/);
+    expect(ultimos[0].length).toBeGreaterThan(900);
+    expect(ultimos[1]).toMatch(/^👆 ¿Qué hago\? \[guardar,cancelar\]$/);
+    await c.boton('guardar');
+    expect(c.bd.articulos.art1).toBeDefined();
   });
 });
 
