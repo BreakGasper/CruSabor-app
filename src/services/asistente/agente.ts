@@ -647,7 +647,8 @@ export function crearAgente(deps: DepsAgente) {
         if (s) s.ocupado = false;
         const msg = String(e?.message ?? '');
         const ia = /^Gemini/.test(msg);
-        const cuota = /^Gemini 429/.test(msg);
+        // Solo cuota si lo único que pasó fue eso: ningún modelo dio saturación ni falta de respuesta
+        const cuota = /Gemini 429|cuota por minuto/.test(msg) && !/sin respuesta|Gemini 5\d\d|sin conexión/.test(msg);
         const conFoto = Boolean(s?.imagen);
         const reintento = conFoto ? 'Escribe *reintentar* y lo vuelvo a intentar con tu foto.' : 'Inténtalo de nuevo en unos minutos.';
         await decir(

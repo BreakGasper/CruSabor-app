@@ -15,7 +15,7 @@ import {
 import { crearAgente } from '../src/services/asistente/agente.ts';
 import { crearRouterWhatsapp, variablesFaltantes } from '../src/services/whatsapp/router.ts';
 import { mensajesDelAviso, crearCanalMeta } from '../src/services/whatsapp/meta.ts';
-import { crearGemini } from '../src/services/asistente/gemini.ts';
+import { crearGemini, listarModelos } from '../src/services/asistente/gemini.ts';
 import { membresiaVigente } from '../src/composables/useMembresia.ts';
 
 // 12:00 en México (UTC-6) del viernes 20 de noviembre de 2026
@@ -582,6 +582,32 @@ describe('Gemini', () => {
     });
   });
 
+  describe('diagnóstico: el error cuenta la historia completa', () => {
+    const reloj = () => { let t = 1_000_000; return { ahoraMs: () => t, esperar: async (ms: number) => { t += ms; } }; };
+
+    it('el error final resume lo que pasó con CADA modelo de la cadena (no solo el último) y cada intento fallido deja huella', async () => {
+      const r = reloj();
+      const logs: string[] = [];
+      const { fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r503, 'gemini-2.5-flash-lite': timeout as any }); // y el tercero da 404
+      const g = crearGemini({ llave: 'k', modelo: 'gemini-3.8-flash,gemini-2.5-flash-lite,gemini-2.5-flash', fetchFn, ...r, log: (...a) => logs.push(a.join(' ')) });
+      const e: any = await preguntar(g).catch((x: any) => x);
+      expect(e.message).toMatch(/^Gemini 404 \(modelo gemini-2\.5-flash\)[\s\S]*\|\| Antes: [\s\S]*Gemini 503 \(modelo gemini-3\.8-flash\)[\s\S]*Gemini: sin respuesta en 30 s \(modelo gemini-2\.5-flash-lite\)/);
+      expect(logs.join('\n')).toMatch(/intento fallido con gemini-3\.8-flash: 503[\s\S]*intento fallido con gemini-2\.5-flash-lite: sin respuesta en 30 s/);
+    });
+
+    it('si la respuesta llega pero el CUERPO se corta por tiempo, cuenta como falta de respuesta (antes escapaba sin controlar)', async () => {
+      const r = reloj();
+      const cuerpoLento = () => ({ ok: true, status: 200, json: async () => timeout(), text: async () => '' }) as any;
+      const { fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': cuerpoLento, 'gemini-3.7-flash': ok('del alterno') }, [modelo('gemini-3.7-flash')]);
+      expect(await preguntar(crearGemini({ llave: 'k', fetchFn, ...r, log: () => {} }))).toBe('del alterno');
+    });
+
+    it('listarModelos devuelve solo los modelos Gemini que sirven para generar texto, ordenados', async () => {
+      const fetchFn = (async () => new Response(JSON.stringify({ models: [modelo('gemini-3.8-flash'), modelo('gemini-2.5-flash-lite'), modelo('gemini-embedding-001', ['embedContent']), { name: 'models/aqa', supportedGenerationMethods: ['generateAnswer'] }, modelo('gemma-3-27b-it')] }), { status: 200 })) as any;
+      expect(await listarModelos({ llave: 'k', fetchFn })).toEqual(['gemini-2.5-flash-lite', 'gemini-3.8-flash']);
+    });
+  });
+
   it('un error de Gemini no filtra la llave', async () => {
     const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
     await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
@@ -901,6 +927,23 @@ describe('artículos bajo pedido', () => {
     const tiendas = { t1: { nombreTienda: 'Dulce', estatus: 'activa', membresia: { vigenteHasta: '2027-01-01' } } };
     const arts = { a1: { nombre: 'Pastel de boda', precio: 1500, tiendaId: 't1', tiendaNombre: 'Dulce', porPedido: true, variantes: [{ stock: -1, tieneStock: false }] } };
     expect(buscarCatalogo(tiendas, arts, 'pastel de boda', HOY).articulos[0]).toMatchObject({ porPedido: true, disponible: true });
+  });
+});
+
+describe('aviso al usuario según el error compuesto de la IA', () => {
+  const caso = async (mensaje: string) => {
+    const x = montar();
+    x.cerebro.extraerArticulo = async () => { throw new Error(mensaje); };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    return ultimo(x.enviados);
+  };
+  it('solo cuota (429) y modelos no disponibles → "se agotó el uso gratuito"', async () => {
+    expect(await caso('Gemini 404 (modelo b): no disponible para esta cuenta || Antes: Gemini 429 (modelo a): cuota por minuto agotada, disponible en 40 s')).toMatch(/Se agotó el uso gratuito/);
+  });
+  it('si algún modelo dio saturación o falta de respuesta → "saturado"', async () => {
+    expect(await caso('Gemini 404 (modelo c): no disponible para esta cuenta || Antes: Gemini 429 (modelo a): cuota | Gemini: sin respuesta en 30 s (modelo b)')).toMatch(/saturado/);
+    expect(await caso('Gemini 503 (modelo a): demanda')).toMatch(/saturado/);
   });
 });
 
@@ -1261,6 +1304,29 @@ describe('webhook', () => {
     expect(await ok.text()).toBe('777');
     expect((await fetch(`${s.base}/webhook?hub.mode=subscribe&hub.verify_token=otro&hub.challenge=1`)).status).toBe(403);
     s.cerrar();
+  });
+
+  it('/whatsapp/modelos: solo con el token de verificación; lista los modelos de la clave sin revelar secretos', async () => {
+    const app = express();
+    app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
+    app.use('/whatsapp', crearRouterWhatsapp({
+      env: ENV, log: () => {},
+      canal: { enviarTexto: async () => {}, enviarBotones: async () => {}, descargarImagen: async () => ({ mime: '', bytes: Buffer.from('') }) } as any,
+      cerebro: { extraerArticulo: async () => ({}), responderCliente: async () => '', interpretarAdmin: async () => ({}) },
+      almacen: async () => ({ leer: async () => null, actualizar: async () => {}, nuevoId: () => 'x' }),
+      subirImagen: async () => 'u',
+      listarModelos: async () => ['gemini-2.5-flash-lite', 'gemini-3.8-flash'],
+    }));
+    const srv = app.listen(0);
+    const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/whatsapp`;
+    expect((await fetch(`${base}/modelos`)).status).toBe(403);
+    expect((await fetch(`${base}/modelos?token=otro`)).status).toBe(403);
+    const r = await fetch(`${base}/modelos?token=verif`);
+    expect(r.status).toBe(200);
+    const cuerpo = await r.json();
+    expect(cuerpo.disponibles).toEqual(['gemini-2.5-flash-lite', 'gemini-3.8-flash']);
+    expect(JSON.stringify(cuerpo)).not.toMatch(/GEMINI_API_KEY|secretoapp|"g"/); // ni la llave ni el secreto de la app
+    srv.close();
   });
 
   it('rechaza avisos sin firma válida y atiende los firmados (una sola vez aunque Meta reintente)', async () => {

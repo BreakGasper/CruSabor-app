@@ -137,7 +137,7 @@ Variables (Render › Environment; sin ellas queda apagado y `GET /whatsapp/esta
 
 | Variable | De dónde sale |
 | --- | --- |
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey (`GEMINI_MODEL` opcional, por defecto `gemini-3.8-flash`, y puede ser una **cadena separada por comas** en orden de preferencia (p. ej. `gemini-3.8-flash,gemini-2.5-flash-lite,gemini-2.5-flash`): cuando a un modelo se le acaba su cuota por minuto se sigue con el siguiente, y los que no existan para la cuenta o tengan límite 0 se apartan una hora; si Google retira el modelo, cámbialo aquí sin tocar el código; `GEMINI_FALLBACK_MODEL` opcional fija modelos de respaldo, y si no se define, ante saturación o timeout se prueban solos otros modelos Flash) |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey (`GEMINI_MODEL` opcional, por defecto `gemini-3.8-flash`, y puede ser una **cadena separada por comas** en orden de preferencia (p. ej. `gemini-3.8-flash,gemini-2.5-flash-lite`; qué modelos acepta tu clave lo dice `GET /whatsapp/modelos?token=<WHATSAPP_VERIFY_TOKEN>`): cuando a un modelo se le acaba su cuota por minuto se sigue con el siguiente, y los que no existan para la cuenta o tengan límite 0 se apartan una hora; si Google retira el modelo, cámbialo aquí sin tocar el código; `GEMINI_FALLBACK_MODEL` opcional fija modelos de respaldo, y si no se define, ante saturación o timeout se prueban solos otros modelos Flash) |
 | `WHATSAPP_TOKEN` | Meta › WhatsApp › API Setup (el temporal dura 24 h; crea uno permanente con un *usuario del sistema*) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Meta › WhatsApp › API Setup (no es el teléfono) |
 | `WHATSAPP_VERIFY_TOKEN` | texto que tú inventas; se pega igual al registrar el webhook |
