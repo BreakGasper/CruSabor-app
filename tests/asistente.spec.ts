@@ -124,6 +124,30 @@ describe('Gemini', () => {
     // sin tope de salida que pueda vaciar la respuesta en modelos con razonamiento
     expect(llamadas[0].body.generationConfig.maxOutputTokens).toBeUndefined();
   });
+  it('reintenta ante un pico de demanda (503) y responde cuando Google se recupera', async () => {
+    let n = 0;
+    const esperas: number[] = [];
+    const fetchFn = (async () => {
+      n++;
+      return n < 3
+        ? new Response('{"error":{"code":503,"status":"UNAVAILABLE"}}', { status: 503 })
+        : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Hola cliente' }] } }] }), { status: 200 });
+    }) as any;
+    const g = crearGemini({ llave: 'k', fetchFn, esperar: async (ms) => { esperas.push(ms); } });
+    expect(await g.responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).toBe('Hola cliente');
+    expect(n).toBe(3);
+    expect(esperas).toEqual([1500, 4000]);
+  });
+  it('si Google sigue caído, se rinde tras los reintentos; y un 404 no se reintenta', async () => {
+    let n = 0;
+    const caido = (async () => { n++; return new Response('{"error":{"code":503}}', { status: 503 }); }) as any;
+    await expect(crearGemini({ llave: 'k', fetchFn: caido, esperar: async () => {} }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 503/);
+    expect(n).toBe(3);
+    let m = 0;
+    const noExiste = (async () => { m++; return new Response('{"error":{"code":404}}', { status: 404 }); }) as any;
+    await expect(crearGemini({ llave: 'k', fetchFn: noExiste, esperar: async () => {} }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
+    expect(m).toBe(1);
+  });
   it('un error de Gemini no filtra la llave', async () => {
     const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
     await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
