@@ -499,6 +499,78 @@ describe('Gemini', () => {
     });
   });
 
+  describe('cadena de modelos (GEMINI_MODEL="a,b,c")', () => {
+    const r429 = (texto = 'You exceeded your current quota') => () => new Response(JSON.stringify({ error: { code: 429, message: texto } }), { status: 429 });
+    const reloj = () => {
+      let t = 1_000_000;
+      return { ahoraMs: () => t, esperar: async (ms: number) => { t += ms; }, avanzar: (ms: number) => { t += ms; } };
+    };
+
+    it('usa los modelos en el orden indicado: cuando a uno se le acaba la cuota sigue con el siguiente, y luego con el otro', async () => {
+      const r = reloj();
+      const logs: string[] = [];
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429(), 'gemini-2.5-flash-lite': r429(), 'gemini-2.5-flash': ok('el tercero') });
+      const g = crearGemini({ llave: 'k', modelo: 'gemini-3.8-flash, gemini-2.5-flash-lite ,models/gemini-2.5-flash', fetchFn, ...r, log: (...a) => logs.push(a.join(' ')) });
+      expect(await preguntar(g)).toBe('el tercero');
+      expect(llamadas).toEqual(['gemini-3.8-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']); // sin consultar la lista de Google
+      expect(logs.join('\n')).toMatch(/gemini-3\.8-flash agotó su cuota por minuto[\s\S]*gemini-2\.5-flash-lite agotó su cuota por minuto[\s\S]*respondió el modelo gemini-2\.5-flash /);
+    });
+
+    it('reparte el trabajo: mientras el principal está apartado, las siguientes preguntas van directo al que sí tiene cuota', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429(), 'gemini-2.5-flash-lite': ok('lite') });
+      const g = crearGemini({ llave: 'k', modelo: 'gemini-3.8-flash,gemini-2.5-flash-lite', fetchFn, ...r, log: () => {} });
+      for (let i = 0; i < 4; i++) expect(await preguntar(g)).toBe('lite');
+      expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(1);
+      expect(llamadas.filter((m) => m === 'gemini-2.5-flash-lite')).toHaveLength(4);
+      r.avanzar(61_000); // pasó el minuto: el principal vuelve a ser el primero
+      await preguntar(g);
+      expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(2);
+    });
+
+    it('un modelo con "limit: 0" (no incluido en el plan gratuito) se aparta una hora, no un minuto', async () => {
+      const r = reloj();
+      const sinPlan = r429('Quota exceeded for metric: generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash');
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-2.0-flash': sinPlan, 'gemini-2.5-flash-lite': ok('lite') });
+      const g = crearGemini({ llave: 'k', modelo: 'gemini-2.0-flash,gemini-2.5-flash-lite', fetchFn, ...r, log: () => {} });
+      await preguntar(g);
+      r.avanzar(120_000); // pasaron 2 minutos: un modelo con cuota por minuto ya habría vuelto, este no
+      await preguntar(g);
+      expect(llamadas.filter((m) => m === 'gemini-2.0-flash')).toHaveLength(1);
+      r.avanzar(3_600_000); // pasada la hora, se le da otra oportunidad
+      await preguntar(g);
+      expect(llamadas.filter((m) => m === 'gemini-2.0-flash')).toHaveLength(2);
+    });
+
+    it('un modelo que no existe para la cuenta (404) se aparta una hora y no se vuelve a pedir en cada mensaje', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-2.5-flash-lite': ok('lite') }); // el resto da 404
+      const g = crearGemini({ llave: 'k', modelo: 'gemini-viejo,gemini-2.5-flash-lite', fetchFn, ...r, log: () => {} });
+      await preguntar(g);
+      await preguntar(g);
+      await preguntar(g);
+      expect(llamadas.filter((m) => m === 'gemini-viejo')).toHaveLength(1);
+    });
+
+    it('si ningún modelo de la cadena está disponible, falla enseguida y dice por qué', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({});
+      const g = crearGemini({ llave: 'k', modelo: 'a-viejo,b-viejo', fetchFn, ...r, log: () => {} });
+      await expect(preguntar(g)).rejects.toThrow(/^Gemini 404 \(modelo b-viejo\)/);
+      const antes = llamadas.length;
+      await expect(preguntar(g)).rejects.toThrow(/^Gemini 404 \(modelo b-viejo\): no disponible para esta cuenta/);
+      expect(llamadas.length).toBe(antes); // la segunda vez ni sale a la red
+    });
+
+    it('la cadena de GEMINI_MODEL y GEMINI_FALLBACK_MODEL se suman sin repetir', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({ 'c': ok('c') });
+      const g = crearGemini({ llave: 'k', modelo: 'a,b', modeloAlterno: 'b,c', fetchFn, ...r, log: () => {} });
+      expect(await preguntar(g)).toBe('c');
+      expect(llamadas).toEqual(['a', 'b', 'c']);
+    });
+  });
+
   it('un error de Gemini no filtra la llave', async () => {
     const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
     await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
