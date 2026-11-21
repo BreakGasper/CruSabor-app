@@ -110,6 +110,8 @@ export interface DepsAgente {
   sku?: () => string;
   comparar?: (password: string, hash: string) => Promise<boolean>;
   sesiones?: Map<string, Sesion>;
+  /** Tiempo máximo (ms) para atender UN mensaje antes de liberar la cola de ese número. Por defecto 120 s */
+  tiempoMaximoMs?: number;
   log?: (...a: any[]) => void;
 }
 
@@ -652,8 +654,20 @@ export function crearAgente(deps: DepsAgente) {
   function procesar(m: MensajeEntrante): Promise<void> {
     const previo = cola.get(m.de) ?? Promise.resolve();
     const inicio = Date.now();
+    if (cola.has(m.de)) log('WhatsApp: este mensaje espera a que termine el anterior del mismo número');
+    const limite = deps.tiempoMaximoMs ?? 120_000;
+    // Guardia: si atender un mensaje se cuelga (red, base de datos…), se libera la cola para que los siguientes
+    // mensajes de ese número no queden esperando para siempre
+    const conGuardia = () =>
+      new Promise<void>((ok, mal) => {
+        const t = setTimeout(() => mal(new Error(`WhatsApp: atender el mensaje tardó más de ${Math.round(limite / 1000)} s; se libera la cola`)), limite);
+        manejar(m).then(
+          () => { clearTimeout(t); ok(); },
+          (e) => { clearTimeout(t); mal(e); },
+        );
+      });
     const siguiente = previo
-      .then(() => manejar(m))
+      .then(conGuardia)
       .then(() => {
         // Sin contenido ni número: solo en qué paso quedó la conversación y cuánto tardó
         const s = sesiones.get(m.de);

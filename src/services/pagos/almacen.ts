@@ -47,12 +47,14 @@ export async function crearAlmacen(): Promise<Almacen> {
   let contador = 0;
   cache = {
     async leer(r) {
-      const res = await fetch(`${databaseURL}/${r}.json${AUTH}`);
+      // Con límite de tiempo: una lectura colgada no debe dejar esperando para siempre a quien la pidió
+      const res = await fetch(`${databaseURL}/${r}.json${AUTH}`, { signal: AbortSignal.timeout(15_000) });
       if (!res.ok) throw new Error(`GET ${r}: ${res.status} ${await res.text()}`);
       return await res.json();
     },
     async actualizar(c) {
       const res = await fetch(`${databaseURL}/.json${AUTH}`, {
+        signal: AbortSignal.timeout(15_000),
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(c),

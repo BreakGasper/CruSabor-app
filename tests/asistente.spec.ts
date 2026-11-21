@@ -669,7 +669,7 @@ const tiendaBase = (extra: any = {}) => ({
   horario: { Lunes: { inicio: '09:00', fin: '18:00' } }, metodosPago: ['Efectivo'], ...extra,
 });
 
-function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any; sinBotones?: boolean } = {}) {
+function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any; sinBotones?: boolean; tiempoMaximoMs?: number } = {}) {
   const bd: Record<string, any> = {
     tiendas: extra.tiendas ?? { t1: tiendaBase() },
     categorias: { c1: { id: 'c1', nombre: 'Postres' } },
@@ -721,6 +721,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
     },
     urlApp: 'https://app.test',
     secreto: SECRETO,
+    tiempoMaximoMs: extra.tiempoMaximoMs,
     ahora: () => new Date(reloj),
     sku: () => 'CRU-TEST',
     log: (...a) => { logs.push(a.join(' ')); },
@@ -1014,6 +1015,30 @@ describe('aviso al usuario según el error compuesto de la IA', () => {
   it('si algún modelo dio saturación o falta de respuesta → "saturado"', async () => {
     expect(await caso('Gemini 404 (modelo c): no disponible para esta cuenta || Antes: Gemini 429 (modelo a): cuota | Gemini: sin respuesta en 30 s (modelo b)')).toMatch(/saturado/);
     expect(await caso('Gemini 503 (modelo a): demanda')).toMatch(/saturado/);
+  });
+});
+
+describe('un mensaje colgado no bloquea los siguientes del mismo número', () => {
+  it('si atender un mensaje nunca termina, se libera la cola y "hola" vuelve a responder', async () => {
+    const x = montar({ tiempoMaximoMs: 60 });
+    await x.entrar();
+    x.cerebro.extraerArticulo = () => new Promise(() => {}); // se queda esperando para siempre
+    const colgado = x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    const siguiente = x.di({ texto: 'hola' }); // llega mientras el anterior sigue colgado
+    await colgado;
+    expect(x.logs.some((l) => /este mensaje espera a que termine el anterior/.test(l))).toBe(true);
+    expect(x.logs.some((l) => /tardó más de \d+ s; se libera la cola/.test(l))).toBe(true);
+    expect(x.enviados.some((t) => /Tuve un problema para atenderte/.test(t))).toBe(true); // el usuario se entera
+    await siguiente;
+    expect(ultimo(x.enviados)).toMatch(/¿Qué quieres hacer\?[\s\S]*\[rol_cliente,rol_tienda\]/); // y "hola" sí respondió
+  });
+
+  it('un mensaje normal no se ve afectado por la guardia', async () => {
+    const x = montar({ tiempoMaximoMs: 60 });
+    await x.di({ texto: 'hola' });
+    await new Promise((r) => setTimeout(r, 120)); // pasa más que el límite: no debe haber un error tardío
+    expect(x.logs.some((l) => /se libera la cola/.test(l))).toBe(false);
+    expect(x.enviados).toHaveLength(1);
   });
 });
 
