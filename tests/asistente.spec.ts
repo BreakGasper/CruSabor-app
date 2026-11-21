@@ -427,6 +427,78 @@ describe('Gemini', () => {
     expect(llamadas.filter((m) => m !== 'LISTA')).toEqual(['gemini-3.8-flash', 'gemini-3.7-flash-lite', 'gemini-3.6-flash-lite', 'gemini-3.7-flash']);
   });
 
+  describe('límite por minuto (RPM) del nivel gratuito', () => {
+    const r429 = (retraso?: string) => () =>
+      new Response(JSON.stringify({ error: { code: 429, message: 'You exceeded your current quota', details: retraso ? [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: retraso }] : [] } }), { status: 429 });
+    /** Reloj falso: esperar() lo adelanta, como pasaría de verdad */
+    const reloj = () => {
+      let t = 1_000_000;
+      const esperas: number[] = [];
+      return { esperas, ahoraMs: () => t, esperar: async (ms: number) => { esperas.push(ms); t += ms; } };
+    };
+
+    it('mientras un modelo está "enfriándose" no se le vuelve a llamar (no gasta cuota ni tiempo)', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429(), 'gemini-3.7-flash-lite': ok('alterno') }, [modelo('gemini-3.7-flash-lite')]);
+      const g = crearGemini({ llave: 'k', fetchFn, ...r });
+      expect(await preguntar(g)).toBe('alterno');
+      expect(await preguntar(g)).toBe('alterno'); // segunda pregunta, dentro del minuto
+      expect(await preguntar(g)).toBe('alterno');
+      // el principal solo se intentó UNA vez; el resto fue directo al alterno
+      expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(1);
+      expect(llamadas.filter((m) => m === 'gemini-3.7-flash-lite')).toHaveLength(3);
+    });
+
+    it('pasado el enfriamiento (60 s si Google no dice cuánto), el modelo principal vuelve a usarse', async () => {
+      const r = reloj();
+      let primeraVez = true;
+      const { llamadas, fetchFn } = falsoPorModelo(
+        { 'gemini-3.8-flash': () => { if (primeraVez) { primeraVez = false; return r429()(); } return ok('principal')(); }, 'gemini-3.7-flash-lite': ok('alterno') },
+        [modelo('gemini-3.7-flash-lite')],
+      );
+      const g = crearGemini({ llave: 'k', fetchFn, ...r });
+      expect(await preguntar(g)).toBe('alterno');
+      await r.esperar(61_000);
+      expect(await preguntar(g)).toBe('principal');
+      expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(2);
+    });
+
+    it('si TODOS están sin cuota y Google pide esperar poco (retryDelay), espera eso y lo vuelve a intentar', async () => {
+      const r = reloj();
+      let aprendido = false;
+      const { llamadas, fetchFn } = falsoPorModelo(
+        { 'gemini-3.8-flash': () => (aprendido ? ok('ya hay cuota')() : r429('12s')()), 'gemini-3.7-flash': () => { aprendido = true; return r429('15s')(); } },
+        [modelo('gemini-3.7-flash')],
+      );
+      const g = crearGemini({ llave: 'k', fetchFn, ...r });
+      expect(await preguntar(g)).toBe('ya hay cuota');
+      expect(r.esperas).toHaveLength(1);
+      expect(r.esperas[0]).toBeGreaterThanOrEqual(12_000); // lo que pidió Google para el primero que se libera
+      expect(r.esperas[0]).toBeLessThanOrEqual(13_000);
+      expect(llamadas.filter((m) => m === 'gemini-3.8-flash')).toHaveLength(2);
+    });
+
+    it('si falta mucho para que se libere (más de 25 s), falla enseguida con 429 y SIN esperar ni hacer más llamadas', async () => {
+      const r = reloj();
+      const { llamadas, fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429('50s'), 'gemini-3.7-flash': r429('55s') }, [modelo('gemini-3.7-flash')]);
+      const g = crearGemini({ llave: 'k', fetchFn, ...r });
+      await expect(preguntar(g)).rejects.toThrow(/^Gemini 429/);
+      expect(r.esperas).toEqual([]);
+      const antes = llamadas.length;
+      // la siguiente pregunta, aún dentro del enfriamiento, ni siquiera sale a la red
+      await expect(preguntar(g)).rejects.toThrow(/^Gemini 429 \(modelo .*\): cuota por minuto agotada, disponible en \d+ s/);
+      expect(llamadas.length).toBe(antes);
+    });
+
+    it('un 503 u otro error mezclado no se confunde con falta de cuota (no espera a que se libere)', async () => {
+      const r = reloj();
+      const { fetchFn } = falsoPorModelo({ 'gemini-3.8-flash': r429('10s'), 'gemini-3.7-flash': r503 }, [modelo('gemini-3.7-flash')]);
+      const e: any = await preguntar(crearGemini({ llave: 'k', fetchFn, ...r })).catch((x: any) => x);
+      expect(e.message).toMatch(/^Gemini 503 \(modelo gemini-3\.7-flash\)/);
+      expect(r.esperas.every((ms) => ms <= 4_000)).toBe(true); // solo las pausas cortas de los reintentos
+    });
+  });
+
   it('un error de Gemini no filtra la llave', async () => {
     const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
     await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
