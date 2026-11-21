@@ -37,7 +37,8 @@ export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fet
       body: JSON.stringify({ messaging_product: 'whatsapp', ...cuerpo }),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) throw new Error(`WhatsApp envío ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    // Los últimos 4 dígitos del identificador del número ayudan a ver si WHATSAPP_PHONE_NUMBER_ID apunta al número esperado
+    if (!res.ok) throw new Error(`WhatsApp envío ${res.status} (desde el número …${id.slice(-4)}): ${(await res.text()).slice(0, 300)}`);
     // Solo los últimos 4 dígitos del identificador: si la respuesta no aparece en el chat esperado, casi
     // siempre es porque sale desde OTRO número (WHATSAPP_PHONE_NUMBER_ID apunta a otro)
     log(`WhatsApp: respuesta enviada desde el número con identificador …${id.slice(-4)}`);
