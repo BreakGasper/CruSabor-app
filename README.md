@@ -126,7 +126,7 @@ Variables (Render › Environment; sin ellas queda apagado y `GET /whatsapp/esta
 
 | Variable | De dónde sale |
 | --- | --- |
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey (`GEMINI_MODEL` opcional, por defecto `gemini-2.5-flash`) |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey (`GEMINI_MODEL` opcional, por defecto `gemini-3.8-flash`; si Google retira el modelo, cámbialo aquí sin tocar el código) |
 | `WHATSAPP_TOKEN` | Meta › WhatsApp › API Setup (el temporal dura 24 h; crea uno permanente con un *usuario del sistema*) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Meta › WhatsApp › API Setup (no es el teléfono) |
 | `WHATSAPP_VERIFY_TOKEN` | texto que tú inventas; se pega igual al registrar el webhook |

@@ -14,6 +14,7 @@ import {
 import { crearAgente } from '../src/services/asistente/agente.ts';
 import { crearRouterWhatsapp, variablesFaltantes } from '../src/services/whatsapp/router.ts';
 import { mensajesDelAviso } from '../src/services/whatsapp/meta.ts';
+import { crearGemini } from '../src/services/asistente/gemini.ts';
 import { membresiaVigente } from '../src/composables/useMembresia.ts';
 
 const HOY = new Date('2026-11-20T12:00:00');
@@ -96,6 +97,36 @@ describe('reglas puras', () => {
     expect(mensajesDelAviso(aviso).map((m) => [m.tipo, m.texto, m.mediaId])).toEqual([
       ['texto', 'hola', undefined], ['imagen', 'Pastel $350', 'img1'], ['boton', 'guardar', undefined], ['otro', '', undefined],
     ]);
+  });
+});
+
+describe('Gemini', () => {
+  const falso = () => {
+    const llamadas: { url: string; headers: any; body: any }[] = [];
+    const fetchFn = (async (url: string, init: any) => {
+      llamadas.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"nombre":"Pastel","precio":350}' }] } }] }), { status: 200 });
+    }) as any;
+    return { llamadas, fetchFn };
+  };
+  it('usa el modelo por defecto vigente y la llave por cabecera (no en la URL)', async () => {
+    const { llamadas, fetchFn } = falso();
+    const g = crearGemini({ llave: 'LLAVE', fetchFn });
+    expect(await g.extraerArticulo({ texto: 'Pastel $350', categorias: CATS })).toEqual({ nombre: 'Pastel', precio: 350 });
+    expect(llamadas[0].url).toContain('/models/gemini-3.8-flash:generateContent');
+    expect(llamadas[0].url).not.toContain('LLAVE');
+    expect(llamadas[0].headers['x-goog-api-key']).toBe('LLAVE');
+  });
+  it('el modelo se puede cambiar sin tocar el código', async () => {
+    const { llamadas, fetchFn } = falso();
+    await crearGemini({ llave: 'k', modelo: 'otro-modelo', fetchFn }).responderCliente({ pregunta: 'hola', catalogo: { articulos: [], tiendas: [] }, urlApp: 'https://app.test' });
+    expect(llamadas[0].url).toContain('/models/otro-modelo:');
+    // sin tope de salida que pueda vaciar la respuesta en modelos con razonamiento
+    expect(llamadas[0].body.generationConfig.maxOutputTokens).toBeUndefined();
+  });
+  it('un error de Gemini no filtra la llave', async () => {
+    const fetchFn = (async () => new Response('{"error":{"code":404}}', { status: 404 })) as any;
+    await expect(crearGemini({ llave: 'LLAVE', fetchFn }).responderCliente({ pregunta: 'x', catalogo: { articulos: [], tiendas: [] }, urlApp: 'u' })).rejects.toThrow(/Gemini 404/);
   });
 });
 
