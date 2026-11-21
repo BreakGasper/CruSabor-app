@@ -61,6 +61,7 @@ export function crearRouterWhatsapp(op: OpcionesWhatsapp = {}) {
     almacen: op.almacen ?? crearAlmacen,
     subirImagen: op.subirImagen ?? ((b, m) => subirACloudinary(b, m)),
     urlApp: env.FRONTEND_URL || 'https://mrapp-b8d1e.web.app',
+    secreto: env.WHATSAPP_APP_SECRET,
     log,
   });
 

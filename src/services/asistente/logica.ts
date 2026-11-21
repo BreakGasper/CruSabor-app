@@ -1,14 +1,14 @@
 /**
  * Agente de WhatsApp: reglas puras (sin red, sin base, sin reloj propio) para probarlas solas.
  *
- * El agente hace dos cosas:
- *  1. Una TIENDA entra (celular + contraseña) y le manda una foto con los datos de un
- *     artículo; el agente los extrae, se los muestra y, si confirma, lo publica.
- *  2. Un CLIENTE pregunta por tiendas y productos; el agente responde con lo que hay
- *     en el catálogo.
+ * Quien escribe elige primero si es CLIENTE o TIENDA:
+ *  - CLIENTE: consulta tiendas, artículos, precios, horarios, ubicaciones y lo demás que ve en la app.
+ *  - TIENDA: entra con celular + contraseña (la sesión dura hasta el fin del día, hora de México) y
+ *    puede publicar artículos, ver los datos de SU tienda y cambiar su perfil, siempre con confirmación.
  */
+import { normalizarEnlace } from '../../utils/enlaces.ts';
 
-export const MINUTOS_SESION = 30;
+export const ZONA_HORARIA = 'America/Mexico_City';
 export const MAX_INTENTOS_PASSWORD = 5;
 export const MINUTOS_BLOQUEO = 15;
 export const MAX_MENSAJES_POR_VENTANA = 20;
@@ -27,24 +27,46 @@ export const normalizar = (t: unknown) => sinAcentos(String(t ?? '').toLowerCase
 
 /* ---------------- comandos y respuestas cortas ---------------- */
 
-export type Comando = 'entrar' | 'salir' | 'ayuda' | 'cancelar' | null;
+export type Comando = 'entrar' | 'salir' | 'ayuda' | 'menu' | 'cancelar' | 'datos' | null;
 
 export function comandoDe(texto: unknown): Comando {
   const t = normalizar(texto).replace(/[^a-z ]/g, '').trim();
-  if (['entrar', 'login', 'iniciar sesion', 'soy tienda', 'mi tienda', 'registrar', 'publicar'].includes(t)) return 'entrar';
+  if (['entrar', 'login', 'iniciar sesion', 'soy tienda', 'administrar', 'administrador', 'admin'].includes(t)) return 'entrar';
   if (['salir', 'cerrar sesion', 'logout'].includes(t)) return 'salir';
-  if (['ayuda', 'menu', 'help', 'hola', 'inicio'].includes(t)) return 'ayuda';
+  if (['hola', 'menu', 'inicio', 'cambiar', 'cambiar de rol', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches'].includes(t)) return 'menu';
+  if (['ayuda', 'help', 'que puedes hacer', 'comandos'].includes(t)) return 'ayuda';
   if (['cancelar', 'cancela', 'descartar'].includes(t)) return 'cancelar';
+  if (['mi tienda', 'datos', 'mis datos', 'ver mi tienda', 'perfil', 'mi perfil', 'datos de mi tienda'].includes(t)) return 'datos';
   return null;
 }
 
-export const esSi = (t: unknown) => /^(si|sí|s|ok|dale|va|guardar|confirmo|confirmar|correcto|claro)\b/.test(normalizar(t));
+/** Respuesta a "¿eres cliente o tienda?" (botón o texto) */
+export function rolDe(texto: unknown): 'cliente' | 'tienda' | null {
+  const t = normalizar(texto).replace(/[^a-z0-9 _]/g, '').trim();
+  if (['rol_cliente', 'cliente', 'soy cliente', 'comprar', '1'].includes(t)) return 'cliente';
+  if (['rol_tienda', 'tienda', 'soy tienda', 'administrar', 'administrador', 'admin', '2'].includes(t)) return 'tienda';
+  return null;
+}
+
+export const esSi = (t: unknown) => /^(si|s|ok|dale|va|guardar|confirmo|confirmar|correcto|claro|publicar|publica|publicalo)\b/.test(normalizar(t));
 export const esNo = (t: unknown) => /^(no|n|nel|cancelar|descartar|nada)\b/.test(normalizar(t));
 
 /* ---------------- sesión y límites ---------------- */
 
-export const sesionVigente = (ultimaActividadMs: number, ahoraMs: number) =>
-  ahoraMs - ultimaActividadMs <= MINUTOS_SESION * 60_000;
+/* ---------------- tiempo (siempre en hora de México, no la del servidor) ---------------- */
+
+export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;
+
+/** "2026-11-20": el día en México. La sesión de una tienda vale hasta que este valor cambie */
+export const diaMx = (ms: number): string => new Intl.DateTimeFormat('en-CA', { timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+
+/** { dia: 'Viernes', hora: '14:35' } en México */
+export function momentoMx(ms: number): { dia: string; hora: string } {
+  const partes = new Intl.DateTimeFormat('es-MX', { timeZone: ZONA_HORARIA, weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
+  const v = (t: string) => partes.find((p) => p.type === t)?.value ?? '';
+  const dia = DIAS_SEMANA.find((d) => normalizar(d) === normalizar(v('weekday'))) ?? '';
+  return { dia, hora: `${String(Number(v('hour')) % 24).padStart(2, '0')}:${v('minute')}` };
+}
 
 /** Ventana deslizante por número, para no gastar la cuota gratuita de la IA */
 export function permitirMensaje(marcas: number[], ahoraMs: number): { permitido: boolean; marcas: number[] } {
@@ -218,18 +240,114 @@ export function construirArticulo(
   };
 }
 
-/* ---------------- catálogo para clientes ---------------- */
+/* ---------------- lo que ve un cliente (tiendas y artículos) ---------------- */
 
-const STOP = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'o', 'en', 'con', 'por', 'para', 'que', 'hay', 'tienen', 'venden', 'quiero', 'busco', 'buscar', 'tienda', 'tiendas', 'hola', 'me', 'se', 'del', 'al', 'a']);
+const STOP = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'o', 'en', 'con', 'por', 'para', 'que', 'hay', 'tienen', 'venden', 'quiero', 'busco', 'buscar', 'tienda', 'tiendas', 'hola', 'me', 'se', 'del', 'al', 'a', 'cual', 'cuales', 'cuanto', 'cuesta', 'precio', 'precios', 'horario', 'abre', 'abren', 'cierra', 'cierran', 'esta', 'estan', 'donde', 'ubicacion', 'direccion']);
 
 export const palabrasClave = (t: unknown) =>
   normalizar(t)
     .split(/[^a-z0-9ñ]+/)
     .filter((p) => p.length >= 3 && !STOP.has(p));
 
+const horaCorta = (d: any) => (d?.inicio && d?.fin ? `${d.inicio}-${d.fin}` : 'cerrado');
+
+/** Horario como lo lee una persona: { Lunes: '09:00-18:00', Domingo: 'cerrado' } */
+export function horarioLegible(horario: any): Record<string, string> {
+  const salida: Record<string, string> = {};
+  for (const d of DIAS_SEMANA) salida[d] = horaCorta(horario?.[d]);
+  return salida;
+}
+
+export interface TiendaPublica {
+  nombre: string;
+  categoria: string;
+  descripcion: string;
+  direccion: string;
+  municipio: string;
+  telefono: string;
+  whatsapp: boolean;
+  email: string;
+  facebook: string;
+  instagram: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  metodosPago: string[];
+  envioDomicilio: boolean;
+  zonasEntrega: string[];
+  horario: Record<string, string>;
+  faq: string;
+  certificaciones: string;
+  blog: string;
+}
+
+/** Solo lo que el perfil público de la app ya muestra a cualquier cliente (nunca contraseña ni control interno) */
+export function tiendaPublica(t: any): TiendaPublica {
+  const dir = [t?.calle && `${texto(t.calle, 80)} ${texto(t?.numero, 15)}`.trim(), t?.colonia && `Col. ${texto(t.colonia, 60)}`, t?.cp && `C.P. ${texto(t.cp, 5)}`, t?.municipio, t?.estado]
+    .filter(Boolean)
+    .map((x) => texto(x, 100))
+    .join(', ');
+  return {
+    nombre: texto(t?.nombreTienda, 60),
+    categoria: texto(t?.categoria, 40),
+    descripcion: texto(t?.descripcion, 300),
+    direccion: dir,
+    municipio: texto(t?.municipio, 40),
+    telefono: soloDigitos(t?.telefono),
+    whatsapp: t?.incluyeWhatsapp === true,
+    email: texto(t?.email, 80),
+    facebook: texto(t?.facebook, 60),
+    instagram: texto(t?.instagram, 60),
+    facebookUrl: texto(t?.facebookUrl, 150),
+    instagramUrl: texto(t?.instagramUrl, 150),
+    metodosPago: Array.isArray(t?.metodosPago) ? t.metodosPago.map((x: unknown) => texto(x, 30)) : [],
+    envioDomicilio: t?.envioDomicilio === true,
+    zonasEntrega: Array.isArray(t?.zonasEntrega) ? t.zonasEntrega.slice(0, 20).map((x: unknown) => texto(x, 60)) : [],
+    horario: horarioLegible(t?.horario),
+    faq: texto(t?.faq, 400),
+    certificaciones: texto(t?.certificaciones, 200),
+    blog: texto(t?.blog, 150),
+  };
+}
+
+export interface ArticuloPublico {
+  nombre: string;
+  precio: number;
+  tienda: string;
+  descripcion: string;
+  categoria: string;
+  unidad: string;
+  porPedido: boolean;
+  ventaPausada: boolean;
+  disponible: boolean;
+  colores: string[];
+  tamanos: string[];
+  marcas: string[];
+}
+
+function articuloPublico(a: any): ArticuloPublico {
+  const vars: any[] = Array.isArray(a?.variantes) ? a.variantes : Object.values(a?.variantes ?? {});
+  const unicos = (campo: string) => [...new Set(vars.map((v) => texto(v?.[campo], 30)).filter(Boolean))].slice(0, 8);
+  const porPedido = a?.porPedido === true;
+  const hayExistencia = vars.length === 0 || vars.some((v) => v?.tieneStock === false || Number(v?.stock) === -1 || Number(v?.stock) > 0);
+  return {
+    nombre: texto(a?.nombre, 80),
+    precio: Number(a?.precio) || 0,
+    tienda: texto(a?.tiendaNombre, 60),
+    descripcion: texto(a?.descripcion, 150),
+    categoria: texto(a?.categoria, 40),
+    unidad: texto(a?.unidadMedida, 12),
+    porPedido,
+    ventaPausada: a?.ventaPausada === true,
+    disponible: porPedido || hayExistencia,
+    colores: unicos('color'),
+    tamanos: unicos('tamano'),
+    marcas: unicos('marca'),
+  };
+}
+
 export interface ResultadoCatalogo {
-  articulos: { nombre: string; precio: number; tienda: string; descripcion: string }[];
-  tiendas: { nombre: string; categoria: string; municipio: string }[];
+  articulos: ArticuloPublico[];
+  tiendas: TiendaPublica[];
 }
 
 /** Busca en el catálogo público: tiendas que pueden vender y artículos sin dar de baja */
@@ -249,26 +367,175 @@ export function buscarCatalogo(
     const pajar = normalizar(campos.join(' '));
     return claves.reduce((n, k) => n + (pajar.includes(k) ? 1 : 0), 0);
   };
+  const visibles = Object.entries(articulos ?? {}).filter(([, a]: [string, any]) => a && typeof a === 'object' && a.baja !== true && vendedoras.has(String(a.tiendaId)));
 
-  const arts = Object.values(articulos ?? {})
-    .filter((a: any) => a && typeof a === 'object' && a.baja !== true && vendedoras.has(String(a.tiendaId)))
-    .map((a: any) => ({ a, p: puntaje([a.nombre, a.descripcion, a.categoria]) }))
+  const tiendasOrdenadas = [...vendedoras.entries()]
+    .map(([id, t]) => ({ id, t, p: puntaje([t.nombreTienda, t.categoria, t.descripcion, t.municipio, t.colonia, t.estado]) }))
+    .filter((x) => x.p > 0)
+    .sort((x, y) => y.p - x.p)
+    .slice(0, limite);
+
+  const arts = new Map<string, ArticuloPublico>();
+  const guardar = (a: any) => {
+    const pub = articuloPublico(a);
+    arts.set(`${pub.tienda}|${pub.nombre}`, pub);
+  };
+  visibles
+    .map(([, a]: [string, any]) => ({ a, p: puntaje([a.nombre, a.descripcion, a.categoria, a.tiendaNombre]) }))
     .filter((x) => x.p > 0)
     .sort((x, y) => y.p - x.p)
     .slice(0, limite)
-    .map(({ a }) => ({
-      nombre: texto(a.nombre, 80),
-      precio: Number(a.precio) || 0,
-      tienda: texto(a.tiendaNombre, 60),
-      descripcion: texto(a.descripcion, 120),
-    }));
+    .forEach(({ a }) => guardar(a));
 
-  const tien = [...vendedoras.values()]
-    .map((t) => ({ t, p: puntaje([t.nombreTienda, t.categoria, t.descripcion, t.municipio]) }))
-    .filter((x) => x.p > 0)
-    .sort((x, y) => y.p - x.p)
-    .slice(0, limite)
-    .map(({ t }) => ({ nombre: texto(t.nombreTienda, 60), categoria: texto(t.categoria, 40), municipio: texto(t.municipio, 40) }));
+  // Si preguntan por una tienda ("¿qué venden en Dulce?"), se agregan algunos de sus artículos
+  for (const { id } of tiendasOrdenadas.slice(0, 2)) {
+    visibles.filter(([, a]: [string, any]) => String(a.tiendaId) === id).slice(0, 4).forEach(([, a]) => guardar(a));
+  }
 
-  return { articulos: arts, tiendas: tien };
+  return { articulos: [...arts.values()].slice(0, 8), tiendas: tiendasOrdenadas.map(({ t }) => tiendaPublica(t)) };
+}
+
+/* ---------------- cambios al perfil de la tienda (lo que se puede pedir por chat) ---------------- */
+
+export const METODOS_PAGO = ['Efectivo', 'Tarjeta', 'Transferencia'];
+
+/**
+ * ÚNICOS campos que el agente puede escribir en `tiendas/{id}`. Quedan fuera a propósito:
+ * contraseña, celular (es la identidad del login), nombre (viaja copiado en cada artículo y lo
+ * sincroniza la app), categoría, estado y membresía (control del administrador).
+ */
+export const CAMPOS_EDITABLES = [
+  'descripcion', 'blog', 'faq', 'certificaciones', 'calle', 'numero', 'colonia', 'cp', 'municipio', 'estado',
+  'email', 'facebook', 'instagram', 'facebookUrl', 'instagramUrl', 'incluyeWhatsapp', 'metodosPago',
+  'envioDomicilio', 'zonasEntrega', 'horario', 'logoUrl', 'bannerUrl',
+] as const;
+
+export interface CambiosPerfil {
+  cambios: Record<string, any>;
+  /** Cada cambio en una línea, para mostrarlo antes de confirmar */
+  lineas: string[];
+  /** Lo que se pidió pero no se pudo aplicar, y por qué */
+  ignorados: string[];
+}
+
+const TEXTOS: Record<string, [etiqueta: string, max: number, obligatorio: boolean]> = {
+  descripcion: ['Descripción', 500, false], blog: ['Blog', 200, false], faq: ['Preguntas frecuentes', 600, false],
+  certificaciones: ['Certificaciones', 300, false], calle: ['Calle', 80, true], numero: ['Número', 15, true],
+  colonia: ['Colonia', 60, true], municipio: ['Municipio', 60, true], estado: ['Estado', 40, true],
+  facebook: ['Facebook', 60, false], instagram: ['Instagram', 60, false],
+};
+
+export const normalizarDia = (v: unknown): string | null => {
+  const t = normalizar(v);
+  if (t.length < 3) return null;
+  return DIAS_SEMANA.find((d) => normalizar(d) === t) ?? DIAS_SEMANA.find((d) => normalizar(d).startsWith(t.slice(0, 3))) ?? null;
+};
+
+export function horaValida(v: unknown): string | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? '').trim());
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+/**
+ * Valida lo que propuso la IA. Un valor vacío (o la casilla "sin cambio") significa NO tocar ese dato:
+ * el modelo puede devolver campos vacíos por no haberlos mencionado, y no deben borrar nada. Para
+ * borrar un dato se usa la app.
+ */
+export function validarCambiosPerfil(crudo: any, actual: { horario?: any; envioDomicilio?: boolean } = {}): CambiosPerfil {
+  const cambios: Record<string, any> = {};
+  const lineas: string[] = [];
+  const ignorados: string[] = [];
+  const c = crudo && typeof crudo === 'object' ? crudo : {};
+
+  for (const [campo, [etiqueta, max]] of Object.entries(TEXTOS)) {
+    const v = texto(c[campo], max);
+    if (!v) continue;
+    cambios[campo] = v;
+    lineas.push(`${etiqueta}: ${v}`);
+  }
+
+  const cp = soloDigitos(c.cp);
+  if (c.cp !== undefined && String(c.cp).trim() !== '') {
+    if (/^\d{5}$/.test(cp)) { cambios.cp = cp; lineas.push(`C.P.: ${cp}`); } else ignorados.push('el código postal (debe tener 5 dígitos)');
+  }
+
+  const email = texto(c.email, 80);
+  if (email) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { cambios.email = email; lineas.push(`Correo: ${email}`); } else ignorados.push('el correo (no es válido)');
+  }
+
+  for (const [campo, etiqueta] of [['facebookUrl', 'Enlace de Facebook'], ['instagramUrl', 'Enlace de Instagram']] as const) {
+    const bruto = texto(c[campo], 150);
+    if (!bruto) continue;
+    const url = normalizarEnlace(bruto);
+    if (url) { cambios[campo] = url; lineas.push(`${etiqueta}: ${url}`); } else ignorados.push(`${etiqueta.toLowerCase()} (no es una dirección válida)`);
+  }
+
+  const siNo = (v: unknown) => (normalizar(v) === 'si' ? true : normalizar(v) === 'no' ? false : null);
+  const wa = siNo(c.incluyeWhatsapp);
+  if (wa !== null) { cambios.incluyeWhatsapp = wa; lineas.push(`Atiende por WhatsApp: ${wa ? 'sí' : 'no'}`); }
+
+  if (Array.isArray(c.metodosPago) && c.metodosPago.length) {
+    const lista = [...new Set(c.metodosPago.map((x: unknown) => METODOS_PAGO.find((m) => normalizar(x).includes(normalizar(m).slice(0, 5)))).filter(Boolean))] as string[];
+    if (lista.length) { cambios.metodosPago = lista; lineas.push(`Formas de pago: ${lista.join(', ')}`); } else ignorados.push(`las formas de pago (solo ${METODOS_PAGO.join(', ')})`);
+  }
+
+  const envio = siNo(c.envioDomicilio);
+  const zonas = Array.isArray(c.zonasEntrega) ? [...new Set<string>(c.zonasEntrega.map((x: unknown) => texto(x, 60)).filter(Boolean))].slice(0, 20) : [];
+  if (envio !== null) {
+    cambios.envioDomicilio = envio;
+    lineas.push(`Envío a domicilio: ${envio ? 'sí' : 'no'}`);
+    if (!envio) cambios.zonasEntrega = [];
+  }
+  if (zonas.length && envio !== false) {
+    cambios.zonasEntrega = zonas;
+    lineas.push(`Zonas de entrega: ${zonas.join(', ')}`);
+    if (envio === null && actual.envioDomicilio !== true) { cambios.envioDomicilio = true; lineas.push('Envío a domicilio: sí'); }
+  }
+
+  if (Array.isArray(c.horario) && c.horario.length) {
+    const horario: Record<string, { inicio: string; fin: string }> = {};
+    for (const d of DIAS_SEMANA) horario[d] = { inicio: String(actual.horario?.[d]?.inicio ?? ''), fin: String(actual.horario?.[d]?.fin ?? '') };
+    const tocados: string[] = [];
+    for (const h of c.horario) {
+      const dia = normalizarDia(h?.dia);
+      if (!dia) { ignorados.push(`un día del horario (“${texto(h?.dia, 20)}”)`); continue; }
+      if (h?.cerrado === true) { horario[dia] = { inicio: '', fin: '' }; tocados.push(`${dia}: cerrado`); continue; }
+      const ini = horaValida(h?.inicio);
+      const fin = horaValida(h?.fin);
+      if (!ini || !fin || ini >= fin) { ignorados.push(`el horario del ${dia.toLowerCase()} (abre y cierra con horas válidas, y abre antes de cerrar)`); continue; }
+      horario[dia] = { inicio: ini, fin };
+      tocados.push(`${dia}: ${ini}-${fin}`);
+    }
+    if (tocados.length) { cambios.horario = horario; lineas.push(`Horario → ${tocados.join('; ')}`); }
+  }
+
+  return { cambios, lineas, ignorados };
+}
+
+/** Los datos de SU tienda, para el administrador (incluye lo interno que el cliente no ve) */
+export function resumenTienda(t: any, totalArticulos: number, hoy: Date): string {
+  const p = tiendaPublica(t);
+  const abierta = tienePermisoPublicar(t, hoy, 0);
+  const hasta = String(t?.membresia?.vigenteHasta ?? '');
+  const l = [`🏪 *${p.nombre || 'Tu tienda'}* (${p.categoria || 'sin categoría'})`];
+  if (p.descripcion) l.push(`📝 ${p.descripcion}`);
+  l.push(`📍 ${p.direccion || 'sin dirección'}`);
+  l.push(`📞 ${p.telefono || '—'}${p.whatsapp ? ' · atiende por WhatsApp' : ''}${p.email ? ` · ${p.email}` : ''}`);
+  if (p.facebook || p.instagram) l.push(`🔗 ${[p.facebook && `Facebook: ${p.facebook}`, p.instagram && `Instagram: ${p.instagram}`].filter(Boolean).join(' · ')}`);
+  l.push(`💳 Pagos: ${p.metodosPago.join(', ') || '—'}`);
+  l.push(`🚚 Envío a domicilio: ${p.envioDomicilio ? `sí${p.zonasEntrega.length ? ` (${p.zonasEntrega.join(', ')})` : ''}` : 'no'}`);
+  l.push('🕘 Horario:\n' + DIAS_SEMANA.map((d) => `   ${d}: ${p.horario[d]}`).join('\n'));
+  if (p.faq) l.push(`❓ ${p.faq}`);
+  if (p.certificaciones) l.push(`🏅 ${p.certificaciones}`);
+  l.push(`📦 Artículos publicados: ${totalArticulos}`);
+  l.push(`🔖 Membresía: ${abierta ? '✅ vigente' : '⚠️ no vigente'}${hasta ? ` (hasta ${hasta})` : ''}`);
+  return l.join('\n');
+}
+
+/** Perfil actual en formato compacto para la IA (sin contraseña ni control interno) */
+export function perfilParaIA(t: any) {
+  const p = tiendaPublica(t);
+  return { descripcion: p.descripcion, direccion: p.direccion, email: p.email, facebook: p.facebook, instagram: p.instagram, whatsapp: p.whatsapp, metodosPago: p.metodosPago, envioDomicilio: p.envioDomicilio, zonasEntrega: p.zonasEntrega, horario: p.horario };
 }

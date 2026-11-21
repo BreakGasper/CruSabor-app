@@ -1,25 +1,37 @@
 /**
- * Agente de WhatsApp: la conversación (máquina de estados por número).
+ * Agente de chat (WhatsApp): la conversación, por número.
  *
- *   anónimo ──"entrar"──▶ esperando contraseña ──ok──▶ (elige tienda) ──▶ tienda
- *   tienda ──foto + datos──▶ confirmando ──"sí"──▶ artículo publicado ──▶ tienda
+ * Primero se pregunta "¿eres cliente o tienda?":
+ *
+ *   CLIENTE ─ consulta artículos, precios, tiendas, horarios, ubicaciones y lo demás que ve en la app.
+ *             No puede cambiar nada.
+ *   TIENDA ── entra con celular + contraseña (la sesión dura HASTA EL FIN DEL DÍA, hora de México; al día
+ *             siguiente hay que entrar otra vez) y SOLO sobre su propia tienda puede:
+ *               · publicar artículos (foto + datos)        · ver los datos de su tienda
+ *               · cambiar su perfil (horario, pagos, envío, dirección, redes, descripción, logo y portada)
+ *             Todo cambio se muestra y exige confirmación antes de escribirse.
  *
  * Seguridad:
- *  - Para publicar hace falta el MISMO login que la app: el celular de WhatsApp tiene que ser el
- *    de la tienda Y la contraseña (hash bcrypt en tiendas/{id}/password) tiene que coincidir.
- *  - 5 contraseñas malas bloquean ese número 15 minutos; la sesión caduca a los 30 minutos.
- *  - Nada se publica sin que la tienda confirme el resumen. La IA solo propone datos, y todo lo
- *    que devuelve se valida (logica.ts) antes de mostrarse o guardarse.
- *  - La IA no tiene herramientas ni acceso a la base: solo recibe texto y devuelve texto/JSON.
+ *  - El celular del chat (WhatsApp lo verifica) tiene que ser el de la tienda Y la contraseña (hash bcrypt
+ *    en tiendas/{id}/password) tiene que coincidir. 5 contraseñas malas bloquean ese número 15 minutos.
+ *  - La tienda sobre la que se escribe sale SIEMPRE de la sesión, nunca de lo que diga el mensaje. Solo se
+ *    pueden escribir los campos de CAMPOS_EDITABLES (no contraseña, celular, nombre, estado ni membresía).
+ *  - La sesión del día se guarda en la base (whatsappSesiones/) para sobrevivir a que el servidor se duerma o
+ *    se reinicie. Como esa base acepta escrituras abiertas, cada registro va FIRMADO (HMAC con un secreto del
+ *    servidor): nadie puede fabricar uno para entrar a una tienda sin contraseña.
+ *  - La IA no tiene herramientas ni acceso a la base: recibe texto y devuelve texto/JSON, y todo lo que
+ *    devuelve se valida (logica.ts) antes de mostrarse o guardarse.
  *
- * Las sesiones viven en memoria (como los códigos de recuperación): si el servidor se reinicia,
- * se vuelve a entrar. Todo lo externo (WhatsApp, IA, base, Cloudinary) se inyecta para probarlo.
+ * Es independiente del canal: cada canal traduce sus avisos a `MensajeEntrante`. Todo lo externo (canal, IA,
+ * base, Cloudinary) se inyecta para probarlo.
  */
 import bcrypt from 'bcryptjs';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Almacen } from '../pagos/almacen.ts';
 import type { Cerebro, Imagen } from './gemini.ts';
 import type { Canal, MensajeEntrante } from './canal.ts';
 import {
+  CAMPOS_EDITABLES,
   MAX_BYTES_IMAGEN,
   MAX_INTENTOS_PASSWORD,
   MIMES_IMAGEN,
@@ -27,33 +39,51 @@ import {
   buscarCatalogo,
   comandoDe,
   construirArticulo,
+  diaMx,
   diezDigitos,
   esNo,
   esSi,
+  momentoMx,
+  perfilParaIA,
   permitirMensaje,
   resumenBorrador,
-  sesionVigente,
+  resumenTienda,
+  rolDe,
   soloDigitos,
   tienePermisoPublicar,
   validarBorrador,
+  validarCambiosPerfil,
   type Borrador,
   type CategoriaLite,
 } from './logica.ts';
 
-type Estado = 'anonimo' | 'password' | 'eligiendo' | 'tienda' | 'confirmando';
+type Rol = 'cliente' | 'tienda';
+type Estado = 'anonimo' | 'password' | 'eligiendo' | 'tienda' | 'confirmando' | 'confirmandoPerfil';
 interface TiendaSesion {
   id: string;
   nombreTienda: string;
 }
+interface PerfilPendiente {
+  cambios: Record<string, any>;
+  lineas: string[];
+  /** Cambio de logo o portada: la foto espera en `imagen` hasta confirmar */
+  imagenCampo?: 'logoUrl' | 'bannerUrl';
+}
 interface Sesion {
   estado: Estado;
+  rol?: Rol;
+  /** Ya se intentó restaurar la sesión del día guardada en la base */
+  cargada: boolean;
   ultima: number;
   intentos: number;
   bloqueadoHasta: number;
   marcas: number[];
   candidatas: (TiendaSesion & { password?: string })[];
   tienda?: TiendaSesion;
+  /** Día (México) en que la tienda entró: la sesión vale mientras sea el mismo día */
+  dia?: string;
   borrador?: Borrador;
+  perfil?: PerfilPendiente;
   imagen?: { mime: string; bytes: Buffer };
   textos: string[];
   ocupado: boolean;
@@ -66,6 +96,8 @@ export interface DepsAgente {
   /** Sube la foto (Cloudinary) y devuelve la URL pública */
   subirImagen: (bytes: Buffer, mime: string) => Promise<string>;
   urlApp: string;
+  /** Secreto para firmar la sesión guardada. Sin él, la sesión solo vive en memoria */
+  secreto?: string;
   ahora?: () => Date;
   sku?: () => string;
   comparar?: (password: string, hash: string) => Promise<boolean>;
@@ -73,13 +105,18 @@ export interface DepsAgente {
   log?: (...a: any[]) => void;
 }
 
-const AYUDA =
-  '👋 ¡Hola! Soy el asistente de *Crustore*.\n\n' +
-  '🛒 *Clientes:* pregúntame por productos o tiendas (ej. "¿tienen pasteles en Guadalajara?").\n' +
-  '🏪 *Tiendas:* escribe *entrar* para iniciar sesión y publicar artículos mandándome una foto con nombre, precio y detalles.';
+const BOTONES_ROL = [
+  { id: 'rol_cliente', titulo: '🛒 Soy cliente' },
+  { id: 'rol_tienda', titulo: '🏪 Soy tienda' },
+];
+
+const INTRO_CLIENTE =
+  '🛒 *Modo cliente.* Pregúntame por productos, precios, tiendas, horarios, ubicaciones, formas de pago o envíos. ' +
+  'Por ejemplo: "¿tienen pasteles?" o "¿a qué hora abre Dulce Hogar?".\n\nPara cambiar de opción escribe *menú*.';
 
 const nuevaSesion = (): Sesion => ({
   estado: 'anonimo',
+  cargada: false,
   ultima: 0,
   intentos: 0,
   bloqueadoHasta: 0,
@@ -89,9 +126,8 @@ const nuevaSesion = (): Sesion => ({
   ocupado: false,
 });
 
-function generarSku() {
-  return `CRU-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-}
+const generarSku = () => `CRU-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+const clave = (de: string) => createHash('sha256').update(de).digest('hex').slice(0, 32);
 
 export function crearAgente(deps: DepsAgente) {
   const sesiones = deps.sesiones ?? new Map<string, Sesion>();
@@ -99,8 +135,13 @@ export function crearAgente(deps: DepsAgente) {
   const comparar = deps.comparar ?? ((p, h) => bcrypt.compare(p, h));
   const sku = deps.sku ?? generarSku;
   const log = deps.log ?? console.log;
+  const secreto = deps.secreto ?? process.env.WHATSAPP_APP_SECRET ?? '';
   const cola = new Map<string, Promise<void>>();
   const decir = (a: string, t: string) => deps.canal.enviarTexto(a, t);
+  const momento = () => {
+    const m = momentoMx(ahora().getTime());
+    return `${m.dia} ${m.hora}`;
+  };
 
   let cache: { en: number; tiendas: any; articulos: any } | null = null;
   async function catalogo() {
@@ -117,6 +158,102 @@ export function crearAgente(deps: DepsAgente) {
       .map(([id, c]) => ({ id: String(c.id ?? id), nombre: String(c.nombre ?? ''), padreId: c.padreId || undefined }));
   }
 
+  const leerTienda = async (id: string) => ((await (await deps.almacen()).leer(`tiendas/${id}`)) ?? {}) as any;
+
+  /* ---------- sesión del día (guardada y firmada) ---------- */
+
+  const firmar = (de: string, tiendaId: string, dia: string) => createHmac('sha256', secreto).update(`${de}|${tiendaId}|${dia}`).digest('hex');
+
+  async function guardarSesion(de: string, tiendaId: string, dia: string) {
+    if (!secreto) return;
+    try {
+      await (await deps.almacen()).actualizar({ [`whatsappSesiones/${clave(de)}`]: { tiendaId, dia, firma: firmar(de, tiendaId, dia) } });
+    } catch (e: any) {
+      log('WhatsApp: no se pudo guardar la sesión del día:', e?.message ?? e);
+    }
+  }
+
+  async function borrarSesion(de: string) {
+    if (!secreto) return;
+    try {
+      await (await deps.almacen()).actualizar({ [`whatsappSesiones/${clave(de)}`]: null });
+    } catch (e: any) {
+      log('WhatsApp: no se pudo borrar la sesión guardada:', e?.message ?? e);
+    }
+  }
+
+  /** Si este número ya entró HOY (y el servidor se reinició o durmió), recupera la sesión sin pedir contraseña */
+  async function restaurarSesion(de: string, s: Sesion, hoy: string) {
+    if (!secreto) return;
+    try {
+      const a = await deps.almacen();
+      const r = (await a.leer(`whatsappSesiones/${clave(de)}`)) as { tiendaId?: string; dia?: string; firma?: string } | null;
+      if (!r?.tiendaId || r.dia !== hoy || !r.firma) return;
+      const esperada = Buffer.from(firmar(de, r.tiendaId, r.dia));
+      const dada = Buffer.from(String(r.firma));
+      if (esperada.length !== dada.length || !timingSafeEqual(esperada, dada)) {
+        log('WhatsApp: sesión guardada con firma inválida (ignorada)');
+        return;
+      }
+      const t = await leerTienda(r.tiendaId);
+      // El número tiene que seguir siendo el dueño de la tienda
+      if (!t || soloDigitos(t.telefono) !== diezDigitos(de)) return;
+      s.tienda = { id: r.tiendaId, nombreTienda: String(t.nombreTienda ?? 'Tienda') };
+      s.dia = hoy;
+      s.estado = 'tienda';
+      s.rol = 'tienda';
+    } catch (e: any) {
+      log('WhatsApp: no se pudo restaurar la sesión del día:', e?.message ?? e);
+    }
+  }
+
+  /**
+   * Deja la sesión en blanco. Se BORRAN todas las claves antes de reasignar: `Object.assign` solo no basta,
+   * porque los campos opcionales (tienda, dia, rol…) no existen en la sesión nueva y se quedarían con su valor.
+   */
+  function limpiar(s: Sesion) {
+    const { marcas, bloqueadoHasta } = s;
+    for (const k of Object.keys(s)) delete (s as any)[k];
+    Object.assign(s, nuevaSesion(), { marcas, bloqueadoHasta, cargada: true });
+  }
+
+  async function cerrarSesion(de: string, s: Sesion) {
+    await borrarSesion(de);
+    limpiar(s);
+  }
+
+  /* ---------- roles y menús ---------- */
+
+  const menuAdmin = (nombre: string) =>
+    `🏪 Administras *${nombre}*. Puedo ayudarte con:\n\n` +
+    '📸 *Publicar un artículo:* mándame una foto con nombre, precio y detalles en el mismo mensaje.\n' +
+    '📋 *Ver los datos de tu tienda:* escribe *mi tienda*.\n' +
+    '✏️ *Cambiar tu perfil:* por ejemplo "abro de lunes a viernes de 9 a 6", "acepto tarjeta", "hago envíos a Centro y Zapopan" o "mi descripción es…".\n' +
+    '🖼️ *Logo o portada:* manda la foto con la palabra *logo* o *portada*.\n\n' +
+    'Tu sesión dura hasta el fin del día. Escribe *salir* para cerrarla o *menú* para cambiar de opción.';
+
+  async function preguntarRol(de: string, s: Sesion) {
+    const sesion = s.tienda ? `\n\n(Tienes sesión abierta hoy como *${s.tienda.nombreTienda}*; si eliges tienda, entras sin contraseña.)` : '';
+    await deps.canal.enviarBotones(de, `👋 ¡Hola! Soy el asistente de *Crustore*. ¿Qué quieres hacer?\n\n🛒 *Soy cliente:* consultar artículos, precios, tiendas, horarios y ubicaciones.\n🏪 *Soy tienda:* administrar tu tienda.${sesion}`, BOTONES_ROL);
+  }
+
+  async function elegirRol(de: string, s: Sesion, rol: Rol) {
+    s.borrador = undefined;
+    s.perfil = undefined;
+    s.imagen = undefined;
+    s.textos = [];
+    if (rol === 'cliente') {
+      s.rol = 'cliente';
+      return decir(de, INTRO_CLIENTE);
+    }
+    s.rol = 'tienda';
+    if (s.tienda) {
+      s.estado = 'tienda';
+      return decir(de, `✅ Sesión de hoy activa.\n\n${menuAdmin(s.tienda.nombreTienda)}`);
+    }
+    return iniciarLogin(de, s);
+  }
+
   /* ---------- login ---------- */
 
   async function iniciarLogin(de: string, s: Sesion) {
@@ -126,19 +263,17 @@ export function crearAgente(deps: DepsAgente) {
       .filter(([, t]) => t && typeof t === 'object' && soloDigitos(t.telefono) === tel && t.password)
       .map(([id, t]) => ({ id, nombreTienda: String(t.nombreTienda ?? 'Tienda'), password: String(t.password) }));
     if (!mias.length) {
-      return decir(de, `Este número no tiene una tienda registrada. Regístrala en ${deps.urlApp} con este mismo celular y luego escribe *entrar*.`);
+      s.rol = undefined;
+      return decir(de, `Este número no tiene una tienda registrada. Regístrala en ${deps.urlApp} con este mismo celular y luego escribe *entrar*.\n\nSi solo quieres consultar, escribe *menú* y elige *Soy cliente*.`);
     }
     s.candidatas = mias;
     s.estado = 'password';
-    await decir(
-      de,
-      '🔐 Escribe la *contraseña de tu tienda* (la misma de la app).\n\nPor seguridad, después *elimina ese mensaje* del chat (mantén pulsado → Eliminar). Para salir escribe *cancelar*.',
-    );
+    await decir(de, '🔐 Escribe la *contraseña de tu tienda* (la misma de la app).\n\nPor seguridad, después *elimina ese mensaje* del chat (mantén pulsado → Eliminar). Para salir escribe *cancelar*.');
   }
 
   async function revisarPassword(de: string, s: Sesion, password: string) {
     if (ahora().getTime() < s.bloqueadoHasta) {
-      return decir(de, `⛔ Demasiados intentos. Vuelve a intentar en unos minutos.`);
+      return decir(de, '⛔ Demasiados intentos. Vuelve a intentar en unos minutos.');
     }
     const validas: typeof s.candidatas = [];
     for (const t of s.candidatas) if (await comparar(password.trim(), t.password ?? '')) validas.push(t);
@@ -149,6 +284,7 @@ export function crearAgente(deps: DepsAgente) {
         s.bloqueadoHasta = ahora().getTime() + MINUTOS_BLOQUEO * 60_000;
         s.intentos = 0;
         s.estado = 'anonimo';
+        s.rol = undefined;
         s.candidatas = [];
         return decir(de, `⛔ Contraseña incorrecta demasiadas veces. Este número queda bloqueado ${MINUTOS_BLOQUEO} minutos.`);
       }
@@ -168,17 +304,85 @@ export function crearAgente(deps: DepsAgente) {
     s.tienda = { id: t.id, nombreTienda: t.nombreTienda };
     s.candidatas = [];
     s.estado = 'tienda';
-    const tienda = ((await (await deps.almacen()).leer(`tiendas/${t.id}`)) ?? {}) as any;
+    s.rol = 'tienda';
+    s.dia = diaMx(ahora().getTime());
+    await guardarSesion(de, t.id, s.dia);
+    const tienda = await leerTienda(t.id);
     const aviso = tienePermisoPublicar(tienda, ahora())
       ? ''
-      : '\n\n⚠️ Tu tienda no tiene membresía vigente o no está activa: podrás preparar artículos, pero no publicarlos hasta renovarla en la app.';
-    await decir(
-      de,
-      `✅ Listo, entraste a *${t.nombreTienda}*.\n\n📸 Mándame una *foto* del artículo y, en el mismo mensaje, escribe nombre, precio y detalles (marca, color, tamaño, existencias…). Te muestro el resumen y, si lo confirmas, lo publico.\n\nPara salir escribe *salir*.${aviso}`,
-    );
+      : '\n\n⚠️ Tu tienda no tiene membresía vigente o no está activa: podrás preparar artículos y editar tu perfil, pero no publicar artículos hasta renovarla en la app.';
+    await decir(de, `✅ Listo, entraste a *${t.nombreTienda}*.\n\n${menuAdmin(t.nombreTienda)}${aviso}`);
   }
 
-  /* ---------- captura de artículos ---------- */
+  /* ---------- tienda: ver datos ---------- */
+
+  async function verTienda(de: string, s: Sesion) {
+    const a = await deps.almacen();
+    const articulos = ((await a.leer('articulos')) ?? {}) as Record<string, any>;
+    const total = Object.values(articulos).filter((x: any) => x && String(x.tiendaId) === s.tienda!.id && x.baja !== true).length;
+    await decir(de, resumenTienda(await leerTienda(s.tienda!.id), total, ahora()));
+  }
+
+  /* ---------- tienda: cambios al perfil ---------- */
+
+  async function pedirConfirmacionPerfil(de: string, s: Sesion, perfil: PerfilPendiente, extra = '') {
+    s.perfil = perfil;
+    s.estado = 'confirmandoPerfil';
+    await deps.canal.enviarBotones(de, `Voy a cambiar en *${s.tienda!.nombreTienda}*:\n\n${perfil.lineas.map((l) => `• ${l}`).join('\n')}${extra}\n\n¿Lo guardo? (o escríbeme otro cambio)`, [
+      { id: 'guardar', titulo: '✅ Guardar' },
+      { id: 'cancelar', titulo: '❌ Cancelar' },
+    ]);
+  }
+
+  async function textoDeTienda(de: string, s: Sesion, texto: string) {
+    if (comandoDe(texto) === 'datos') return verTienda(de, s);
+    const tienda = await leerTienda(s.tienda!.id);
+    const r = await deps.cerebro.interpretarAdmin({ texto, perfil: perfilParaIA(tienda), ahora: momento() });
+    const noPermitido = Array.isArray(r?.noPermitido) && r.noPermitido.length;
+    const avisoNoPermitido = noPermitido
+      ? '\n\nℹ️ El nombre de la tienda, el celular, la contraseña, la categoría y la membresía no se cambian por aquí: hazlo en la app.'
+      : '';
+
+    if (r?.accion === 'ver_tienda') return verTienda(de, s);
+    if (r?.accion === 'editar_perfil') {
+      const v = validarCambiosPerfil(r.cambios, tienda);
+      const ignorados = v.ignorados.length ? `\n\n⚠️ No pude aplicar: ${v.ignorados.join(', ')}.` : '';
+      if (!Object.keys(v.cambios).length) {
+        return decir(de, `No encontré un cambio que pueda aplicar.${ignorados}${avisoNoPermitido}\n\nEjemplos: "abro de lunes a viernes de 9 a 6", "acepto efectivo y tarjeta", "mi descripción es …".`);
+      }
+      return pedirConfirmacionPerfil(de, s, { cambios: v.cambios, lineas: v.lineas }, ignorados + avisoNoPermitido);
+    }
+    return decir(de, `${menuAdmin(s.tienda!.nombreTienda)}${avisoNoPermitido}`);
+  }
+
+  async function aplicarPerfil(de: string, s: Sesion) {
+    const p = s.perfil;
+    if (!p || !s.tienda) return decir(de, 'No hay ningún cambio pendiente.');
+    s.ocupado = true;
+    try {
+      let cambios = p.cambios;
+      if (p.imagenCampo) {
+        if (!s.imagen) return decir(de, 'Se perdió la foto. Mándala de nuevo con la palabra *logo* o *portada*.');
+        cambios = { [p.imagenCampo]: await deps.subirImagen(s.imagen.bytes, s.imagen.mime) };
+      }
+      // Defensa en profundidad: aunque la validación ya filtró, solo se escribe lo permitido y SOLO en la tienda de la sesión
+      const permitidos = new Set<string>(CAMPOS_EDITABLES);
+      const rutas: Record<string, any> = {};
+      for (const [campo, valor] of Object.entries(cambios)) if (permitidos.has(campo)) rutas[`tiendas/${s.tienda.id}/${campo}`] = valor;
+      if (!Object.keys(rutas).length) return decir(de, 'No hay nada que guardar.');
+      await (await deps.almacen()).actualizar(rutas);
+      log(`WhatsApp: perfil de la tienda ${s.tienda.id} actualizado (${Object.keys(rutas).length} campo(s))`);
+      cache = null;
+      s.perfil = undefined;
+      s.imagen = undefined;
+      s.estado = 'tienda';
+      await decir(de, '✅ Listo, ya quedó guardado. Escribe *mi tienda* para verlo.');
+    } finally {
+      s.ocupado = false;
+    }
+  }
+
+  /* ---------- tienda: artículos y fotos ---------- */
 
   async function proponer(de: string, s: Sesion, texto: string, imagen?: Imagen, borradorActual?: Borrador) {
     const cats = await categorias();
@@ -200,7 +404,14 @@ export function crearAgente(deps: DepsAgente) {
     if (!MIMES_IMAGEN.includes(img.mime) || img.bytes.length > MAX_BYTES_IMAGEN) {
       return decir(de, 'Mándame la foto como JPG, PNG o WebP de máximo 5 MB.');
     }
+    s.borrador = undefined;
+    s.perfil = undefined;
+    s.estado = 'tienda';
     s.imagen = img;
+    // "logo" o "portada" en el pie de la foto: es para el perfil de la tienda, no un artículo
+    const pie = m.texto.toLowerCase();
+    const campo = /\b(logo|logotipo)\b/.test(pie) ? 'logoUrl' : /\b(portada|banner)\b/.test(pie) ? 'bannerUrl' : null;
+    if (campo) return pedirConfirmacionPerfil(de, s, { cambios: {}, lineas: [campo === 'logoUrl' ? 'Poner esta foto como el *logo* de la tienda' : 'Poner esta foto como la *portada* de la tienda'], imagenCampo: campo });
     s.textos = m.texto ? [m.texto] : [];
     await proponer(de, s, m.texto, { mime: img.mime, base64: img.bytes.toString('base64') });
   }
@@ -208,7 +419,7 @@ export function crearAgente(deps: DepsAgente) {
   async function publicar(de: string, s: Sesion) {
     if (!s.borrador || !s.imagen || !s.tienda) return decir(de, 'No hay ningún artículo pendiente. Mándame una foto.');
     const a = await deps.almacen();
-    const tienda = ((await a.leer(`tiendas/${s.tienda.id}`)) ?? {}) as any;
+    const tienda = await leerTienda(s.tienda.id);
     if (!tienePermisoPublicar(tienda, ahora())) {
       return decir(de, '⚠️ Tu tienda no tiene membresía vigente o no está activa, así que no puedo publicar. Renueva en la app y vuelve a confirmar.');
     }
@@ -224,7 +435,7 @@ export function crearAgente(deps: DepsAgente) {
       s.imagen = undefined;
       s.textos = [];
       s.estado = 'tienda';
-      await decir(de, `🎉 *${nombre}* ya está publicado en *${s.tienda.nombreTienda}*. Puedes mandarme otro artículo o escribir *salir*.`);
+      await decir(de, `🎉 *${nombre}* ya está publicado en *${s.tienda.nombreTienda}*. Puedes mandarme otro artículo o escribir *menú*.`);
     } finally {
       s.ocupado = false;
     }
@@ -235,7 +446,7 @@ export function crearAgente(deps: DepsAgente) {
   async function atenderCliente(de: string, texto: string) {
     const { tiendas, articulos } = await catalogo();
     const encontrado = buscarCatalogo(tiendas, articulos, texto, ahora());
-    await decir(de, (await deps.cerebro.responderCliente({ pregunta: texto, catalogo: encontrado, urlApp: deps.urlApp })) || AYUDA);
+    await decir(de, (await deps.cerebro.responderCliente({ pregunta: texto, catalogo: encontrado, urlApp: deps.urlApp, ahora: momento() })) || INTRO_CLIENTE);
   }
 
   /* ---------- entrada ---------- */
@@ -243,77 +454,118 @@ export function crearAgente(deps: DepsAgente) {
   async function manejar(m: MensajeEntrante) {
     const de = m.de;
     const t = ahora().getTime();
-    let s = sesiones.get(de) ?? nuevaSesion();
+    const hoy = diaMx(t);
+    const s = sesiones.get(de) ?? nuevaSesion();
     sesiones.set(de, s);
 
     const lim = permitirMensaje(s.marcas, t);
     s.marcas = lim.marcas;
     if (!lim.permitido) return decir(de, 'Vas muy rápido 🙂 Espera unos minutos y seguimos.');
 
-    if (s.estado !== 'anonimo' && !sesionVigente(s.ultima, t)) {
-      const eraTienda = s.estado === 'tienda' || s.estado === 'confirmando';
-      Object.assign(s, nuevaSesion(), { marcas: s.marcas, bloqueadoHasta: s.bloqueadoHasta });
-      if (eraTienda) await decir(de, '⌛ Tu sesión caducó por inactividad. Escribe *entrar* para volver a iniciar sesión.');
+    // El servidor pudo dormirse o reiniciarse: si este número ya entró HOY, se recupera la sesión
+    if (!s.cargada) {
+      s.cargada = true;
+      await restaurarSesion(de, s, hoy);
+      // Entra como cliente hasta que elija; la sesión recuperada solo evita pedir la contraseña
+      if (s.tienda) s.rol = undefined;
+    }
+
+    // La sesión de una tienda vale hasta el fin del día (hora de México)
+    if (s.tienda && s.dia !== hoy) {
+      await cerrarSesion(de, s);
+      await decir(de, '⌛ Tu sesión de ayer caducó (las sesiones duran hasta el fin del día). Escribe *entrar* para iniciar sesión de nuevo.');
+      return;
     }
     s.ultima = t;
 
     if (m.tipo === 'otro') return decir(de, 'Por ahora solo entiendo mensajes de texto y fotos.');
 
-    const cmd = m.tipo === 'texto' ? comandoDe(m.texto) : m.texto === 'cancelar' ? 'cancelar' : null;
+    const texto = m.tipo === 'texto' || m.tipo === 'boton' ? m.texto : '';
+    const cmd = m.tipo === 'texto' ? comandoDe(texto) : null;
+    const boton = m.tipo === 'boton' ? m.texto : '';
+
     if (cmd === 'salir') {
-      const marcas = s.marcas;
-      Object.assign(s, nuevaSesion(), { marcas });
-      return decir(de, '👋 Sesión cerrada.');
+      await cerrarSesion(de, s);
+      return decir(de, '👋 Sesión cerrada. Escribe *hola* cuando quieras volver.');
     }
-    if (cmd === 'cancelar' && s.estado !== 'anonimo') {
-      if (s.estado === 'confirmando' || s.estado === 'tienda') {
+    if (cmd === 'cancelar' || boton === 'cancelar') {
+      if (s.estado === 'confirmando' || s.estado === 'confirmandoPerfil' || s.estado === 'tienda') {
         s.borrador = undefined;
+        s.perfil = undefined;
         s.imagen = undefined;
-        s.estado = 'tienda';
-        return decir(de, 'Descartado. Mándame otra foto cuando quieras, o escribe *salir*.');
+        s.estado = s.tienda ? 'tienda' : 'anonimo';
+        return decir(de, 'Descartado. Mándame otra foto o dime qué quieres cambiar, o escribe *menú*.');
       }
-      Object.assign(s, nuevaSesion(), { marcas: s.marcas });
-      return decir(de, 'Cancelado.');
+      limpiar(s);
+      return decir(de, 'Cancelado. Escribe *hola* para empezar de nuevo.');
     }
+
+    // Pasos que esperan una respuesta concreta (no se interrumpen con el menú)
+    if (s.estado === 'password' && m.tipo === 'texto') return revisarPassword(de, s, m.texto);
+    if (s.estado === 'password') return decir(de, 'Necesito tu contraseña en texto, o escribe *cancelar*.');
+    if (s.estado === 'eligiendo') {
+      const elegida = s.candidatas[Number(soloDigitos(texto)) - 1];
+      if (!elegida) return decir(de, 'Responde con el número de la tienda de la lista.');
+      return entrarATienda(de, s, elegida);
+    }
+
+    // Elegir o cambiar de rol
+    const eleccion = boton === 'rol_cliente' || boton === 'rol_tienda' ? rolDe(boton) : cmd === 'entrar' ? 'tienda' : !s.rol && m.tipo === 'texto' ? rolDe(texto) : null;
+    if (eleccion) return elegirRol(de, s, eleccion);
+    if (cmd === 'menu') return preguntarRol(de, s);
+    if (!s.rol) return preguntarRol(de, s);
+
+    /* ---------------- CLIENTE ---------------- */
+    if (s.rol === 'cliente') {
+      if (m.tipo === 'imagen') return decir(de, 'Como cliente solo puedo ayudarte a consultar. Para publicar artículos o editar una tienda escribe *menú* y elige *Soy tienda*.');
+      if (cmd === 'ayuda' || cmd === 'datos') return decir(de, INTRO_CLIENTE);
+      if (m.tipo === 'texto') return atenderCliente(de, m.texto);
+      return decir(de, 'Escríbeme tu pregunta 🙂');
+    }
+
+    /* ---------------- TIENDA (con sesión) ---------------- */
+    if (!s.tienda) return iniciarLogin(de, s);
+    if (cmd === 'ayuda') return decir(de, menuAdmin(s.tienda.nombreTienda));
 
     switch (s.estado) {
-      case 'password':
-        if (m.tipo !== 'texto') return decir(de, 'Necesito tu contraseña en texto, o escribe *cancelar*.');
-        return revisarPassword(de, s, m.texto);
-
-      case 'eligiendo': {
-        const i = Number(soloDigitos(m.texto)) - 1;
-        const elegida = s.candidatas[i];
-        if (!elegida) return decir(de, 'Responde con el número de la tienda de la lista.');
-        return entrarATienda(de, s, elegida);
-      }
-
-      case 'tienda':
-        if (m.tipo === 'imagen') return recibirFoto(de, s, m);
-        if (s.imagen && m.tipo === 'texto') {
-          // Faltó un dato: se vuelve a intentar con la foto ya recibida y lo que se ha escrito
-          s.textos.push(m.texto);
-          return proponer(de, s, s.textos.join('\n'), { mime: s.imagen.mime, base64: s.imagen.bytes.toString('base64') });
-        }
-        return decir(de, '📸 Mándame una foto del artículo con su nombre y precio en el mensaje. Para salir escribe *salir*.');
-
       case 'confirmando':
         if (s.ocupado) return decir(de, 'Estoy publicando, un momento…');
         if (m.tipo === 'imagen') return recibirFoto(de, s, m);
-        if (m.texto === 'guardar' || esSi(m.texto)) return publicar(de, s);
-        if (esNo(m.texto)) {
+        if (boton === 'guardar' || esSi(texto)) return publicar(de, s);
+        if (esNo(texto)) {
           s.borrador = undefined;
           s.imagen = undefined;
           s.estado = 'tienda';
           return decir(de, 'Descartado. Mándame otra foto cuando quieras.');
         }
-        return proponer(de, s, m.texto, undefined, s.borrador);
+        if (cmd === 'datos') return verTienda(de, s);
+        return proponer(de, s, texto, undefined, s.borrador);
+
+      case 'confirmandoPerfil':
+        if (s.ocupado) return decir(de, 'Estoy guardando, un momento…');
+        if (m.tipo === 'imagen') return recibirFoto(de, s, m);
+        if (boton === 'guardar' || esSi(texto)) return aplicarPerfil(de, s);
+        if (esNo(texto)) {
+          s.perfil = undefined;
+          s.imagen = undefined;
+          s.estado = 'tienda';
+          return decir(de, 'Descartado. Dime qué otro cambio quieres.');
+        }
+        // Otro mensaje: se toma como una petición nueva (la anterior se descarta)
+        s.perfil = undefined;
+        s.imagen = undefined;
+        s.estado = 'tienda';
+        return textoDeTienda(de, s, texto);
 
       default:
-        if (cmd === 'entrar') return iniciarLogin(de, s);
-        if (m.tipo === 'imagen') return decir(de, 'Para publicar un artículo primero inicia sesión: escribe *entrar*.');
-        if (cmd === 'ayuda') return decir(de, AYUDA);
-        return atenderCliente(de, m.texto);
+        if (m.tipo === 'imagen') return recibirFoto(de, s, m);
+        if (m.tipo !== 'texto') return decir(de, menuAdmin(s.tienda.nombreTienda));
+        if (s.imagen && cmd !== 'datos') {
+          // Faltó un dato del artículo: se vuelve a intentar con la foto ya recibida y lo que se ha escrito
+          s.textos.push(m.texto);
+          return proponer(de, s, s.textos.join('\n'), { mime: s.imagen.mime, base64: s.imagen.bytes.toString('base64') });
+        }
+        return textoDeTienda(de, s, m.texto);
     }
   }
 
