@@ -30,15 +30,50 @@ export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fet
   if (!token || !id) throw new Error('Faltan WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID');
   const auth = { Authorization: `Bearer ${token}` };
 
-  async function enviar(cuerpo: any) {
+  /**
+   * Números de México: el aviso de Meta trae el celular como 521 + 10 dígitos, pero la lista de destinatarios
+   * autorizados (y a veces el envío) lo guarda como 52 + 10 dígitos, o al revés. Si Meta responde 131030
+   * ("destinatario no autorizado"), se reintenta UNA vez con el otro formato.
+   */
+  const formatoAlterno = (to: string): string | null => (/^521\d{10}$/.test(to) ? `52${to.slice(3)}` : /^52\d{10}$/.test(to) ? `521${to.slice(2)}` : null);
+  const formatoQueFunciono = new Map<string, string>();
+
+  async function intentar(cuerpo: any): Promise<{ ok: true } | { ok: false; status: number; texto: string; codigo?: number }> {
     const res = await fetchFn(`${GRAPH}/${id}/messages`, {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messaging_product: 'whatsapp', ...cuerpo }),
       signal: AbortSignal.timeout(15_000),
     });
+    if (res.ok) return { ok: true };
+    const texto = (await res.text()).slice(0, 300);
+    let codigo: number | undefined;
+    try {
+      codigo = Number(JSON.parse(texto)?.error?.code) || undefined;
+    } catch {
+      // el cuerpo puede venir cortado a 300 caracteres: se busca el código a mano
+      codigo = Number(/"code":\s*(\d+)/.exec(texto)?.[1]) || undefined;
+    }
+    return { ok: false, status: res.status, texto, codigo };
+  }
+
+  async function enviar(cuerpo: any) {
+    const original = String(cuerpo.to);
+    const preferido = formatoQueFunciono.get(original) ?? original;
+    let r = await intentar({ ...cuerpo, to: preferido });
+    if (!r.ok && r.codigo === 131030) {
+      const otro = formatoAlterno(preferido);
+      if (otro) {
+        const r2 = await intentar({ ...cuerpo, to: otro });
+        if (r2.ok) {
+          formatoQueFunciono.set(original, otro);
+          log('WhatsApp: el destinatario solo se aceptó con el otro formato del número de México (52 con o sin el 1)');
+          r = r2;
+        }
+      }
+    }
     // Los últimos 4 dígitos del identificador del número ayudan a ver si WHATSAPP_PHONE_NUMBER_ID apunta al número esperado
-    if (!res.ok) throw new Error(`WhatsApp envío ${res.status} (desde el número …${id.slice(-4)}): ${(await res.text()).slice(0, 300)}`);
+    if (!r.ok) throw new Error(`WhatsApp envío ${r.status} (desde el número …${id.slice(-4)}): ${r.texto}`);
     // Solo los últimos 4 dígitos del identificador: si la respuesta no aparece en el chat esperado, casi
     // siempre es porque sale desde OTRO número (WHATSAPP_PHONE_NUMBER_ID apunta a otro)
     log(`WhatsApp: respuesta enviada desde el número con identificador …${id.slice(-4)}`);
