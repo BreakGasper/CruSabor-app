@@ -757,6 +757,7 @@ function alElegirDelMenu(accion: AccionMenuTienda) {
     'agregar-articulo': artsTienda,
     promociones: irAPromociones,
     'crear-publicacion': irACrearPublicacion,
+    estudio: () => router.push('/studio'),
     productos: irAArticulos,
     carrito: irAlCarrito,
     mapa: abrirMaps,
