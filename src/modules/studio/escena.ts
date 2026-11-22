@@ -200,7 +200,11 @@ export class Escena {
   private ocupado = false;
 
   constructor(el: HTMLCanvasElement, w: number, h: number) {
-    Object.assign(FabricObject.ownDefaults, { cornerColor: '#c6f432', cornerStrokeColor: '#1c1d21', borderColor: '#c6f432', cornerStyle: 'circle', transparentCorners: false, cornerSize: 12, borderScaleFactor: 2, padding: 2 });
+    // Controles con el color del tema de Crustore (y borde claro para que se vean sobre diseños oscuros)
+    const css = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+    const acento = css?.getPropertyValue('--color-acento').trim() || '#00a9c2';
+    const boton = css?.getPropertyValue('--color-bg-blue-ligth').trim() || '#ff2e97';
+    Object.assign(FabricObject.ownDefaults, { cornerColor: boton, cornerStrokeColor: '#ffffff', borderColor: acento, cornerStyle: 'circle', transparentCorners: false, cornerSize: 12, borderScaleFactor: 2, padding: 2 });
     this.w = w;
     this.h = h;
     this.canvas = new Canvas(el, { width: w, height: h, preserveObjectStacking: true, selection: true, backgroundColor: '#ffffff', stopContextMenu: true, fireRightClick: false });

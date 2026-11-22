@@ -223,6 +223,8 @@ export interface Propuesta {
   estilo: string;
   layout: LayoutId;
   paleta: string;
+  /** Paleta completa cuando no es una del estilo (p. ej. la del tema de Crustore) */
+  paletaObj?: Paleta;
   semilla: number;
   formato: Formato;
   elems: Elem[];

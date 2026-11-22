@@ -83,6 +83,17 @@
         </button>
       </div>
       <div class="campo">
+        <span>Colores</span>
+        <div class="chips">
+          <button type="button" class="chip" :class="{ activo: sesion.colores === 'estilo' }" data-testid="colores-estilo" @click="sesion.colores = 'estilo'">Los del estilo</button>
+          <button type="button" class="chip tema" :class="{ activo: sesion.colores === 'tema' }" data-testid="colores-tema" @click="sesion.colores = 'tema'">
+            <span class="muestras"><i :style="{ background: `linear-gradient(135deg, ${tema.fondoA}, ${tema.fondoB})`, borderColor: tema.acento }"></i><i :style="{ background: tema.acento, borderColor: tema.acento }"></i><i :style="{ background: tema.acento2, borderColor: tema.acento2 }"></i></span>
+            Tema de Crustore
+          </button>
+        </div>
+        <small class="nota">El tema es el que tiene la app ahora (paleta y temática); los diseños ya guardados no cambian.</small>
+      </div>
+      <div class="campo">
         <span>Formato</span>
         <div class="chips">
           <button v-for="f in FORMATOS_ESTUDIO" :key="f.id" type="button" class="chip" :class="{ activo: sesion.formatoId === f.id }" @click="sesion.formatoId = f.id">{{ f.nombre }}</button>
@@ -125,13 +136,14 @@ import { ChevronLeft, ChevronRight, Pencil, RefreshCw, RotateCcw, RotateCw, Shuf
 import { dimensionesImagen, medirTexto, miniatura, registrarBlob } from '../escena';
 import { generarPropuestas } from '../motor/generar';
 import { ESTILOS, FORMATOS_ESTUDIO, LAYOUTS, estiloPorId, type Propuesta } from '../motor/tipos';
-import { guardarPrefs, imagenesDeSesion, leerPrefs, sesion } from '../estado';
+import { guardarPrefs, imagenesDeSesion, leerPrefs, leerTemaCrustore, sesion } from '../estado';
 
 defineEmits<{ (e: 'editar', p: Propuesta): void }>();
 
 const PASOS = ['Producto', 'Datos', 'Estilo', 'Propuestas'];
 const paso = ref(0);
 const maxPaso = ref(0);
+const tema = ref(leerTemaCrustore());
 const archivo = ref<HTMLInputElement | null>(null);
 const archivoLogo = ref<HTMLInputElement | null>(null);
 const arrastrando = ref(false);
@@ -144,6 +156,7 @@ const MAX_BYTES = 15 * 1024 * 1024;
 const MAX_LADO = 3200;
 
 onMounted(() => {
+  tema.value = leerTemaCrustore(); // por si cambió la paleta o la temática
   if (!sesion.datos.tienda) sesion.datos.tienda = leerPrefs().tienda;
   if (sesion.urlProducto) maxPaso.value = Math.max(maxPaso.value, 1);
 });
@@ -282,7 +295,7 @@ async function generar(otras: boolean) {
   try {
     sesion.tanda = otras ? sesion.tanda + 1 : 0;
     const formato = FORMATOS_ESTUDIO.find((f) => f.id === sesion.formatoId) ?? FORMATOS_ESTUDIO[0];
-    const props = generarPropuestas({ datos: { ...sesion.datos }, prod: { ...sesion.prod }, estiloId: sesion.estiloId, formato, medir: medirTexto, tanda: sesion.tanda });
+    const props = generarPropuestas({ datos: { ...sesion.datos }, prod: { ...sesion.prod }, estiloId: sesion.estiloId, formato, medir: medirTexto, tanda: sesion.tanda, paleta: sesion.colores === 'tema' ? leerTemaCrustore() : undefined });
     const imgs = imagenesDeSesion();
     sesion.propuestas = await Promise.all(props.map(async (p) => ({ ...p, mini: await miniatura(p.elems, imgs, formato.w, formato.h) })));
   } catch (e: any) {
@@ -293,7 +306,7 @@ async function generar(otras: boolean) {
 }
 
 const nombreLayout = (id: string) => LAYOUTS.find((l) => l.id === id)?.nombre ?? id;
-const nombrePaleta = (p: Propuesta) => estiloPorId(p.estilo).paletas.find((x) => x.id === p.paleta)?.nombre ?? '';
+const nombrePaleta = (p: Propuesta) => p.paletaObj?.nombre ?? estiloPorId(p.estilo).paletas.find((x) => x.id === p.paleta)?.nombre ?? '';
 </script>
 
 <style scoped>
@@ -304,11 +317,11 @@ const nombrePaleta = (p: Propuesta) => estiloPorId(p.estilo).paletas.find((x) =>
 .pasos .hecho button { color: var(--e-texto); }
 .pasos button:disabled { opacity: 0.45; cursor: default; }
 .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--e-panel2); font-size: 0.75rem; }
-.activo .n { background: var(--e-lima); color: #1c1d21; font-weight: 700; }
+.activo .n { background: var(--e-lima); color: var(--e-on); font-weight: 700; }
 .bloque { background: var(--e-panel); border: 1px solid var(--e-borde); border-radius: 12px; padding: 18px; }
 h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .zona { border: 1.5px dashed var(--e-borde); border-radius: 12px; min-height: 230px; display: grid; place-items: center; gap: 8px; text-align: center; padding: 18px; color: var(--e-muted); background: var(--e-fondo2); }
-.zona.sobre { border-color: var(--e-lima); background: rgba(198, 244, 50, 0.06); }
+.zona.sobre { border-color: var(--e-lima); background: color-mix(in srgb, var(--e-lima) 10%, transparent); }
 .zona.con { padding: 10px; }
 .previa { max-width: 100%; max-height: 340px; border-radius: 8px; object-fit: contain; }
 .enlace { background: none; border: 0; color: var(--e-lima); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
@@ -317,10 +330,10 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .btn:hover:not(:disabled) { border-color: var(--e-lima); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.55; cursor: default; }
-.btn.primario { background: var(--e-lima); color: #1c1d21; border-color: var(--e-lima); font-weight: 700; }
+.btn.primario { background: var(--e-lima); color: var(--e-on); border-color: var(--e-lima); font-weight: 700; }
 .btn.grande { padding: 11px 18px; letter-spacing: 0.04em; text-transform: uppercase; }
 .nota { color: var(--e-muted); font-size: 0.85rem; margin: 10px 0 0; }
-.error { color: #ff7b7b; font-size: 0.88rem; margin: 10px 0 0; }
+.error { color: #e5484d; font-size: 0.88rem; margin: 10px 0 0; }
 .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
 .campo { display: flex; flex-direction: column; gap: 5px; font-size: 0.82rem; color: var(--e-muted); }
 .campo.ancho { grid-column: 1 / -1; }
@@ -336,7 +349,8 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .muestras i { width: 26px; height: 18px; border-radius: 5px; border: 2px solid; display: inline-block; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { background: var(--e-fondo2); border: 1px solid var(--e-borde); border-radius: 999px; padding: 6px 12px; color: var(--e-texto); cursor: pointer; font: inherit; font-size: 0.85rem; }
-.chip.activo { border-color: var(--e-lima); color: var(--e-lima); }
+.chip.activo { border-color: var(--e-lima); color: var(--e-texto); box-shadow: 0 0 0 1px var(--e-lima) inset; }
+.chip.tema { display: inline-flex; align-items: center; gap: 8px; }
 .propuestas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
 .propuesta { margin: 0; background: var(--e-fondo2); border: 1px solid var(--e-borde); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .propuesta img { width: 100%; display: block; background: #000; }

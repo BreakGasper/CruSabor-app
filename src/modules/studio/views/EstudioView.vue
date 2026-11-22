@@ -92,7 +92,7 @@ const ir = (s: Seccion) => {
 
 function abrirPropuesta(p: Propuesta) {
   arranque.value = {
-    elems: p.elems, imgs: imagenesDeSesion(), formato: { id: p.formato.id, w: p.formato.w, h: p.formato.h }, estilo: p.estilo, paleta: p.paleta, layout: p.layout,
+    elems: p.elems, imgs: imagenesDeSesion(), formato: { id: p.formato.id, w: p.formato.w, h: p.formato.h }, estilo: p.estilo, paleta: p.paleta, paletaObj: p.paletaObj, layout: p.layout,
     datos: JSON.parse(JSON.stringify(sesion.datos)), original: sesion.original,
   };
   recarga.value++;
@@ -119,7 +119,10 @@ function usarEstilo(id: string) {
 
 <style scoped>
 .estudio {
-  --e-fondo: #1c1d21; --e-fondo2: #17181c; --e-panel: #24262b; --e-panel2: #2c2f35; --e-borde: #3a3d45; --e-texto: #e8e9ec; --e-muted: #9aa0aa; --e-lima: #c6f432; --e-ambar: #ffd166;
+  /* Tokens del tema de Crustore: el estudio toma la paleta activa (y la temática y el modo claro/oscuro del sistema) */
+  --e-fondo: var(--bg-page); --e-fondo2: var(--surface-2); --e-panel: var(--surface); --e-panel2: var(--surface-2); --e-borde: var(--border);
+  --e-texto: var(--text); --e-muted: var(--text-muted); --e-lima: var(--color-bg-blue-ligth); --e-on: var(--on-primary); --e-ambar: var(--color-acento);
+  --e-marca: var(--brand-blue-text); --e-suave: var(--brand-blue-soft);
   position: fixed; inset: 0; z-index: 10; display: grid; grid-template-columns: 210px 1fr; background: var(--e-fondo); color: var(--e-texto);
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
 }
@@ -127,7 +130,7 @@ function usarEstilo(id: string) {
 .lateral { background: var(--e-panel); border-right: 1px solid var(--e-borde); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; overflow: auto; }
 .logo { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
 .logo small { display: block; color: var(--e-muted); font-size: 0.72rem; }
-.marca { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--e-lima); color: #1c1d21; }
+.marca { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--e-lima); color: var(--e-on); }
 .item { display: flex; align-items: center; gap: 10px; background: none; border: 1px solid transparent; border-radius: 8px; color: var(--e-muted); padding: 9px 10px; cursor: pointer; font: inherit; font-size: 0.88rem; text-align: left; transition: background 0.15s, color 0.15s; }
 .item:hover { background: var(--e-panel2); color: var(--e-texto); }
 .item.activo { background: var(--e-panel2); color: var(--e-texto); border-color: var(--e-borde); box-shadow: 3px 0 0 var(--e-lima) inset; }
@@ -141,7 +144,7 @@ function usarEstilo(id: string) {
 .botones { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0; }
 .btn { display: inline-flex; align-items: center; gap: 7px; background: var(--e-panel2); color: var(--e-texto); border: 1px solid var(--e-borde); border-radius: 8px; padding: 9px 14px; cursor: pointer; font: inherit; }
 .btn:hover { border-color: var(--e-lima); }
-.btn.primario { background: var(--e-lima); border-color: var(--e-lima); color: #1c1d21; font-weight: 700; }
+.btn.primario { background: var(--e-lima); border-color: var(--e-lima); color: var(--e-on); font-weight: 700; }
 .btn.grande { padding: 12px 20px; }
 .puntos { color: var(--e-muted); line-height: 1.6; padding-left: 18px; }
 .plantillas, .config { max-width: 1000px; margin: 0 auto; padding: 22px 16px; }

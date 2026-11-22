@@ -186,6 +186,7 @@ export interface ArranqueEditor {
   formato?: { id: string; w: number; h: number };
   estilo?: string;
   paleta?: string;
+  paletaObj?: Paleta;
   layout?: string;
   datos?: DatosProducto;
   original?: Blob | null;
@@ -221,6 +222,7 @@ const estiloId = ref('personalizado');
 const paletaId = ref('');
 const formato = ref({ id: 'flyer', w: 1080, h: 1620 });
 const datos = ref<DatosProducto | null>(null);
+const paletaPropia = ref<Paleta | null>(null);
 let original: Blob | null = null;
 let layout = '';
 let creado = Date.now();
@@ -249,6 +251,7 @@ const OPCIONES_EXPORTAR = [
 ] as const;
 
 const paleta = computed<Paleta>(() => {
+  if (paletaPropia.value) return paletaPropia.value;
   const e = estiloPorId(estiloId.value);
   return e.paletas.find((p) => p.id === paletaId.value) ?? e.paletas[0] ?? ESTILOS[0].paletas[0];
 });
@@ -296,6 +299,7 @@ async function nuevo(a: ArranqueEditor) {
   formato.value = f;
   estiloId.value = a.estilo ?? 'personalizado';
   paletaId.value = a.paleta ?? '';
+  paletaPropia.value = a.paletaObj ?? null;
   layout = a.layout ?? '';
   datos.value = a.datos ?? null;
   original = a.original ?? null;
@@ -318,6 +322,7 @@ async function abrir(id: string) {
   nombre.value = d.nombre;
   estiloId.value = d.estilo;
   paletaId.value = d.paleta ?? '';
+  paletaPropia.value = d.paletaObj ?? null;
   layout = d.layout ?? '';
   datos.value = d.datos;
   original = orig ?? null;
@@ -349,7 +354,7 @@ async function guardarYa() {
     const d: Diseno = {
       id: disenoId.value, nombre: nombre.value.trim() || 'Sin título', estilo: estiloId.value, formato: { ...formato.value }, json, miniatura: mini, favorito: 0,
       creado, actualizado: Date.now(), // IndexedDB no puede clonar los proxies de Vue: se guardan copias simples
-      datos: JSON.parse(JSON.stringify(datos.value ?? {})) as DatosProducto, layout, paleta: paletaId.value,
+      datos: JSON.parse(JSON.stringify(datos.value ?? {})) as DatosProducto, layout, paleta: paletaId.value, paletaObj: paletaPropia.value ? { ...paletaPropia.value } : undefined,
     };
     // Conserva el favorito si ya existía
     const previo = await obtenerDiseno(d.id);
@@ -495,7 +500,7 @@ async function exportar(o: (typeof OPCIONES_EXPORTAR)[number]) {
 .zoom { background: var(--e-panel2); border: 1px solid var(--e-borde); border-radius: 6px; color: var(--e-texto); padding: 4px 8px; font: inherit; font-size: 0.8rem; min-width: 52px; cursor: pointer; }
 .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--e-panel2); color: var(--e-texto); border: 1px solid var(--e-borde); border-radius: 8px; padding: 7px 11px; cursor: pointer; font: inherit; font-size: 0.85rem; transition: border-color 0.15s; }
 .btn:hover { border-color: var(--e-lima); }
-.btn.primario { background: var(--e-lima); color: #1c1d21; border-color: var(--e-lima); font-weight: 700; }
+.btn.primario { background: var(--e-lima); color: var(--e-on); border-color: var(--e-lima); font-weight: 700; }
 .btn.chico { padding: 5px 9px; font-size: 0.8rem; }
 .menu-exp { position: relative; }
 .desplegable { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; background: var(--e-panel); border: 1px solid var(--e-borde); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; min-width: 230px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
@@ -514,7 +519,7 @@ async function exportar(o: (typeof OPCIONES_EXPORTAR)[number]) {
 .fondos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .fondo { aspect-ratio: 1.4; border-radius: 8px; border: 1px solid var(--e-borde); cursor: pointer; }
 .fondo:hover { border-color: var(--e-lima); }
-.area { overflow: auto; background: #121317; display: grid; place-items: center; padding: 24px; min-height: 0; position: relative; }
+.area { overflow: auto; background: var(--e-fondo2); display: grid; place-items: center; padding: 24px; min-height: 0; position: relative; }
 .hoja { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55); line-height: 0; }
 .vacio { color: var(--e-muted); font-size: 0.85rem; margin: 6px 0; }
 .titulo-sel { margin: 0; font-weight: 600; font-size: 0.9rem; }
@@ -531,8 +536,8 @@ async function exportar(o: (typeof OPCIONES_EXPORTAR)[number]) {
 .capas li.sel { background: var(--e-panel2); border-color: var(--e-lima); }
 .capas li.oculta .nombre-capa { opacity: 0.45; text-decoration: line-through; }
 .nombre-capa { flex: 1; text-align: left; background: none; border: 0; color: var(--e-texto); cursor: pointer; font: inherit; font-size: 0.82rem; padding: 6px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.error { color: #ff7b7b; font-size: 0.85rem; }
-.error.flotante { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--e-panel); border: 1px solid #ff7b7b; border-radius: 8px; padding: 8px 12px; z-index: 5; }
+.error { color: #e5484d; font-size: 0.85rem; }
+.error.flotante { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--e-panel); border: 1px solid #e5484d; border-radius: 8px; padding: 8px 12px; z-index: 5; }
 .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); display: grid; place-items: center; z-index: 50; padding: 20px; }
 .modal-caja { display: flex; flex-direction: column; gap: 12px; align-items: center; max-height: 100%; }
 .modal-caja img { max-width: min(92vw, 900px); max-height: 80vh; border-radius: 8px; }
