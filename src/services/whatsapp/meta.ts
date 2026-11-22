@@ -82,6 +82,8 @@ export function crearCanalMeta(op: { token?: string; phoneNumberId?: string; fet
   return {
     enviarTexto: (a, texto) => enviar({ to: a, type: 'text', text: { body: texto.slice(0, 4000) } }),
 
+    enviarImagen: (a, url, pie) => enviar({ to: a, type: 'image', image: { link: url, caption: pie.slice(0, 1000) } }),
+
     enviarBotones: (a, texto, botones) =>
       enviar({
         to: a,

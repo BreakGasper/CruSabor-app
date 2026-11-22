@@ -67,6 +67,10 @@ import {
   validarCambiosPerfil,
   type Borrador,
   type CategoriaLite,
+  type ArticuloPublico,
+  MAX_ARTICULOS_MOSTRADOS,
+  fichaArticulo,
+  pideDatosDeTienda,
 } from './logica.ts';
 
 type Rol = 'cliente' | 'tienda';
@@ -549,9 +553,31 @@ export function crearAgente(deps: DepsAgente) {
 
   /* ---------- clientes ---------- */
 
+  /** Hasta 3 artículos, cada uno con su foto y sus detalles (si la foto no se puede mandar, va solo el texto) */
+  async function mostrarArticulos(de: string, encontrados: ArticuloPublico[]) {
+    const mostrar = encontrados.slice(0, MAX_ARTICULOS_MOSTRADOS);
+    const mas = encontrados.length - mostrar.length;
+    await decir(de, mostrar.length === 1 ? 'Encontré este artículo 👇' : `Encontré ${mostrar.length} artículos 👇${mas > 0 ? ' (te muestro los más parecidos)' : ''}`);
+    for (const a of mostrar) {
+      const ficha = fichaArticulo(a, deps.urlApp);
+      if (a.foto && deps.canal.enviarImagen) {
+        try {
+          await deps.canal.enviarImagen(de, a.foto, ficha);
+          continue;
+        } catch (e: any) {
+          log('WhatsApp: no se pudo mandar la foto del artículo; va solo el texto:', String(e?.message ?? e).slice(0, 160));
+        }
+      }
+      await decir(de, ficha);
+    }
+    await decir(de, `${mas > 0 ? `Hay ${mas} más. ` : ''}Mira todo y compra en ${deps.urlApp} 🛒 ¿Buscas algo más?`);
+  }
+
   async function atenderCliente(de: string, texto: string) {
     const { tiendas, articulos } = await catalogo();
     const encontrado = buscarCatalogo(tiendas, articulos, texto, ahora());
+    // Si preguntan por artículos se responde con las fichas (sin depender de la IA); los datos de una tienda los explica la IA
+    if (encontrado.articulos.length && !pideDatosDeTienda(texto)) return mostrarArticulos(de, encontrado.articulos);
     let respuesta: string;
     try {
       respuesta = await deps.cerebro.responderCliente({ pregunta: texto, catalogo: encontrado, urlApp: deps.urlApp, ahora: momento() });

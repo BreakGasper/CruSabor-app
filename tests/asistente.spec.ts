@@ -9,7 +9,7 @@ import { createHmac, createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
   comandoDe, rolDe, editarBorrador, cantidadDelTexto, pideEditar, resumenBorrador, precioDelTexto, nombreDelTexto, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
-  buscarCatalogo, construirArticulo, detectaBajoPedido, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
+  buscarCatalogo, fichaArticulo, raizDePalabra, pideDatosDeTienda, construirArticulo, detectaBajoPedido, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
   MAX_MENSAJES_POR_VENTANA,
 } from '../src/services/asistente/logica.ts';
 import { crearAgente } from '../src/services/asistente/agente.ts';
@@ -156,6 +156,17 @@ describe('canal de Meta', () => {
     expect(llamadas[0]).toContain('/1436909166179242/messages');
     expect(logs).toEqual(['WhatsApp: respuesta enviada desde el número con identificador …9242']);
     expect(logs.join()).not.toMatch(/TOKEN-SECRETO|1436909166179242/);
+  });
+});
+
+describe('canal de Meta: fotos', () => {
+  it('manda la foto por enlace público con su pie de texto (máx. 1000 caracteres)', async () => {
+    const cuerpos: any[] = [];
+    const fetchFn = (async (_u: string, init: any) => { cuerpos.push(JSON.parse(init.body)); return new Response('{}', { status: 200 }); }) as any;
+    const canal: any = crearCanalMeta({ token: 't', phoneNumberId: '1', fetchFn, log: () => {} });
+    await canal.enviarImagen('5218111111111', 'https://img.test/p1.jpg', 'x'.repeat(2000));
+    expect(cuerpos[0]).toMatchObject({ messaging_product: 'whatsapp', to: '5218111111111', type: 'image', image: { link: 'https://img.test/p1.jpg' } });
+    expect(cuerpos[0].image.caption).toHaveLength(1000);
   });
 });
 
@@ -669,7 +680,7 @@ const tiendaBase = (extra: any = {}) => ({
   horario: { Lunes: { inicio: '09:00', fin: '18:00' } }, metodosPago: ['Efectivo'], ...extra,
 });
 
-function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any; sinBotones?: boolean; tiempoMaximoMs?: number } = {}) {
+function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: string) => any; sinBotones?: boolean; tiempoMaximoMs?: number; sinImagenes?: boolean; fallaImagen?: boolean } = {}) {
   const bd: Record<string, any> = {
     tiendas: extra.tiendas ?? { t1: tiendaBase() },
     categorias: { c1: { id: 'c1', nombre: 'Postres' } },
@@ -678,6 +689,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const enviados: string[] = [];
   const logs: string[] = [];
   const botones: string[][] = [];
+  const imagenes: { url: string; pie: string }[] = [];
   const respuestasCliente: any[] = [];
   let reloj = HOY.getTime();
   let subidas = 0;
@@ -703,6 +715,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
         botones.push(b.map((x) => x.id)); enviados.push(t + ' [' + b.map((x) => x.id).join(',') + ']');
       },
       descargarImagen: async () => ({ mime: 'image/jpeg', bytes: Buffer.from('foto') }),
+      ...(extra.sinImagenes ? {} : { enviarImagen: async (_a: string, url: string, pie: string) => { if (extra.fallaImagen) throw new Error('WhatsApp envío 400: imagen no accesible'); imagenes.push({ url, pie }); } }),
   };
   const cerebro: any = {
       extraerArticulo: async ({ texto, borradorActual }) =>
@@ -732,7 +745,7 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   const boton = (id: string, de = TEL) => di({ tipo: 'boton', texto: id }, de);
   const entrar = async (de = TEL) => { await di({ texto: 'entrar' }, de); await di({ texto: 'secreto1' }, de); };
   return {
-    bd, enviados, logs, botones, respuestasCliente, di, boton, entrar, canal, cerebro,
+    bd, enviados, logs, botones, imagenes, respuestasCliente, di, boton, entrar, canal, cerebro,
     avanzar: (min: number) => { reloj += min * 60_000; },
     subidas: () => subidas,
     borradas,
@@ -742,6 +755,118 @@ function montar(extra: { tiendas?: any; extraerCrudo?: any; admin?: (texto: stri
   };
 }
 const ultimo = (e: string[]) => e[e.length - 1];
+
+
+describe('el cliente pide artículos: solo 3, con foto y detalles', () => {
+  const pinata = (i: number, extra: any = {}) => ({
+    nombre: `Piñata ${i}`, descripcion: 'De cartón, hecha a mano', precio: 100 + i, tiendaId: 't1', tiendaNombre: 'Dulce', url: `https://img.test/p${i}.jpg`, categoria: 'Fiestas',
+    unidadMedida: 'pz', variantes: [{ color: 'Verde', tamano: 'Grande', marca: 'Lola', stock: 5, tieneStock: true }], ...extra,
+  });
+  const conPinatas = (n: number, extra: any = {}) => {
+    const x = montar(extra);
+    for (let i = 1; i <= n; i++) x.bd.articulos[`a${i}`] = pinata(i);
+    x.bd.articulos.otro = { nombre: 'Pastel de chocolate', precio: 350, tiendaId: 't1', tiendaNombre: 'Dulce', url: 'https://img.test/pastel.jpg', variantes: [] };
+    return x;
+  };
+
+  it('raizDePalabra: plurales comunes', () => {
+    expect(['piñatas', 'pasteles', 'zapatos', 'flores', 'camisetas', 'mochilas'].map((p) => raizDePalabra(p.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))).toEqual(['pinata', 'pastel', 'zapato', 'flor', 'camiseta', 'mochila']);
+    expect(raizDePalabra('mes')).toBe('mes');
+    expect(raizDePalabra('pan')).toBe('pan');
+  });
+
+  it('"¿tienes piñatas?" encuentra los artículos con ese nombre aunque estén en singular (antes decía que no había)', () => {
+    const t = { t1: tiendaBase() } as any;
+    const arts = { a1: pinata(1), a2: pinata(2), otro: { nombre: 'Pastel', precio: 1, tiendaId: 't1', tiendaNombre: 'Dulce', variantes: [] } };
+    for (const q of ['tienes piñatas', '¿Tienes piñatas?', 'hay piñata', 'quiero ver piñatas', 'PIÑATAS']) {
+      expect(buscarCatalogo(t, arts, q, HOY).articulos.map((a) => a.nombre), q).toEqual(['Piñata 1', 'Piñata 2']);
+    }
+    // también por la descripción
+    expect(buscarCatalogo(t, { a: pinata(1, { nombre: 'Tractor', descripcion: 'Una piñata verde' }) }, 'tienes piñatas', HOY).articulos).toHaveLength(1);
+  });
+
+  it('pide piñatas: manda solo 3, cada una con su foto y detalles, y avisa que hay más', async () => {
+    const x = conPinatas(5);
+    await x.boton('rol_cliente');
+    await x.di({ texto: '¿tienes piñatas?' });
+    expect(x.imagenes).toHaveLength(3);
+    expect(new Set(x.imagenes.map((i) => i.url)).size).toBe(3);
+    for (const i of x.imagenes) {
+      expect(i.url).toMatch(/^https:\/\/img\.test\/p\d\.jpg$/);
+      expect(i.pie).toMatch(/Piñata \d[\s\S]*\$10\d[\s\S]*De cartón, hecha a mano[\s\S]*Dulce[\s\S]*Disponible[\s\S]*Marca: Lola · Color: Verde · Tamaño: Grande[\s\S]*Fiestas[\s\S]*\/producto\/a\d/);
+    }
+    expect(x.imagenes.some((i) => /Pastel/.test(i.pie))).toBe(false);
+    expect(ultimo(x.enviados)).toMatch(/Hay 2 más[\s\S]*app\.test/);
+    expect(x.respuestasCliente).toHaveLength(0); // sin gastar IA
+  });
+
+  it('con menos de 3 resultados muestra los que haya; con 1, lo dice en singular', async () => {
+    const x = conPinatas(1);
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'tienes piñatas' });
+    expect(x.imagenes).toHaveLength(1);
+    expect(x.enviados[x.enviados.length - 2]).toMatch(/Encontré este artículo/);
+    expect(ultimo(x.enviados)).not.toMatch(/Hay \d+ más/);
+  });
+
+  it('si no hay nada parecido, no manda fotos y la IA responde como antes', async () => {
+    const x = conPinatas(2);
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'tienes zapatos' });
+    expect(x.imagenes).toHaveLength(0);
+    expect(x.respuestasCliente).toHaveLength(1);
+  });
+
+  it('una pregunta por el horario o la ubicación sigue yendo a la IA, no a las fichas', async () => {
+    const x = conPinatas(2);
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'horario de Dulce y qué piñatas venden' });
+    expect(x.imagenes).toHaveLength(0);
+    expect(x.respuestasCliente).toHaveLength(1);
+    expect(pideDatosDeTienda('¿a qué hora abre Dulce?')).toBe(true);
+    expect(pideDatosDeTienda('tienes piñatas')).toBe(false);
+  });
+
+  it('un listado general ("qué productos tienen") también muestra solo 3 con foto', async () => {
+    const x = conPinatas(6);
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'lista de productos' });
+    expect(x.imagenes).toHaveLength(3);
+    expect(ultimo(x.enviados)).toMatch(/Hay \d+ más/);
+  });
+
+  it('si WhatsApp no puede mandar la foto, esa ficha va como texto y las demás siguen', async () => {
+    const x = conPinatas(3, { fallaImagen: true });
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'tienes piñatas' });
+    expect(x.imagenes).toHaveLength(0);
+    expect(x.enviados.filter((t) => /Piñata \d[\s\S]*\$10\d/.test(t))).toHaveLength(3);
+    expect(x.logs.some((l) => /no se pudo mandar la foto del artículo/.test(l))).toBe(true);
+  });
+
+  it('un canal sin envío de fotos manda las fichas como texto; un artículo sin foto pública también', async () => {
+    const x = conPinatas(2, { sinImagenes: true });
+    await x.boton('rol_cliente');
+    await x.di({ texto: 'tienes piñatas' });
+    expect(x.enviados.filter((t) => /🛍️ \*Piñata/.test(t))).toHaveLength(2);
+    const y = montar();
+    y.bd.articulos.s = pinata(9, { url: 'http://inseguro/foto.jpg', variantes: [] });
+    await y.boton('rol_cliente');
+    await y.di({ texto: 'tienes piñatas' });
+    expect(y.imagenes).toHaveLength(0); // solo se aceptan enlaces https
+    expect(y.enviados.some((t) => /Piñata 9/.test(t))).toBe(true);
+  });
+
+  it('fichaArticulo: estados y límite de tamaño', () => {
+    const base: any = { id: 'x', foto: '', nombre: 'Pastel', precio: 350.5, tienda: 'Dulce', descripcion: '', categoria: '', unidad: 'pz', porPedido: false, ventaPausada: false, disponible: true, colores: [], tamanos: [], marcas: [] };
+    expect(fichaArticulo(base, 'https://app.test/')).toMatch(/\$350\.5[\s\S]*Disponible[\s\S]*https:\/\/app\.test\/producto\/x$/);
+    expect(fichaArticulo({ ...base, porPedido: true }, 'u')).toMatch(/Bajo pedido/);
+    expect(fichaArticulo({ ...base, disponible: false }, 'u')).toMatch(/Agotado/);
+    expect(fichaArticulo({ ...base, ventaPausada: true }, 'u')).toMatch(/pausada/);
+    expect(fichaArticulo({ ...base, unidad: 'kg' }, 'u')).toMatch(/por kg/);
+    expect(fichaArticulo({ ...base, descripcion: 'x'.repeat(5000) }, 'u').length).toBeLessThanOrEqual(1000);
+  });
+});
 
 describe('roles: cliente o tienda', () => {
   let c: ReturnType<typeof montar>;

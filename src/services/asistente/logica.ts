@@ -475,12 +475,23 @@ export function construirArticulo(
 
 /* ---------------- lo que ve un cliente (tiendas y artículos) ---------------- */
 
-const STOP = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'o', 'en', 'con', 'por', 'para', 'que', 'hay', 'tienen', 'venden', 'quiero', 'busco', 'buscar', 'tienda', 'tiendas', 'hola', 'me', 'se', 'del', 'al', 'a', 'cual', 'cuales', 'cuanto', 'cuesta', 'precio', 'precios', 'horario', 'abre', 'abren', 'cierra', 'cierran', 'esta', 'estan', 'donde', 'ubicacion', 'direccion']);
+const STOP = new Set(['de', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'o', 'en', 'con', 'por', 'para', 'que', 'hay', 'tienen', 'venden', 'quiero', 'busco', 'buscar', 'tienda', 'tiendas', 'hola', 'me', 'se', 'del', 'al', 'a', 'cual', 'cuales', 'cuanto', 'cuesta', 'precio', 'precios', 'horario', 'abre', 'abren', 'cierra', 'cierran', 'esta', 'estan', 'donde', 'ubicacion', 'direccion', 'tienes', 'tiene', 'tengo', 'tenemos', 'vendes', 'manejan', 'manejas', 'maneja', 'muestrame', 'muestra', 'muestren', 'dame', 'dime', 'ver', 'algun', 'alguna', 'algunos', 'algunas', 'unos', 'unas', 'como', 'son', 'quisiera', 'necesito', 'ocupo', 'puedes', 'podrias', 'favor', 'gracias']);
+
+/**
+ * Raíz en singular para que "piñatas" encuentre "Piñata de tractor" y "pasteles" encuentre "Pastel".
+ * Es solo para buscar: quita la "s" o "es" final de palabras de 4 letras o más.
+ */
+export function raizDePalabra(p: string): string {
+  if (p.length >= 6 && p.endsWith('es') && !/[aeiou]es$/.test(p)) return p.slice(0, -2); // pasteles, flores, mujeres
+  if (p.length >= 4 && p.endsWith('s')) return p.slice(0, -1); // piñatas, zapatos, camisetas
+  return p;
+}
 
 export const palabrasClave = (t: unknown) =>
   normalizar(t)
     .split(/[^a-z0-9ñ]+/)
-    .filter((p) => p.length >= 3 && !STOP.has(p));
+    .filter((p) => p.length >= 3 && !STOP.has(p))
+    .map(raizDePalabra);
 
 const horaCorta = (d: any) => (d?.inicio && d?.fin ? `${d.inicio}-${d.fin}` : 'cerrado');
 
@@ -543,6 +554,9 @@ export function tiendaPublica(t: any): TiendaPublica {
 }
 
 export interface ArticuloPublico {
+  id: string;
+  /** Foto principal (enlace público) */
+  foto: string;
   nombre: string;
   precio: number;
   tienda: string;
@@ -557,12 +571,15 @@ export interface ArticuloPublico {
   marcas: string[];
 }
 
-function articuloPublico(a: any): ArticuloPublico {
+function articuloPublico(a: any, id = ''): ArticuloPublico {
   const vars: any[] = Array.isArray(a?.variantes) ? a.variantes : Object.values(a?.variantes ?? {});
   const unicos = (campo: string) => [...new Set(vars.map((v) => texto(v?.[campo], 30)).filter(Boolean))].slice(0, 8);
   const porPedido = a?.porPedido === true;
   const hayExistencia = vars.length === 0 || vars.some((v) => v?.tieneStock === false || Number(v?.stock) === -1 || Number(v?.stock) > 0);
+  const foto = [a?.url, ...vars.map((v) => v?.url)].map((u) => String(u ?? '').trim()).find((u) => /^https:\/\//i.test(u)) ?? '';
   return {
+    id: String(id || a?.articuloId || a?.id || ''),
+    foto,
     nombre: texto(a?.nombre, 80),
     precio: Number(a?.precio) || 0,
     tienda: texto(a?.tiendaNombre, 60),
@@ -609,20 +626,20 @@ export function buscarCatalogo(
     .slice(0, limite);
 
   const arts = new Map<string, ArticuloPublico>();
-  const guardar = (a: any) => {
-    const pub = articuloPublico(a);
+  const guardar = (a: any, id = '') => {
+    const pub = articuloPublico(a, id);
     arts.set(`${pub.tienda}|${pub.nombre}`, pub);
   };
   visibles
-    .map(([, a]: [string, any]) => ({ a, p: puntaje([a.nombre, a.descripcion, a.categoria, a.tiendaNombre]) }))
+    .map(([id, a]: [string, any]) => ({ id, a, p: puntaje([a.nombre, a.descripcion, a.categoria, a.tiendaNombre]) }))
     .filter((x) => x.p > 0)
     .sort((x, y) => y.p - x.p)
-    .slice(0, limite)
-    .forEach(({ a }) => guardar(a));
+    .slice(0, Math.max(limite, 8))
+    .forEach(({ a, id }) => guardar(a, id));
 
   // Si preguntan por una tienda ("¿qué venden en Dulce?"), se agregan algunos de sus artículos
   for (const { id } of tiendasOrdenadas.slice(0, 2)) {
-    visibles.filter(([, a]: [string, any]) => String(a.tiendaId) === id).slice(0, 4).forEach(([, a]) => guardar(a));
+    visibles.filter(([, a]: [string, any]) => String(a.tiendaId) === id).slice(0, 4).forEach(([aid, a]) => guardar(a, aid));
   }
 
   // Preguntas generales sin filtro ("¿qué tiendas hay?", "lista de tiendas", "¿qué venden?"): se muestra un listado
@@ -634,19 +651,42 @@ export function buscarCatalogo(
     const listaArticulos = [...visibles]
       .sort(([, a]: any, [, b]: any) => String(b.fecha_hora ?? '').localeCompare(String(a.fecha_hora ?? '')))
       .slice(0, 8)
-      .map(([, a]) => articuloPublico(a));
+      .map(([aid, a]) => articuloPublico(a, aid));
     return { articulos: pideArticulos ? listaArticulos : [], tiendas: pideTiendas ? listaTiendas : [] };
   }
 
   return { articulos: [...arts.values()].slice(0, 8), tiendas: tiendasOrdenadas.map(({ t }) => tiendaPublica(t)) };
 }
 
+/** Máximo de artículos que se muestran de una vez, con foto y detalles */
+export const MAX_ARTICULOS_MOSTRADOS = 3;
+
+/** ¿Pregunta por datos de la tienda (horario, ubicación, contacto) y no por artículos? */
+export const pideDatosDeTienda = (t: unknown) =>
+  /\b(horarios?|abre|abren|abierto|abiertos|cierra|cierran|donde|ubicacion|ubicados|direccion|telefono|contacto|como llegar|redes|facebook|instagram)\b/.test(normalizar(t));
+
+/** Texto que acompaña la foto de un artículo (cabe en el pie de una imagen de WhatsApp) */
+export function fichaArticulo(a: ArticuloPublico, urlApp: string): string {
+  const pesos = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const l = [`🛍️ *${a.nombre}*`, `💲 ${pesos(a.precio)}${a.unidad && a.unidad !== 'pz' ? ` por ${a.unidad}` : ''}`];
+  if (a.descripcion) l.push(`📝 ${a.descripcion}`);
+  if (a.tienda) l.push(`🏪 ${a.tienda}`);
+  l.push(a.ventaPausada ? '⏸️ Venta pausada por ahora' : a.porPedido ? '📦 Bajo pedido' : a.disponible ? '✅ Disponible' : '❌ Agotado');
+  const det = [a.marcas.length && `Marca: ${a.marcas.join(', ')}`, a.colores.length && `Color: ${a.colores.join(', ')}`, a.tamanos.length && `Tamaño: ${a.tamanos.join(', ')}`].filter(Boolean);
+  if (det.length) l.push(det.join(' · '));
+  if (a.categoria) l.push(`🏷️ ${a.categoria}`);
+  if (a.id && urlApp) l.push(`👉 ${urlApp.replace(/\/$/, '')}/producto/${a.id}`);
+  return l.join('\n').slice(0, 1000);
+}
+
 /** Palabras que, solas, significan "muéstrame todo" y no un filtro */
-const PALABRAS_DE_LISTADO = new Set([
+const PALABRAS_DE_LISTADO = new Set(
+  [
   'lista', 'listado', 'todas', 'todos', 'disponibles', 'registradas', 'existen', 'nuevas', 'nuevos', 'recientes', 'ultimos', 'ultimas',
   // el sustantivo mismo ("productos", "negocios"…) tampoco es un filtro
   'productos', 'producto', 'articulos', 'articulo', 'catalogo', 'venden', 'ofrecen', 'negocios', 'negocio', 'comercios', 'comercio',
-]);
+].flatMap((p) => [p, raizDePalabra(p)]),
+);
 
 /**
  * Respuesta de emergencia SIN inteligencia artificial, para cuando Gemini no está disponible (cuota o saturación):
