@@ -756,6 +756,7 @@ function alElegirDelMenu(accion: AccionMenuTienda) {
     pedidos: onPedidos,
     'agregar-articulo': artsTienda,
     promociones: irAPromociones,
+    'crear-publicacion': irACrearPublicacion,
     productos: irAArticulos,
     carrito: irAlCarrito,
     mapa: abrirMaps,
@@ -859,6 +860,12 @@ function irAPromociones() {
   }
   const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
   router.push(`/store/promociones/${tienda.id}`);
+}
+
+/** Herramienta de difusión (imagen de promoción para WhatsApp, Facebook…) */
+function irACrearPublicacion() {
+  const tienda = JSON.parse(localStorage.getItem('tiendas') || '{}');
+  router.push(`/store/publicaciones/${tienda.id}`);
 }
 
 function onPedidos() {

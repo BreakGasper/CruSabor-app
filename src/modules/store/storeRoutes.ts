@@ -6,6 +6,7 @@ import ProductManagement from './views/ProductManagement.vue';
 import StoreArticles from './components/StoreArticles.vue';
 import StorePedidos from './views/StorePedidos.vue';
 import PromocionesTienda from './views/PromocionesTienda.vue';
+import CrearPublicacion from './views/CrearPublicacion.vue';
 
 export default [
   { path: '/store/login', component: StoreLogin, name: 'storeLogin' }, //login para tiendas
@@ -37,6 +38,12 @@ export default [
     path: '/store/promociones/:id', // Descuentos con vigencia sobre artículos ya publicados
     component: PromocionesTienda,
     name: 'storePromociones',
+    props: true,
+  },
+  {
+    path: '/store/publicaciones/:id', // Herramienta de difusión: imagen de promoción para compartir
+    component: CrearPublicacion,
+    name: 'storePublicaciones',
     props: true,
   },
   {
