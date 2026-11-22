@@ -11,7 +11,7 @@ const medir = (t: string, tam: number, peso: number) => t.length * tam * (0.52 +
 const COMPLETO: DatosProducto = {
   ...DATOS_VACIOS,
   nombre: 'Piñata de Tractor', precio: 550, precioAntes: 700, descripcion: 'Piñata con forma de tractor John Deere, hecha a mano.',
-  categoria: 'Piñatas', medidas: '80 cm alto x 1 mt ancho', disponibilidad: 'Disponible', color: 'Verde', caracteristicas: ['Hecha a mano', 'Papel de china', 'Lista para rellenar'], tienda: 'CG-Rat', conLogo: true,
+  categoria: 'Piñatas', medidas: '80 cm alto x 1 mt ancho', disponibilidad: 'Disponible', color: 'Verde', caracteristicas: ['Hecha a mano', 'Papel de china', 'Lista para rellenar'], tienda: 'CG-Rat', conLogo: true, kicker: 'Hoy jueves', cta: 'Haz tu pedido', telefono: '341 123 4567',
 };
 const BASICO: DatosProducto = { ...DATOS_VACIOS, nombre: 'Pastel', precio: 350 };
 const LARGO: DatosProducto = { ...COMPLETO, nombre: 'Pastel de tres leches con fresas naturales, decorado a mano para cumpleaños y bodas', descripcion: 'x'.repeat(400), medidas: '120 cm de ancho por 80 cm de alto por 40 cm de profundidad', precioAntes: null, precio: 1250.5, tienda: 'Pastelería Los Hermanos Gutiérrez de la Colonia Centro' };
@@ -169,6 +169,52 @@ describe('utilidades del motor', () => {
       const r = generarDecor(id, { w: 1080, h: 1620, rng: crearRng(3), paleta });
       expect(r.length, id).toBeGreaterThan(0);
       expect(r.every((e) => e.rol.startsWith('decor'))).toBe(true);
+    }
+  });
+});
+
+import { paletaDesdeTema, contraste, leerColor } from '@/modules/studio/motor/tema';
+
+describe('tema de Crustore en los diseños', () => {
+  const TEMAS = {
+    'carbon-lima': { oscuro: '#1c1f1a', boton: '#1c1f1a', sobreBoton: '#c6f432', acento: '#b5e61d', marca: '#627c10' },
+    'rosa-negro': { oscuro: '#141414', boton: '#d6006f', sobreBoton: '#ffffff', acento: '#ffffff', marca: '#d6006f' },
+    'azul-anil': { oscuro: '#2b3a8c', boton: '#2b3a8c', sobreBoton: '#ffffff', acento: '#f5a623', marca: '#2b3a8c' },
+    crustore: { oscuro: '#1f2430', boton: '#ff2e97', sobreBoton: '#1e232f', acento: '#00a9c2', marca: '#7548f0' },
+  };
+
+  it('el acento siempre se distingue del fondo, también cuando el botón de la paleta es oscuro (carbón y lima)', () => {
+    for (const [nombre, t] of Object.entries(TEMAS)) {
+      const p = paletaDesdeTema(t);
+      expect(contraste(p.acento, p.fondoA), nombre).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.sobreAcento, p.acento), nombre).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(p.titulo, p.fondoA), nombre).toBeGreaterThanOrEqual(7);
+      expect(p.id).toBe('tema');
+    }
+    // En carbón y lima el botón es casi igual al fondo: el acento sale del lima, no del botón
+    const lima = paletaDesdeTema(TEMAS['carbon-lima']);
+    expect(lima.acento).not.toBe('#1c1f1a');
+    expect(['#b5e61d', '#c6f432']).toContain(lima.acento);
+  });
+
+  it('colores ilegibles no rompen nada', () => {
+    const p = paletaDesdeTema({ oscuro: 'var(--x)', boton: '', sobreBoton: 'rojo', acento: 'x', marca: '' });
+    expect(leerColor(p.fondoA)).not.toBeNull();
+    expect(leerColor(p.acento)).not.toBeNull();
+  });
+
+  it('con la paleta del tema, todas las propuestas la usan y no se sale nada, en todos los estilos', () => {
+    for (const t of Object.values(TEMAS)) {
+      const paleta = paletaDesdeTema(t);
+      for (const estilo of ESTILOS) {
+        for (const formato of FORMATOS_ESTUDIO) {
+          for (const p of generarPropuestas({ datos: COMPLETO, prod: { w: 1000, h: 1000 }, estiloId: estilo.id, formato, medir, paleta })) {
+            expect(p.paleta).toBe('tema');
+            expect(p.paletaObj).toEqual(paleta);
+            expect(verificar(p.elems, formato.w, formato.h), `${estilo.id}/${formato.id}`).toEqual([]);
+          }
+        }
+      }
     }
   });
 });

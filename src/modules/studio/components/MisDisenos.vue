@@ -88,7 +88,7 @@ async function guardarNombre(d: Diseno) {
 .mis { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
 h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .nota { color: var(--e-muted); font-size: 0.9rem; }
-.error { color: #ff7b7b; }
+.error { color: #e5484d; }
 .rejilla { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
 .tarjeta { background: var(--e-panel); border: 1px solid var(--e-borde); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .img { padding: 0; border: 0; background: #000; cursor: pointer; display: block; }
@@ -104,5 +104,5 @@ small { color: var(--e-muted); font-size: 0.75rem; }
 .ico { display: inline-grid; place-items: center; width: 28px; height: 28px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--e-muted); cursor: pointer; }
 .ico:hover { background: var(--e-panel2); color: var(--e-texto); }
 .ico.fav { color: var(--e-ambar); }
-.ico.peligro:hover { color: #ff7b7b; }
+.ico.peligro:hover { color: #e5484d; }
 </style>

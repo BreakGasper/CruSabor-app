@@ -1,5 +1,5 @@
 import { construirLayout } from './layouts';
-import { estiloPorId, type DatosProducto, type DecorId, type Formato, type LayoutId, type Propuesta } from './tipos';
+import { estiloPorId, type DatosProducto, type DecorId, type Formato, type LayoutId, type Paleta, type Propuesta } from './tipos';
 import type { Medir } from './util';
 
 /**
@@ -20,6 +20,8 @@ export interface EntradaGenerar {
   layout?: LayoutId;
   /** Cuántas propuestas (3 por defecto) */
   cantidad?: number;
+  /** Usa esta paleta en todas (p. ej. la del tema de Crustore) en lugar de las del estilo */
+  paleta?: Paleta;
 }
 
 export function decorDeLaPropuesta(decorEstilo: DecorId[], k: number): DecorId[] {
@@ -39,11 +41,11 @@ export function generarPropuestas(e: EntradaGenerar): Propuesta[] {
     const k = tanda * cantidad + i;
     const layout = e.layout ?? estilo.layouts[k % estilo.layouts.length];
     // La paleta cambia cuando se agotan los layouts, y también con la tanda, para no repetir pareja
-    const pal = estilo.paletas[(Math.floor(k / estilo.layouts.length) + i + tanda) % estilo.paletas.length];
+    const pal = e.paleta ?? estilo.paletas[(Math.floor(k / estilo.layouts.length) + i + tanda) % estilo.paletas.length];
     const semilla = 1000 + k * 7919 + estilo.id.length * 31;
     const decor = decorDeLaPropuesta(estilo.decor, k);
     const elems = construirLayout({ w: e.formato.w, h: e.formato.h, datos: e.datos, prod: e.prod, estilo, paleta: pal, layout, semilla, medir: e.medir, decor });
-    props.push({ id: `${estilo.id}-${layout}-${pal.id}-${k}`, estilo: estilo.id, layout, paleta: pal.id, semilla, formato: e.formato, elems });
+    props.push({ id: `${estilo.id}-${layout}-${pal.id}-${k}`, estilo: estilo.id, layout, paleta: pal.id, ...(e.paleta ? { paletaObj: e.paleta } : {}), semilla, formato: e.formato, elems });
   }
   return props;
 }

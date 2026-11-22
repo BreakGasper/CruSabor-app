@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { DatosProducto } from './motor/tipos';
+import type { DatosProducto, Paleta } from './motor/tipos';
 
 /**
  * Los diseños se guardan SOLO en este navegador (IndexedDB): nada se sube a ningún servidor.
@@ -21,6 +21,8 @@ export interface Diseno {
   /** Orden y paleta con que se generó, por si se quiere regenerar */
   layout?: string;
   paleta?: string;
+  /** Paleta propia del diseño (p. ej. la del tema de Crustore cuando se creó) */
+  paletaObj?: Paleta;
 }
 
 export interface ImagenGuardada {
