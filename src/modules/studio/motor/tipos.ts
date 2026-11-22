@@ -148,6 +148,8 @@ export interface Estilo {
   decor: DecorId[];
   /** Cómo se dibuja la etiqueta del precio */
   precioForma: 'chapa' | 'burst' | 'plano';
+  /** Cómo se llaman en este giro los datos "medidas" y "color" (Tallas, Tono…) */
+  etiquetas?: { medidas?: string; color?: string };
 }
 
 const pal = (id: string, nombre: string, fondoA: string, fondoB: string, titulo: string, texto: string, acento: string, acento2: string, sobreAcento: string, barra: string, textoBarra: string): Paleta => ({
@@ -244,6 +246,33 @@ export const ESTILOS: Estilo[] = [
     paletas: [
       pal('bloque-1', 'Coral y crema', '#fff6ef', '#ffe9dc', '#1f2a44', '#1f2a44', '#ff5a36', '#ffd23f', '#ffffff', 'rgba(31,42,68,0.08)', '#1f2a44'),
       pal('bloque-2', 'Turquesa', '#fffaf0', '#fdf0d5', '#0b3c49', '#0b3c49', '#e4572e', '#2ec4b6', '#ffffff', 'rgba(11,60,73,0.08)', '#0b3c49'),
+    ],
+  },
+  {
+    id: 'calzado', nombre: 'Calzado', descripcion: 'Deportivo y de calle: letras enormes, color fuerte y mucho contraste',
+    layouts: ['cartel', 'price-focus', 'arco', 'hero-product'], fuenteTitulo: FUENTES.cartel, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.cartel,
+    decor: ['rayas', 'circulos', 'franjas'], precioForma: 'chapa', etiquetas: { medidas: 'Tallas', color: 'Color' },
+    paletas: [
+      pal('calzado-1', 'Calle neón', '#111111', '#1f1f1f', '#ffffff', '#eeeeee', '#ff6a13', '#c6f432', '#111111', 'rgba(255,255,255,0.09)', '#ffffff'),
+      pal('calzado-2', 'Cielo deportivo', '#f2f6ff', '#dbe6ff', '#0b1f5c', '#0b1f5c', '#1f4bff', '#ffd23f', '#ffffff', 'rgba(11,31,92,0.08)', '#0b1f5c'),
+    ],
+  },
+  {
+    id: 'ropa', nombre: 'Ropa y moda', descripcion: 'Editorial y elegante, con mucho aire y tipografía fina',
+    layouts: ['editorial', 'arco', 'minimal', 'bloques'], fuenteTitulo: FUENTES.elegante, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.elegante,
+    decor: ['lineas', 'circulos', 'marco'], precioForma: 'plano', etiquetas: { medidas: 'Tallas', color: 'Color' },
+    paletas: [
+      pal('ropa-1', 'Lino', '#f5efe6', '#e8dfd0', '#2b2118', '#4a3b2e', '#2b2118', '#b08968', '#f5efe6', 'rgba(43,33,24,0.07)', '#2b2118'),
+      pal('ropa-2', 'Blush', '#fdeceb', '#f9d5d3', '#5b2333', '#5b2333', '#b23a5a', '#e8a0a8', '#ffffff', 'rgba(91,35,51,0.08)', '#5b2333'),
+    ],
+  },
+  {
+    id: 'maquillaje', nombre: 'Maquillaje y belleza', descripcion: 'Suave y glamuroso: rosas, dorados, brillo y destellos',
+    layouts: ['arco', 'bloques', 'cartel', 'minimal'], fuenteTitulo: FUENTES.elegante, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.elegante,
+    decor: ['brillo', 'destellos', 'circulos'], precioForma: 'chapa', etiquetas: { medidas: 'Contenido', color: 'Tono' },
+    paletas: [
+      pal('maquillaje-1', 'Rosa oro', '#fff0f3', '#ffd9e2', '#7a1f3d', '#7a1f3d', '#d4567a', '#f2c6a0', '#ffffff', 'rgba(122,31,61,0.08)', '#7a1f3d'),
+      pal('maquillaje-2', 'Noche glam', '#1a0f1f', '#2d1836', '#fff2dd', '#f3e4cf', '#e8c27a', '#d4567a', '#1a0f1f', 'rgba(255,255,255,0.08)', '#fff2dd'),
     ],
   },
   {

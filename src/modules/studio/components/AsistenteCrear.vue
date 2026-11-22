@@ -47,7 +47,7 @@
         <label class="campo"><span>Precio anterior (opcional)</span><input v-model="antesTexto" inputmode="decimal" placeholder="700" /></label>
         <label class="campo ancho"><span>Descripción</span><textarea v-model="sesion.datos.descripcion" rows="2" maxlength="300" placeholder="Piñata con forma de tractor John Deere"></textarea></label>
         <label class="campo"><span>Categoría</span><input v-model="sesion.datos.categoria" maxlength="40" placeholder="Piñatas" /></label>
-        <label class="campo"><span>Medidas</span><input v-model="sesion.datos.medidas" maxlength="50" placeholder="80 cm alto x 1 m ancho" /></label>
+        <label class="campo"><span>Medidas o tallas</span><input v-model="sesion.datos.medidas" maxlength="50" placeholder="80 cm alto x 1 m ancho" /></label>
         <label class="campo">
           <span>Disponibilidad</span>
           <select v-model="sesion.datos.disponibilidad">
@@ -58,7 +58,7 @@
             <option>Agotado</option>
           </select>
         </label>
-        <label class="campo"><span>Color</span><input v-model="sesion.datos.color" maxlength="30" placeholder="Verde" /></label>
+        <label class="campo"><span>Color o tono</span><input v-model="sesion.datos.color" maxlength="30" placeholder="Verde" /></label>
         <label class="campo ancho"><span>Características (una por línea, máximo 4)</span><textarea v-model="caracteristicasTexto" rows="3" placeholder="Hecha a mano&#10;Papel de china"></textarea></label>
         <label class="campo"><span>Llamada a la acción (opcional)</span><input v-model="sesion.datos.cta" maxlength="40" placeholder="Haz tu pedido" /></label>
         <label class="campo"><span>Teléfono (opcional)</span><input v-model="sesion.datos.telefono" maxlength="24" inputmode="tel" placeholder="341 123 4567" /></label>

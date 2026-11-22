@@ -165,7 +165,7 @@ export function construirLayout(e: EntradaLayout): Elem[] {
   };
 
   const items = (max: number) =>
-    ([['Disponibilidad', datos.disponibilidad], ['Medidas', datos.medidas], ['Categoría', datos.categoria], ['Color', datos.color]] as [string, string][]).filter(([, v]) => String(v ?? '').trim()).slice(0, max);
+    ([['Disponibilidad', datos.disponibilidad], [estilo.etiquetas?.medidas ?? 'Medidas', datos.medidas], ['Categoría', datos.categoria], [estilo.etiquetas?.color ?? 'Color', datos.color]] as [string, string][]).filter(([, v]) => String(v ?? '').trim()).slice(0, max);
 
   /** Datos en barras (cada uno con su etiqueta y valor) */
   const chips = (caja: Caja, lista: [string, string][], cols: number) => {
@@ -377,7 +377,7 @@ export function construirLayout(e: EntradaLayout): Elem[] {
     let y = encH + g;
     const pieH = precioTxt ? Math.round(h * 0.1) : 0;
     const tituloH = Math.round(h * 0.1);
-    const filas = [['Medidas', datos.medidas], ['Color', datos.color], ['Disponibilidad', datos.disponibilidad]].filter(([, v]) => String(v).trim()) as [string, string][];
+    const filas = [[estilo.etiquetas?.medidas ?? 'Medidas', datos.medidas], [estilo.etiquetas?.color ?? 'Color', datos.color], ['Disponibilidad', datos.disponibilidad]].filter(([, v]) => String(v).trim()) as [string, string][];
     const bulletsH = datos.caracteristicas.filter((c) => c.trim()).length ? Math.round(h * 0.03) * Math.min(4, datos.caracteristicas.filter((c) => c.trim()).length) + g : 0;
     const filaH = Math.round(h * 0.04);
     const tablaH = filas.length * filaH + bulletsH;
