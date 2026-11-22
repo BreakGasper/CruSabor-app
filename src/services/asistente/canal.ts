@@ -4,6 +4,8 @@
  */
 export interface Canal {
   enviarTexto: (a: string, texto: string) => Promise<void>;
+  /** Foto con pie de texto, desde un enlace público. Es opcional: si el canal no la tiene, se manda solo el texto */
+  enviarImagen?: (a: string, url: string, pie: string) => Promise<void>;
   enviarBotones: (a: string, texto: string, botones: { id: string; titulo: string }[]) => Promise<void>;
   descargarImagen: (id: string) => Promise<{ mime: string; bytes: Buffer }>;
 }
