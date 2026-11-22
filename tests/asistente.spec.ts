@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { createHmac, createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
-  comandoDe, rolDe, precioDelTexto, nombreDelTexto, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
+  comandoDe, rolDe, editarBorrador, cantidadDelTexto, pideEditar, resumenBorrador, precioDelTexto, nombreDelTexto, diezDigitos, esSi, esNo, leerPrecio, validarBorrador, permitirMensaje, tienePermisoPublicar,
   buscarCatalogo, construirArticulo, detectaBajoPedido, diaMx, momentoMx, validarCambiosPerfil, tiendaPublica, resumenTienda, respuestaSinIA,
   MAX_MENSAJES_POR_VENTANA,
 } from '../src/services/asistente/logica.ts';
@@ -822,7 +822,7 @@ describe('si WhatsApp rechaza los botones, el agente sigue funcionando por texto
     expect(ultimo(c.enviados)).toMatch(/contraseña de tu tienda/);
     await c.di({ texto: 'secreto1' });
     await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
-    expect(ultimo(c.enviados)).toMatch(/Revisa el artículo[\s\S]*Responde \*sí\* para publicar o \*no\* para descartar/);
+    expect(ultimo(c.enviados)).toMatch(/Revisa el artículo[\s\S]*Responde \*sí\* para publicar, \*editar\* para cambiar datos o \*no\* para descartar/);
     await c.di({ texto: 'sí' });
     expect(c.bd.articulos.art1).toMatchObject({ nombre: 'Pastel de chocolate', tiendaId: 't1' });
     await c.di({ texto: 'mi descripción es rica repostería' });
@@ -956,7 +956,7 @@ describe('artículos bajo pedido', () => {
     await x.entrar();
     await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de boda $1500 bajo pedido, 5 piezas' });
     expect(ultimo(x.enviados)).toMatch(/Pastel de boda[\s\S]*Bajo pedido/);
-    expect(ultimo(x.enviados)).not.toMatch(/Existencias/);
+    expect(ultimo(x.enviados)).not.toMatch(/Cantidad: \d/);
     await x.boton('guardar');
     const a = x.bd.articulos.art1;
     expect(a.porPedido).toBe(true);
@@ -967,7 +967,7 @@ describe('artículos bajo pedido', () => {
     const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350, stock: 4 } });
     await x.entrar();
     await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350, 4 piezas' });
-    expect(ultimo(x.enviados)).toMatch(/Existencias: 4/);
+    expect(ultimo(x.enviados)).toMatch(/Cantidad: 4 pz/);
     await x.di({ texto: 'es bajo pedido' });
     expect(ultimo(x.enviados)).toMatch(/Bajo pedido/);
     await x.di({ texto: 'ya no es bajo pedido' });
@@ -1042,6 +1042,125 @@ describe('un mensaje colgado no bloquea los siguientes del mismo número', () =>
   });
 });
 
+describe('editar el artículo antes de publicar', () => {
+  const CATS = [{ id: 'c1', nombre: 'Postres' }, { id: 'c2', nombre: 'Bebidas calientes' }];
+  const BASE = { nombre: 'Pastel', descripcion: '', precio: 350, stock: -1, unidadMedida: 'pz', marca: '', color: '', tamano: '', material: '', categoriaId: '', categoria: '', porPedido: false };
+
+  it('editarBorrador: aplica varios campos, uno por línea, con las mismas reglas de validación', () => {
+    const r = editarBorrador(BASE, 'precio 400\ncantidad 12\nunidad kg\nmarca Dulce Hogar; color café\ncategoría postres', CATS);
+    expect(r.borrador).toMatchObject({ precio: 400, stock: 12, unidadMedida: 'kg', marca: 'Dulce Hogar', color: 'café', categoriaId: 'c1', categoria: 'Postres' });
+    expect(r.errores).toEqual([]);
+    expect(r.reconocidos).toBe(6);
+    expect(BASE.precio).toBe(350); // no toca el original
+  });
+
+  it('editarBorrador: rechaza lo inválido con motivo y aplica el resto', () => {
+    const r = editarBorrador(BASE, 'precio abc\ncantidad 0\ncantidad 2.5 piezas\ncategoría inventada\nnombre X\nmarca Buena', CATS);
+    expect(r.borrador.precio).toBe(350);
+    expect(r.borrador.stock).toBe(-1);
+    expect(r.borrador.nombre).toBe('Pastel');
+    expect(r.borrador.marca).toBe('Buena');
+    expect(r.errores.join('|')).toMatch(/precio[\s\S]*cantidad[\s\S]*categoría: no existe[\s\S]*nombre/);
+    expect(editarBorrador(BASE, 'precio 99999999', CATS).borrador.precio).toBe(350);
+  });
+
+  it('editarBorrador: bajo pedido y cantidad no se mezclan; "ninguno" vacía un dato; categoría ambigua se rechaza', () => {
+    const a = editarBorrador(BASE, 'bajo pedido sí', CATS).borrador;
+    expect(a).toMatchObject({ porPedido: true, stock: -1 });
+    expect(editarBorrador(a, 'cantidad 5', CATS).errores[0]).toMatch(/bajo pedido/);
+    expect(editarBorrador(a, 'bajo pedido no\ncantidad 5', CATS).borrador).toMatchObject({ porPedido: false, stock: 5 });
+    expect(editarBorrador({ ...BASE, color: 'rojo' }, 'color ninguno', CATS).borrador.color).toBe('');
+    expect(editarBorrador(BASE, 'categoría b', [{ id: 'a', nombre: 'Bebidas frías' }, { id: 'b', nombre: 'Bebidas calientes' }]).errores[0]).toMatch(/coincide con varias|no existe/);
+    expect(editarBorrador({ ...BASE, categoriaId: 'c1', categoria: 'Postres' }, 'categoría ninguna', CATS).borrador.categoriaId).toBe('');
+  });
+
+  it('editarBorrador: lo que no es "campo valor" no cuenta como edición (pasa a la IA)', () => {
+    for (const t of ['hazlo más barato', 'el precio es 120', 'marcador rojo', 'es bajo pedido', '']) expect(editarBorrador(BASE, t, CATS).reconocidos, t).toBe(0);
+  });
+
+  it('cantidadDelTexto y pideEditar', () => {
+    expect(cantidadDelTexto('Pastel $350, 5 piezas')).toBe(5);
+    expect(cantidadDelTexto('tengo 12')).toBe(12);
+    expect(cantidadDelTexto('Pastel $350')).toBeNull();
+    expect(cantidadDelTexto('$350 pesos')).toBeNull();
+    expect(pideEditar('Editar')).toBe(true);
+    expect(pideEditar('✏️ editar')).toBe(true);
+    expect(pideEditar('editar el precio a 40')).toBe(false);
+  });
+
+  it('el resumen muestra la cantidad, o avisa que falta, y "Sin categoría" cuando no hay', () => {
+    expect(resumenBorrador({ ...BASE, stock: 12, unidadMedida: 'kg' }, 'Dulce')).toMatch(/Cantidad: 12 kg[\s\S]*Categoría: Sin categoría/);
+    expect(resumenBorrador(BASE, 'Dulce')).toMatch(/Cantidad: sin definir/);
+    expect(resumenBorrador({ ...BASE, porPedido: true }, 'Dulce')).toMatch(/Bajo pedido/);
+  });
+
+  it('flujo: el resumen trae Publicar/Editar/Descartar; Editar explica y lista las categorías; los cambios se publican', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350 } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(ultimo(x.enviados)).toMatch(/Cantidad: sin definir[\s\S]*Sin categoría[\s\S]*\[guardar,editar,cancelar\]/);
+    await x.boton('editar');
+    expect(ultimo(x.enviados)).toMatch(/¿Qué quieres cambiar\?[\s\S]*cantidad[\s\S]*Categorías disponibles: Postres/);
+    await x.di({ texto: 'precio 400\ncantidad 12\nunidad kg\ncategoría Postres\nmarca Dulce Hogar' });
+    expect(ultimo(x.enviados)).toMatch(/Cambiado[\s\S]*Precio: \$400[\s\S]*Cantidad: 12 pz[\s\S]*Unidad: kg[\s\S]*Revisa el artículo[\s\S]*Cantidad: 12 kg[\s\S]*Categoría: Postres[\s\S]*\[guardar,editar,cancelar\]/);
+    await x.boton('guardar');
+    const a = x.bd.articulos.art1;
+    expect(a).toMatchObject({ nombre: 'Pastel', precio: 400, categoria: 'Postres', categoriaId: 'c1', unidadMedida: 'kg', porPedido: false, tiendaId: 't1' });
+    expect(a.variantes[0]).toMatchObject({ stock: 12, tieneStock: true, precio: 400, marca: 'Dulce Hogar' });
+  });
+
+  it('una edición con error lo explica y deja el borrador como estaba (sigue pudiendo publicar)', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350 } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    await x.di({ texto: 'cantidad muchas\ncategoría inventada' });
+    expect(ultimo(x.enviados)).toMatch(/No pude aplicar[\s\S]*cantidad[\s\S]*categoría: no existe[\s\S]*\$350[\s\S]*\[guardar,editar,cancelar\]/);
+    await x.boton('guardar');
+    expect(x.bd.articulos.art1.precio).toBe(350);
+  });
+
+  it('sin categoría: se publica en "Sin categoría" y se crea en el catálogo la primera vez', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350 } });
+    await x.entrar();
+    expect(x.bd.categorias['sin-categoria']).toBeUndefined();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    expect(x.bd.categorias['sin-categoria']).toBeUndefined(); // no se escribe nada hasta que se publica
+    await x.boton('guardar');
+    expect(x.bd.categorias['sin-categoria']).toMatchObject({ id: 'sin-categoria', nombre: 'Sin categoría' });
+    expect(x.bd.articulos.art1).toMatchObject({ categoria: 'Sin categoría', categoriaId: 'sin-categoria' });
+  });
+
+  it('si "Sin categoría" ya existe en el catálogo (aunque con otro id) se reutiliza y no se duplica', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350 } });
+    x.bd.categorias.zz9 = { id: 'zz9', nombre: 'Sin categoria' };
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350' });
+    await x.boton('guardar');
+    expect(x.bd.categorias['sin-categoria']).toBeUndefined();
+    expect(x.bd.articulos.art1).toMatchObject({ categoriaId: 'zz9' });
+  });
+
+  it('la cantidad escrita ("5 piezas") se toma del texto si la IA no la devolvió; bajo pedido no lleva cantidad', async () => {
+    const x = montar({ extraerCrudo: { nombre: 'Pastel', precio: 350 } });
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel $350, 5 piezas' });
+    expect(ultimo(x.enviados)).toMatch(/Cantidad: 5 pz/);
+    expect(x.logs.some((l) => /no devolvió la cantidad; se tomó del texto escrito/.test(l))).toBe(true);
+    await x.di({ texto: 'bajo pedido sí' });
+    expect(ultimo(x.enviados)).toMatch(/Bajo pedido/);
+    await x.boton('guardar');
+    expect(x.bd.articulos.art1.variantes[0]).toMatchObject({ stock: -1, tieneStock: false });
+  });
+
+  it('un texto que no es "campo valor" sigue yendo a la IA como antes', async () => {
+    const x = montar();
+    await x.entrar();
+    await x.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate $350' });
+    await x.di({ texto: 'el precio es 120' });
+    expect(ultimo(x.enviados)).toMatch(/\$120/);
+  });
+});
+
 describe('mensajes largos con botones', () => {
   it('un resumen de más de ~1000 caracteres va como texto y los botones solo llevan la pregunta', async () => {
     const largo = 'x'.repeat(600);
@@ -1051,7 +1170,7 @@ describe('mensajes largos con botones', () => {
     const ultimos = c.enviados.slice(-2);
     expect(ultimos[0]).toMatch(/Revisa el artículo/);
     expect(ultimos[0].length).toBeGreaterThan(900);
-    expect(ultimos[1]).toMatch(/^👆 ¿Qué hago\? \[guardar,cancelar\]$/);
+    expect(ultimos[1]).toMatch(/^👆 ¿Qué hago\? \[guardar,editar,cancelar\]$/);
     await c.boton('guardar');
     expect(c.bd.articulos.art1).toBeDefined();
   });
@@ -1107,7 +1226,7 @@ describe('tienda: artículos', () => {
 
   it('flujo completo: foto → resumen → confirmar → artículo publicado en SU tienda', async () => {
     await c.di({ tipo: 'imagen', mediaId: 'i1', texto: 'Pastel de chocolate $350' });
-    expect(ultimo(c.enviados)).toMatch(/Pastel de chocolate[\s\S]*\$350[\s\S]*Postres[\s\S]*Dulce[\s\S]*\[guardar,cancelar\]/);
+    expect(ultimo(c.enviados)).toMatch(/Pastel de chocolate[\s\S]*\$350[\s\S]*Postres[\s\S]*Dulce[\s\S]*\[guardar,editar,cancelar\]/);
     expect(c.bd.articulos).toEqual({});
     await c.boton('guardar');
     expect(ultimo(c.enviados)).toMatch(/ya está publicado/);

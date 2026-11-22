@@ -103,6 +103,8 @@ export type AccionMenuTienda =
   | 'pedidos'
   | 'agregar-articulo'
   | 'promociones'
+  | 'crear-publicacion'
+  | 'estudio'
   | 'productos'
   | 'carrito'
   | 'mapa'
@@ -131,9 +133,11 @@ const opcionesDueno = computed(() => {
     { accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' },
     { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
     { accion: 'agregar-articulo', icono: '➕', texto: 'Agregar artículo' },
+    { accion: 'crear-publicacion', icono: '📣', texto: 'Crear publicación' },
+    { accion: 'estudio', icono: '🎨', texto: 'Estudio de diseño' },
     { accion: 'productos', icono: '📋', texto: 'Mis productos' },
   ];
-  if (props.promocionesHabilitadas) lista.splice(3, 0, { accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
+  if (props.promocionesHabilitadas) lista.splice(5, 0, { accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
   return lista;
 });
 

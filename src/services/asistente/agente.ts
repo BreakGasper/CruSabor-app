@@ -51,6 +51,12 @@ import {
   perfilParaIA,
   permitirMensaje,
   precioDelTexto,
+  AYUDA_EDICION,
+  CATEGORIA_SIN,
+  cantidadDelTexto,
+  editarBorrador,
+  esCategoriaSin,
+  pideEditar,
   resumenBorrador,
   resumenTienda,
   respuestaSinIA,
@@ -448,12 +454,41 @@ export function crearAgente(deps: DepsAgente) {
       v.borrador.porPedido = bajoPedido;
       if (bajoPedido) v.borrador.stock = -1; // bajo pedido nunca controla existencias
     }
+    // Cantidad: si la IA no la devolvió pero la tienda la escribió ("5 piezas"), se lee del texto
+    if (!v.borrador.porPedido && v.borrador.stock === -1) {
+      const escrita = cantidadDelTexto(texto);
+      if (escrita !== null) {
+        v.borrador.stock = escrita;
+        log('WhatsApp: la IA no devolvió la cantidad; se tomó del texto escrito');
+      }
+    }
     s.borrador = v.borrador;
+    await pedirConfirmacionArticulo(de, s);
+  }
+
+  /** Resumen del artículo pendiente con Publicar / Editar / Descartar */
+  async function pedirConfirmacionArticulo(de: string, s: Sesion, nota = '') {
     s.estado = 'confirmando';
-    await conBotones(de, `Revisa el artículo:\n\n${resumenBorrador(v.borrador, s.tienda!.nombreTienda)}\n\n¿Lo publico? (también puedes escribirme un cambio, ej. "el precio es 120")`, [
+    await conBotones(de, `${nota ? `${nota}\n\n` : ''}Revisa el artículo:\n\n${resumenBorrador(s.borrador!, s.tienda!.nombreTienda)}\n\n¿Lo publico? Toca ✏️ Editar para cambiar o completar datos.`, [
       { id: 'guardar', titulo: '✅ Publicar' },
+      { id: 'editar', titulo: '✏️ Editar' },
       { id: 'cancelar', titulo: '❌ Descartar' },
-    ], 'Responde *sí* para publicar o *no* para descartar.');
+    ], 'Responde *sí* para publicar, *editar* para cambiar datos o *no* para descartar.');
+  }
+
+  async function pedirEdicion(de: string) {
+    const lista = (await categorias()).filter((c) => !esCategoriaSin(c.nombre)).map((c) => c.nombre).slice(0, 25);
+    await decir(de, `${AYUDA_EDICION}${lista.length ? `\n\n🏷️ Categorías disponibles: ${lista.join(', ')}` : ''}`);
+  }
+
+  /** La categoría "Sin categoría" del catálogo: se reutiliza si ya existe (por nombre) y se crea solo si falta */
+  async function categoriaSinCategoria(): Promise<{ id: string; nombre: string }> {
+    const a = await deps.almacen();
+    const existente = (await categorias()).find((c) => esCategoriaSin(c.nombre));
+    if (existente) return { id: existente.id, nombre: existente.nombre };
+    await a.actualizar({ [`categorias/${CATEGORIA_SIN.id}`]: { id: CATEGORIA_SIN.id, nombre: CATEGORIA_SIN.nombre, descripcion: CATEGORIA_SIN.descripcion, icono: '' } });
+    log('WhatsApp: se creó la categoría "Sin categoría" en el catálogo');
+    return { id: CATEGORIA_SIN.id, nombre: CATEGORIA_SIN.nombre };
   }
 
   async function recibirFoto(de: string, s: Sesion, m: MensajeEntrante) {
@@ -490,6 +525,12 @@ export function crearAgente(deps: DepsAgente) {
     }
     s.ocupado = true;
     try {
+      // Sin categoría elegida: el artículo se guarda en "Sin categoría" para que no quede suelto
+      if (!s.borrador.categoriaId) {
+        const sin = await categoriaSinCategoria();
+        s.borrador.categoriaId = sin.id;
+        s.borrador.categoria = sin.nombre;
+      }
       const url = await deps.subirImagen(s.imagen.bytes, s.imagen.mime);
       const id = a.nuevoId('articulos');
       await a.actualizar({ [`articulos/${id}`]: construirArticulo(s.borrador, s.tienda, url, ahora(), sku()) });
@@ -616,6 +657,16 @@ export function crearAgente(deps: DepsAgente) {
           return decir(de, 'Descartado. Mándame otra foto cuando quieras.');
         }
         if (cmd === 'datos') return verTienda(de, s);
+        if (boton === 'editar' || pideEditar(texto)) return pedirEdicion(de);
+        if (s.borrador) {
+          // Primero las reglas fijas ("precio 400", "cantidad 12"…); si no era una edición así, se le pasa a la IA como antes
+          const e = editarBorrador(s.borrador, texto, await categorias());
+          if (e.reconocidos) {
+            s.borrador = e.borrador;
+            const nota = [e.cambios.length ? `✅ Cambiado:\n${e.cambios.map((c) => `• ${c}`).join('\n')}` : '', e.errores.length ? `⚠️ No pude aplicar:\n${e.errores.map((c) => `• ${c}`).join('\n')}` : ''].filter(Boolean).join('\n\n');
+            return pedirConfirmacionArticulo(de, s, nota);
+          }
+        }
         return proponer(de, s, texto, undefined, s.borrador);
 
       case 'confirmandoPerfil':
