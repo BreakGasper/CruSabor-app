@@ -40,6 +40,8 @@
     <section v-show="paso === 1" class="bloque">
       <h2>Datos del producto</h2>
       <div class="rejilla">
+        <label class="campo"><span>Texto superior (opcional)</span><input v-model="sesion.datos.kicker" maxlength="30" placeholder="Hoy jueves" /></label>
+        <label class="campo"><span>Nombre de la tienda</span><input v-model="sesion.datos.tienda" maxlength="40" placeholder="CG-Rat" @change="recordarTienda" /></label>
         <label class="campo ancho"><span>Nombre *</span><input v-model="sesion.datos.nombre" maxlength="80" placeholder="Piñata de tractor" /></label>
         <label class="campo"><span>Precio</span><input v-model="precioTexto" inputmode="decimal" placeholder="550" /></label>
         <label class="campo"><span>Precio anterior (opcional)</span><input v-model="antesTexto" inputmode="decimal" placeholder="700" /></label>
@@ -58,7 +60,8 @@
         </label>
         <label class="campo"><span>Color</span><input v-model="sesion.datos.color" maxlength="30" placeholder="Verde" /></label>
         <label class="campo ancho"><span>Características (una por línea, máximo 4)</span><textarea v-model="caracteristicasTexto" rows="3" placeholder="Hecha a mano&#10;Papel de china"></textarea></label>
-        <label class="campo"><span>Nombre de la tienda</span><input v-model="sesion.datos.tienda" maxlength="40" placeholder="CG-Rat" @change="recordarTienda" /></label>
+        <label class="campo"><span>Llamada a la acción (opcional)</span><input v-model="sesion.datos.cta" maxlength="40" placeholder="Haz tu pedido" /></label>
+        <label class="campo"><span>Teléfono (opcional)</span><input v-model="sesion.datos.telefono" maxlength="24" inputmode="tel" placeholder="341 123 4567" /></label>
         <div class="campo">
           <span>Logo de la tienda (opcional)</span>
           <div class="fila-logo">

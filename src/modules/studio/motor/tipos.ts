@@ -35,10 +35,15 @@ export interface DatosProducto {
   tienda: string;
   /** Hay logo de la tienda para colocar */
   conLogo?: boolean;
+  /** Línea pequeña sobre el título: "HOY JUEVES", "NOVEDAD"… */
+  kicker: string;
+  /** Llamada a la acción: "Haz tu pedido" */
+  cta: string;
+  telefono: string;
 }
 
 export const DATOS_VACIOS: DatosProducto = {
-  nombre: '', precio: null, precioAntes: null, descripcion: '', categoria: '', medidas: '', disponibilidad: 'Disponible', color: '', caracteristicas: [], tienda: '', conLogo: false,
+  nombre: '', precio: null, precioAntes: null, descripcion: '', categoria: '', medidas: '', disponibilidad: 'Disponible', color: '', caracteristicas: [], tienda: '', conLogo: false, kicker: '', cta: '', telefono: '',
 };
 
 export type TipoElem = 'rect' | 'circle' | 'poly' | 'texto' | 'imagen' | 'linea';
@@ -81,6 +86,8 @@ export interface Elem {
   /** imagen: cuál de las imágenes cargadas es */
   imagen?: 'producto' | 'logo';
   ajuste?: 'cubrir' | 'contener';
+  /** Forma en que se recorta la foto (además de las esquinas redondeadas) */
+  mascara?: 'circulo' | 'arco' | 'capsula';
   /** Puede quedar encima del producto a propósito (etiquetas de precio y descuento) */
   permiteSolape?: boolean;
 }
@@ -107,9 +114,11 @@ export const FUENTES = {
   redonda: '"Comic Sans MS", "Chalkboard SE", "Segoe UI", sans-serif',
   limpia: '"Helvetica Neue", Helvetica, Arial, sans-serif',
   mono: '"Courier New", monospace',
+  /** Letras muy gruesas y anchas para títulos de cartel */
+  cartel: '"Arial Black", "Helvetica Neue", Impact, sans-serif',
 } as const;
 
-export type LayoutId = 'hero-product' | 'price-focus' | 'editorial' | 'playful' | 'minimal' | 'catalog';
+export type LayoutId = 'hero-product' | 'price-focus' | 'editorial' | 'playful' | 'minimal' | 'catalog' | 'cartel' | 'bloques' | 'arco';
 export const LAYOUTS: { id: LayoutId; nombre: string }[] = [
   { id: 'hero-product', nombre: 'Producto protagonista' },
   { id: 'price-focus', nombre: 'Precio protagonista' },
@@ -117,11 +126,14 @@ export const LAYOUTS: { id: LayoutId; nombre: string }[] = [
   { id: 'playful', nombre: 'Divertido' },
   { id: 'minimal', nombre: 'Minimalista' },
   { id: 'catalog', nombre: 'Catálogo' },
+  { id: 'cartel', nombre: 'Cartel' },
+  { id: 'bloques', nombre: 'Bloque de color' },
+  { id: 'arco', nombre: 'Arco' },
 ];
 
 export type DecorId =
   | 'confeti' | 'estrellas' | 'burbujas' | 'destellos' | 'rayos' | 'franjas' | 'colinas' | 'sol' | 'tablones'
-  | 'papel-picado' | 'puntos' | 'marco' | 'brillo' | 'circulos' | 'lineas' | 'esquinas';
+  | 'papel-picado' | 'puntos' | 'marco' | 'brillo' | 'circulos' | 'lineas' | 'esquinas' | 'tablero' | 'rayas';
 
 export interface Estilo {
   id: string;
@@ -205,6 +217,33 @@ export const ESTILOS: Estilo[] = [
     paletas: [
       pal('catalogo-1', 'Azul técnico', '#ffffff', '#e9eef6', '#12325c', '#2b3a4f', '#1f5fbf', '#12325c', '#ffffff', 'rgba(18,50,92,0.07)', '#12325c'),
       pal('catalogo-2', 'Verde fresco', '#ffffff', '#e6f4ea', '#14532d', '#2b3f33', '#1b9e4b', '#14532d', '#ffffff', 'rgba(20,83,45,0.08)', '#14532d'),
+    ],
+  },
+  {
+    id: 'cartel-gastro', nombre: 'Cartel gastronómico', descripcion: 'Tipografía enorme, fondo de tablero y foto en círculo',
+    layouts: ['cartel', 'arco', 'bloques'], fuenteTitulo: FUENTES.cartel, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.cartel,
+    decor: ['tablero'], precioForma: 'plano',
+    paletas: [
+      pal('gastro-1', 'Terracota', '#fff7ee', '#fde9d9', '#c2411b', '#b13a16', '#c2411b', '#f4a261', '#fff7ee', 'rgba(194,65,27,0.10)', '#8f2f10'),
+      pal('gastro-2', 'Salsa verde', '#f4f8ee', '#e3efd3', '#1f5e2e', '#1f5e2e', '#2e8b3f', '#f2c94c', '#f4f8ee', 'rgba(31,94,46,0.10)', '#174a24'),
+    ],
+  },
+  {
+    id: 'cartel-urbano', nombre: 'Cartel urbano', descripcion: 'Fondo oscuro, rayas y un color eléctrico',
+    layouts: ['cartel', 'bloques', 'arco'], fuenteTitulo: FUENTES.cartel, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.cartel,
+    decor: ['rayas', 'puntos'], precioForma: 'plano',
+    paletas: [
+      pal('urbano-1', 'Lima', '#121212', '#1d1d1d', '#ffffff', '#e8e8e8', '#c6f432', '#ff6b35', '#121212', 'rgba(255,255,255,0.08)', '#ffffff'),
+      pal('urbano-2', 'Fucsia', '#14101f', '#201838', '#ffffff', '#e9e4f5', '#ff3d9a', '#ffd23f', '#14101f', 'rgba(255,255,255,0.08)', '#ffffff'),
+    ],
+  },
+  {
+    id: 'bloque-color', nombre: 'Bloque de color', descripcion: 'Un gran bloque de color con la foto cruzando el borde',
+    layouts: ['bloques', 'arco', 'cartel'], fuenteTitulo: FUENTES.cartel, fuenteTexto: FUENTES.limpia, fuentePrecio: FUENTES.cartel,
+    decor: [], precioForma: 'plano',
+    paletas: [
+      pal('bloque-1', 'Coral y crema', '#fff6ef', '#ffe9dc', '#1f2a44', '#1f2a44', '#ff5a36', '#ffd23f', '#ffffff', 'rgba(31,42,68,0.08)', '#1f2a44'),
+      pal('bloque-2', 'Turquesa', '#fffaf0', '#fdf0d5', '#0b3c49', '#0b3c49', '#e4572e', '#2ec4b6', '#ffffff', 'rgba(11,60,73,0.08)', '#0b3c49'),
     ],
   },
   {

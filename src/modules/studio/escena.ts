@@ -85,6 +85,22 @@ function conRelleno(e: Elem): any {
 
 const sombraDe = (s?: Elem['sombra']) => (s ? new Shadow({ color: s.color, blur: s.blur, offsetX: s.x, offsetY: s.y }) : undefined);
 
+/** Recorte de la foto con forma (círculo, arco o cápsula), en las unidades de la imagen sin escalar */
+function mascaraDe(tipo: 'circulo' | 'arco' | 'capsula', w: number, h: number): FabricObject {
+  const centro = { originX: 'center' as const, originY: 'center' as const };
+  if (tipo === 'circulo') return new Ellipse({ rx: w / 2, ry: h / 2, ...centro });
+  if (tipo === 'capsula') return new Rect({ width: w, height: h, rx: w / 2, ry: w / 2, ...centro });
+  // Arco: medio círculo arriba y lados rectos
+  const r = w / 2;
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i <= 28; i++) {
+    const a = Math.PI + (i * Math.PI) / 28;
+    pts.push({ x: r * Math.cos(a), y: -h / 2 + r + r * Math.sin(a) });
+  }
+  pts.push({ x: r, y: h / 2 }, { x: -r, y: h / 2 });
+  return new Polygon(pts, { ...centro, left: 0, top: 0 });
+}
+
 export async function construirObjetos(elems: Elem[], imgs: Imagenes): Promise<FabricObject[]> {
   const out: FabricObject[] = [];
   for (const e of elems) {
@@ -116,7 +132,8 @@ export async function construirObjetos(elems: Elem[], imgs: Imagenes): Promise<F
         const cw = iw / ih > ba ? ih * ba : iw;
         const ch = iw / ih > ba ? ih : iw / ba;
         img.set({ cropX: (iw - cw) / 2, cropY: (ih - ch) / 2, width: cw, height: ch, scaleX: e.w / cw, scaleY: e.h / ch });
-        if (e.rx) img.set({ clipPath: new Rect({ width: cw, height: ch, rx: e.rx / (e.w / cw), ry: e.rx / (e.h / ch), originX: 'center', originY: 'center' }) });
+        if (e.mascara) img.set({ clipPath: mascaraDe(e.mascara, cw, ch) });
+        else if (e.rx) img.set({ clipPath: new Rect({ width: cw, height: ch, rx: e.rx / (e.w / cw), ry: e.rx / (e.h / ch), originX: 'center', originY: 'center' }) });
       } else {
         const k = Math.min(e.w / iw, e.h / ih);
         img.set({ scaleX: k, scaleY: k });
@@ -126,7 +143,8 @@ export async function construirObjetos(elems: Elem[], imgs: Imagenes): Promise<F
       o = img;
       if (e.stroke) {
         // El borde de una imagen no sigue las esquinas redondeadas: se dibuja aparte
-        out.push(new Rect({ ...comunes, id: `${e.id}-marco`, nombre: 'Marco de la foto', rol: 'producto-marco', width: e.w, height: e.h, rx: e.rx ?? 0, ry: e.rx ?? 0, fill: 'rgba(0,0,0,0)', stroke: e.stroke, strokeWidth: e.strokeW ?? 4, shadow: undefined }));
+        const marco = { ...comunes, id: `${e.id}-marco`, nombre: 'Marco de la foto', rol: 'producto-marco', fill: 'rgba(0,0,0,0)', stroke: e.stroke, strokeWidth: e.strokeW ?? 4, shadow: undefined };
+        out.push(e.mascara === 'circulo' ? new Ellipse({ ...marco, rx: e.w / 2, ry: e.h / 2 }) : new Rect({ ...marco, width: e.w, height: e.h, rx: e.rx ?? 0, ry: e.rx ?? 0 }));
         out.splice(out.length - 1, 0, o);
         o = null;
       }

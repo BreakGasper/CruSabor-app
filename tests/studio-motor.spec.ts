@@ -11,7 +11,7 @@ const medir = (t: string, tam: number, peso: number) => t.length * tam * (0.52 +
 const COMPLETO: DatosProducto = {
   ...DATOS_VACIOS,
   nombre: 'Piñata de Tractor', precio: 550, precioAntes: 700, descripcion: 'Piñata con forma de tractor John Deere, hecha a mano.',
-  categoria: 'Piñatas', medidas: '80 cm alto x 1 mt ancho', disponibilidad: 'Disponible', color: 'Verde', caracteristicas: ['Hecha a mano', 'Papel de china', 'Lista para rellenar'], tienda: 'CG-Rat', conLogo: true,
+  categoria: 'Piñatas', medidas: '80 cm alto x 1 mt ancho', disponibilidad: 'Disponible', color: 'Verde', caracteristicas: ['Hecha a mano', 'Papel de china', 'Lista para rellenar'], tienda: 'CG-Rat', conLogo: true, kicker: 'Hoy jueves', cta: 'Haz tu pedido', telefono: '341 123 4567',
 };
 const BASICO: DatosProducto = { ...DATOS_VACIOS, nombre: 'Pastel', precio: 350 };
 const LARGO: DatosProducto = { ...COMPLETO, nombre: 'Pastel de tres leches con fresas naturales, decorado a mano para cumpleaños y bodas', descripcion: 'x'.repeat(400), medidas: '120 cm de ancho por 80 cm de alto por 40 cm de profundidad', precioAntes: null, precio: 1250.5, tienda: 'Pastelería Los Hermanos Gutiérrez de la Colonia Centro' };

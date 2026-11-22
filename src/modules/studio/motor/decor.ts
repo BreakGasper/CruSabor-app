@@ -1,4 +1,5 @@
 import type { DecorId, Elem, Paleta } from './tipos';
+import { esClaro as esClaroHex } from './util';
 
 /** Biblioteca local de recursos gráficos: todo se genera con formas (nada se descarga) */
 
@@ -135,6 +136,22 @@ const GENERADORES: Record<DecorId, (c: CtxDecor) => Borrador[]> = {
     }
     return out;
   },
+  tablero: ({ w, h, paleta }) => {
+    // Cuadros alternados, como el fondo de los carteles de comida
+    const lado = Math.round(Math.min(w, h) / 5);
+    const out: Borrador[] = [];
+    for (let r = 0; r * lado < h; r++) {
+      for (let c = 0; c * lado < w; c++) {
+        if ((r + c) % 2 === 0) out.push({ tipo: 'rect', rol: 'decor-tablero', nombre: 'Cuadro', x: c * lado, y: r * lado, w: lado, h: lado, fill: esClaroHex(paleta.fondoA) ? '#ffffff' : '#000000', opacidad: esClaroHex(paleta.fondoA) ? 0.55 : 0.25 });
+      }
+    }
+    return out;
+  },
+  rayas: ({ w, h, paleta }) => {
+    const n = 8;
+    const ancho = w / n;
+    return Array.from({ length: n }, (_, i) => ({ tipo: 'rect' as const, rol: 'decor-raya', nombre: 'Raya', x: i * ancho, y: 0, w: ancho / 2, h, fill: paleta.acento, opacidad: 0.07 }));
+  },
   puntos: ({ w, h, paleta }) => {
     const paso = Math.max(48, Math.round(Math.min(w, h) / 16));
     const out: Borrador[] = [];
@@ -173,12 +190,12 @@ const GENERADORES: Record<DecorId, (c: CtxDecor) => Borrador[]> = {
 
 export const DECOR_NOMBRES: Record<DecorId, string> = {
   confeti: 'Confeti', estrellas: 'Estrellas', burbujas: 'Burbujas', destellos: 'Destellos', rayos: 'Rayos', franjas: 'Franjas', colinas: 'Colinas',
-  sol: 'Sol', tablones: 'Tablones', 'papel-picado': 'Papel picado', puntos: 'Puntos', marco: 'Marco', brillo: 'Brillo', circulos: 'Círculos', lineas: 'Líneas', esquinas: 'Esquinas',
+  sol: 'Sol', tablones: 'Tablones', tablero: 'Tablero', rayas: 'Rayas', 'papel-picado': 'Papel picado', puntos: 'Puntos', marco: 'Marco', brillo: 'Brillo', circulos: 'Círculos', lineas: 'Líneas', esquinas: 'Esquinas',
 };
 
 export const DECOR_CATEGORIAS: { nombre: string; ids: DecorId[] }[] = [
   { nombre: 'Fiesta', ids: ['confeti', 'estrellas', 'burbujas', 'destellos'] },
-  { nombre: 'Fondos y luz', ids: ['rayos', 'brillo', 'franjas', 'circulos'] },
+  { nombre: 'Fondos y luz', ids: ['rayos', 'brillo', 'franjas', 'circulos', 'tablero', 'rayas'] },
   { nombre: 'Campo', ids: ['colinas', 'sol', 'tablones'] },
   { nombre: 'Tradicional', ids: ['papel-picado', 'esquinas', 'puntos'] },
   { nombre: 'Marcos y líneas', ids: ['marco', 'lineas'] },

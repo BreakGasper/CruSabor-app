@@ -97,25 +97,31 @@ export function construirLayout(e: EntradaLayout): Elem[] {
   };
 
   /** Foto del producto: tarjeta redondeada, o libre; cubre la caja si la foto se parece a ella, y si no, entra completa */
-  const producto = (caja: Caja, o: { modo: 'tarjeta' | 'libre' | 'sangrado'; rot?: number; rx?: number }): Elem => {
+  const producto = (caja: Caja, o: { modo: 'tarjeta' | 'libre' | 'sangrado'; rot?: number; rx?: number; mascara?: 'circulo' | 'arco' | 'capsula'; anillo?: string }): Elem => {
     const asp = e.prod.w / e.prod.h;
     const caspect = caja.w / caja.h;
-    const cubrir = o.modo === 'sangrado' || Math.abs(Math.log(caspect / asp)) < 0.5;
+    const cubrir = !!o.mascara || o.modo === 'sangrado' || Math.abs(Math.log(caspect / asp)) < 0.5;
     let b = { ...caja };
+    if (o.mascara) {
+      // La forma fija la caja: círculo = cuadrado; arco y cápsula = alargadas hacia arriba
+      const ancho = o.mascara === 'circulo' ? Math.min(caja.w, caja.h) : Math.min(caja.w, caja.h * (o.mascara === 'arco' ? 0.78 : 0.62));
+      const alto = o.mascara === 'circulo' ? ancho : caja.h;
+      b = { x: caja.x + (caja.w - ancho) / 2, y: caja.y + (caja.h - alto) / 2, w: ancho, h: alto };
+    }
     if (o.rot) b = { x: caja.x + caja.w * 0.03, y: caja.y + caja.h * 0.03, w: caja.w * 0.94, h: caja.h * 0.94 };
-    if (!cubrir) {
+    if (!cubrir && !o.mascara) {
       const aspB = b.w / b.h;
       const pw = asp > aspB ? b.w : b.h * asp;
       const ph = asp > aspB ? b.w / asp : b.h;
       b = { x: b.x + (b.w - pw) / 2, y: b.y + (b.h - ph) / 2, w: pw, h: ph };
     }
-    const rx = o.rx ?? (o.modo === 'sangrado' ? 0 : Math.round(Math.min(b.w, b.h) * 0.05));
+    const rx = o.mascara === 'capsula' ? Math.round(b.w / 2) : o.rx ?? (o.modo === 'sangrado' ? 0 : Math.round(Math.min(b.w, b.h) * 0.05));
     if (o.modo === 'tarjeta' || o.modo === 'libre') {
-      add({ tipo: 'rect', rol: 'decor-sombra', nombre: 'Sombra del producto', x: b.x, y: b.y, w: b.w, h: b.h, rx, fill: 'rgba(0,0,0,0.001)', rot: o.rot, sombra: { color: 'rgba(0,0,0,0.38)', blur: 40, x: 0, y: 18 } });
+      add({ tipo: o.mascara === 'circulo' ? 'circle' : 'rect', rol: 'decor-sombra', nombre: 'Sombra del producto', x: b.x, y: b.y, w: b.w, h: b.h, rx, fill: 'rgba(0,0,0,0.001)', rot: o.rot, sombra: { color: 'rgba(0,0,0,0.38)', blur: 40, x: 0, y: 18 } });
     }
     return add({
-      tipo: 'imagen', rol: 'producto', nombre: 'Foto del producto', x: b.x, y: b.y, w: b.w, h: b.h, imagen: 'producto', ajuste: cubrir ? 'cubrir' : 'contener', rx, rot: o.rot,
-      ...(o.modo === 'tarjeta' ? { stroke: '#ffffff', strokeW: Math.max(4, Math.round(b.w * 0.006)) } : {}),
+      tipo: 'imagen', rol: 'producto', nombre: 'Foto del producto', x: b.x, y: b.y, w: b.w, h: b.h, imagen: 'producto', ajuste: cubrir ? 'cubrir' : 'contener', rx, rot: o.rot, mascara: o.mascara,
+      ...(o.anillo && o.mascara !== 'arco' ? { stroke: o.anillo, strokeW: Math.max(6, Math.round(b.w * 0.014)) } : o.modo === 'tarjeta' ? { stroke: '#ffffff', strokeW: Math.max(4, Math.round(b.w * 0.006)) } : {}),
     });
   };
 
@@ -288,11 +294,11 @@ export function construirLayout(e: EntradaLayout): Elem[] {
 
   /* ---------- composición horizontal (banner) ---------- */
 
-  const lateral = (cfg: { lado: 'izq' | 'der'; precio: FormaPrecio; modoProducto: 'tarjeta' | 'libre'; rotProducto?: number }) => {
+  const lateral = (cfg: { lado: 'izq' | 'der'; precio: FormaPrecio; modoProducto: 'tarjeta' | 'libre'; rotProducto?: number; mascara?: 'circulo' }) => {
     const mitad = Math.round((w - 3 * m) * 0.5);
     const xProd = cfg.lado === 'izq' ? m : w - m - mitad;
     const xTxt = cfg.lado === 'izq' ? m * 2 + mitad : m;
-    const pb = producto({ x: xProd, y: m + reservaSup, w: mitad, h: h - 2 * m - reservaSup }, { modo: cfg.modoProducto, rot: cfg.rotProducto });
+    const pb = producto({ x: xProd, y: m + reservaSup, w: mitad, h: h - 2 * m - reservaSup }, { modo: cfg.modoProducto, rot: cfg.rotProducto, mascara: cfg.mascara, anillo: cfg.mascara ? paleta.acento : undefined });
     etiquetaOferta(pb, cfg.lado === 'izq' ? 'izq' : 'der');
     let y = m + reservaSup;
     const colH = h - 2 * m - reservaSup;
@@ -411,14 +417,173 @@ export function construirLayout(e: EntradaLayout): Elem[] {
     }
   };
 
+
+  /* ---------- familia "cartel": tipografía enorme y foto con forma ---------- */
+
+  /** Reparte `total` px entre bloques según su peso, respetando un mínimo; devuelve el alto de cada uno */
+  const repartir = (total: number, bloques: { peso: number; min: number }[]): number[] => {
+    const suma = bloques.reduce((s, b) => s + b.peso, 0) || 1;
+    return bloques.map((b) => Math.max(b.min, Math.round((total * b.peso) / suma)));
+  };
+
+  /** Título en dos niveles: lo de antes de la última palabra va chico y la última palabra, enorme ("NOCHE DE" / "PIZZAS") */
+  const tituloCartel = (caja: Caja, o: { alinear: 'center' | 'left'; color: string; sombra?: Elem['sombra'] }) => {
+    const palabras = datos.nombre.trim().split(/\s+/).filter(Boolean);
+    if (!palabras.length) return;
+    const base = { peso: 900, fuente: estilo.fuenteTitulo, fill: o.color, alinear: o.alinear, mayus: true, interlineado: 0.95, sombra: o.sombra, valign: 'middle' as const };
+    if (palabras.length === 1 || datos.nombre.trim().length < 9) {
+      txt('titulo', 'Título', caja, datos.nombre, { ...base, tamMax: caja.h * 0.85, tamMin: 22, maxLineas: 2 });
+      return;
+    }
+    const ultima = palabras.pop() as string;
+    const alto1 = Math.round(caja.h * 0.4);
+    txt('titulo', 'Título (primera línea)', { x: caja.x, y: caja.y, w: caja.w, h: alto1 }, palabras.join(' '), { ...base, tamMax: alto1 * 0.72, tamMin: 18, maxLineas: 2, valign: 'bottom' });
+    txt('titulo-2', 'Título (palabra grande)', { x: caja.x, y: caja.y + alto1, w: caja.w, h: caja.h - alto1 }, ultima, { ...base, tamMax: (caja.h - alto1) * 1.0, tamMin: 22, maxLineas: 1, valign: 'top' });
+  };
+
+  const textoCta = (caja: Caja, color: string, alinear: 'center' | 'left' = 'center') => {
+    const cta = datos.cta.trim();
+    const tel = datos.telefono.trim();
+    if (!cta && !tel) return;
+    if (cta && tel) {
+      txt('cta', 'Llamada a la acción', { x: caja.x, y: caja.y, w: caja.w, h: caja.h * 0.42 }, cta, { tamMax: caja.h * 0.34, tamMin: 14, maxLineas: 1, peso: 500, fuente: estilo.fuenteTexto, fill: color, alinear, valign: 'middle' });
+      txt('telefono', 'Teléfono', { x: caja.x, y: caja.y + caja.h * 0.44, w: caja.w, h: caja.h * 0.56 }, tel, { tamMax: caja.h * 0.46, tamMin: 16, maxLineas: 1, peso: 800, fuente: estilo.fuenteTexto, fill: color, alinear, valign: 'middle', espaciado: 0.03 });
+    } else {
+      txt(cta ? 'cta' : 'telefono', cta ? 'Llamada a la acción' : 'Teléfono', caja, cta || tel, { tamMax: caja.h * 0.5, tamMin: 16, maxLineas: 1, peso: cta ? 500 : 800, fuente: estilo.fuenteTexto, fill: color, alinear, valign: 'middle' });
+    }
+  };
+
+  const cartel = () => {
+    const sq = ori === 's';
+    const x0 = m;
+    const W = w - 2 * m;
+    const kick = datos.kicker.trim() || datos.tienda.trim();
+    const hayCta = !!(datos.cta.trim() || datos.telefono.trim());
+    let usar = { desc: !!datos.descripcion.trim(), cta: hayCta };
+    const alturas = () => ({
+      k: kick ? Math.round(h * (sq ? 0.05 : 0.04)) : 0,
+      t: Math.round(h * (sq ? 0.27 : 0.2)),
+      d: usar.desc ? Math.round(h * (sq ? 0.085 : 0.07)) : 0,
+      p: precioTxt ? Math.round(h * (sq ? 0.11 : 0.095)) : 0,
+      c: usar.cta ? Math.round(h * (sq ? 0.12 : 0.105)) : 0,
+    });
+    const foto = () => {
+      const a = alturas();
+      const n = (a.k ? 1 : 0) + 1 + 1 + (a.d ? 1 : 0) + (a.p ? 1 : 0) + (a.c ? 1 : 0);
+      return h - 2 * m - reservaSup - (a.k + a.t + a.d + a.p + a.c) - g * n;
+    };
+    // La foto manda: si queda chica, primero se quita la descripción y luego el pedido
+    if (foto() < h * 0.28) usar = { ...usar, desc: false };
+    if (foto() < h * 0.28) usar = { ...usar, cta: false };
+    const a = alturas();
+    let y = m + reservaSup;
+    if (a.k) {
+      txt('kicker', 'Texto superior', { x: x0, y, w: W, h: a.k }, kick, { tamMax: a.k * 0.78, tamMin: 14, maxLineas: 1, peso: 500, fuente: estilo.fuenteTexto, fill: paleta.texto, alinear: 'center', valign: 'middle', mayus: true, espaciado: 0.12 });
+      y += a.k + g;
+    }
+    tituloCartel({ x: x0, y, w: W, h: a.t }, { alinear: 'center', color: paleta.titulo, sombra: sombraTitulo });
+    y += a.t + g;
+    const fh = Math.max(h * 0.2, foto());
+    const pb = producto({ x: x0, y, w: W, h: fh }, { modo: 'libre', mascara: 'circulo', anillo: paleta.acento });
+    etiquetaOferta(pb, 'der');
+    y += fh + g;
+    if (a.d) {
+      txt('descripcion', 'Descripción', { x: x0, y, w: W, h: a.d }, datos.descripcion, { tamMax: a.d * 0.46, tamMin: 12, maxLineas: 2, peso: 500, fuente: estilo.fuenteTexto, fill: paleta.texto, alinear: 'center', valign: 'middle', mayus: true, interlineado: 1.1 });
+      y += a.d + g;
+    }
+    if (a.p) {
+      etiquetaPrecio({ x: x0, y, w: W, h: a.p }, 'plano', { solape: false, alinear: 'center' });
+      y += a.p + g;
+    }
+    if (a.c) textoCta({ x: x0, y: Math.min(y, h - m - a.c), w: W, h: a.c }, paleta.titulo);
+  };
+
+  const bloques = () => {
+    const sq = ori === 's';
+    const x0 = m;
+    const W = w - 2 * m;
+    const colorBloque = paleta.acento2;
+    const sobre = esClaro(colorBloque) ? '#1c1d21' : '#ffffff';
+    const bloqueH = Math.round(h * (sq ? 0.55 : 0.5));
+    add({ tipo: 'rect', rol: 'decor-bloque', nombre: 'Bloque de color', x: 0, y: 0, w, h: bloqueH, fill: colorBloque });
+    let y = m + reservaSup;
+    const kick = datos.kicker.trim() || datos.tienda.trim();
+    const kH = kick ? Math.round(h * (sq ? 0.05 : 0.04)) : 0;
+    if (kH) {
+      txt('kicker', 'Texto superior', { x: x0, y, w: W, h: kH }, kick, { tamMax: kH * 0.78, tamMin: 14, maxLineas: 1, peso: 600, fuente: estilo.fuenteTexto, fill: sobre, alinear: 'center', valign: 'middle', mayus: true, espaciado: 0.12 });
+      y += kH + g;
+    }
+    // La foto cruza el borde del bloque: un 22 % de ella queda sobre el fondo claro
+    const d = Math.min(W * 0.86, (bloqueH - y) / 0.78);
+    const pb = producto({ x: x0, y, w: W, h: d }, { modo: 'libre', mascara: 'circulo', anillo: '#ffffff' });
+    etiquetaOferta(pb, 'izq');
+    y = pb.y + pb.h + g;
+    const quedan = h - m - y;
+    const tiene = { d: !!datos.descripcion.trim(), p: !!precioTxt, c: !!(datos.cta.trim() || datos.telefono.trim()) };
+    const [tH, dH, pH, cH] = repartir(quedan - g * (1 + (tiene.d ? 1 : 0) + (tiene.p ? 1 : 0) + (tiene.c ? 1 : 0)), [
+      { peso: 0.42, min: 60 }, { peso: tiene.d ? 0.14 : 0, min: 0 }, { peso: tiene.p ? 0.22 : 0, min: 0 }, { peso: tiene.c ? 0.22 : 0, min: 0 },
+    ]);
+    tituloCartel({ x: x0, y, w: W, h: tH }, { alinear: 'center', color: paleta.titulo });
+    y += tH + g;
+    if (dH && tiene.d) {
+      txt('descripcion', 'Descripción', { x: x0, y, w: W, h: dH }, datos.descripcion, { tamMax: dH * 0.5, tamMin: 12, maxLineas: 2, peso: 500, fuente: estilo.fuenteTexto, fill: paleta.texto, alinear: 'center', valign: 'middle', interlineado: 1.1 });
+      y += dH + g;
+    }
+    if (pH && tiene.p) {
+      etiquetaPrecio({ x: x0, y, w: W, h: pH }, 'plano', { solape: false, alinear: 'center' });
+      y += pH + g;
+    }
+    if (cH && tiene.c) textoCta({ x: x0, y, w: W, h: cH }, paleta.titulo);
+  };
+
+  const arco = () => {
+    const sq = ori === 's';
+    const x0 = m;
+    const W = w - 2 * m;
+    const kick = datos.kicker.trim() || datos.tienda.trim();
+    const hayCta = !!(datos.cta.trim() || datos.telefono.trim());
+    let y = m + reservaSup;
+    const kH = kick ? Math.round(h * (sq ? 0.05 : 0.04)) : 0;
+    if (kH) {
+      txt('kicker', 'Texto superior', { x: x0, y, w: W, h: kH }, kick, { tamMax: kH * 0.78, tamMin: 14, maxLineas: 1, peso: 500, fuente: estilo.fuenteTexto, fill: paleta.texto, alinear: 'center', valign: 'middle', mayus: true, espaciado: 0.12 });
+      y += kH + g;
+    }
+    const tH = Math.round(h * (sq ? 0.25 : 0.19));
+    tituloCartel({ x: x0, y, w: W, h: tH }, { alinear: 'center', color: paleta.titulo, sombra: sombraTitulo });
+    y += tH + g;
+    const dH = datos.descripcion.trim() ? Math.round(h * (sq ? 0.07 : 0.055)) : 0;
+    if (dH) {
+      txt('descripcion', 'Descripción', { x: x0, y, w: W, h: dH }, datos.descripcion, { tamMax: dH * 0.5, tamMin: 12, maxLineas: 2, peso: 500, fuente: estilo.fuenteTexto, fill: paleta.texto, alinear: 'center', valign: 'middle', interlineado: 1.1 });
+      y += dH + g;
+    }
+    // Barra inferior a todo lo ancho con el pedido
+    const cH = hayCta ? Math.round(h * (sq ? 0.14 : 0.115)) : 0;
+    const barraY = h - cH;
+    const fh = Math.max(h * 0.25, barraY - y - g * 1.5);
+    const pb = producto({ x: x0, y, w: W, h: fh }, { modo: 'libre', mascara: 'arco' });
+    etiquetaOferta(pb, 'izq');
+    if (precioTxt) {
+      const pw = Math.min(pb.w * 0.62, W * 0.5);
+      const ph = pw * (antesTxt ? 0.46 : 0.32);
+      etiquetaPrecio({ x: Math.min(pb.x + pb.w - pw * 0.78, w - m - pw), y: pb.y + pb.h - ph * 1.05, w: pw, h: ph }, 'chapa', { solape: true });
+    }
+    if (cH) {
+      add({ tipo: 'rect', rol: 'barra', nombre: 'Barra de pedido', x: 0, y: barraY, w, h: cH, fill: paleta.acento });
+      textoCta({ x: x0, y: barraY + cH * 0.12, w: W, h: cH * 0.76 }, paleta.sobreAcento);
+    }
+  };
+
   /* ---------- reglas por layout ---------- */
 
   const l = e.layout;
-  if (l === 'catalog' && ori !== 'h') catalogo();
+  if (l === 'cartel' && ori !== 'h') cartel();
+  else if (l === 'bloques' && ori !== 'h') bloques();
+  else if (l === 'arco' && ori !== 'h') arco();
+  else if (l === 'catalog' && ori !== 'h') catalogo();
   else if (l === 'editorial' && ori !== 'h') editorial();
   else if (ori === 'h') {
     const lado = l === 'editorial' || l === 'price-focus' ? 'der' : 'izq';
-    lateral({ lado, precio: l === 'minimal' || l === 'catalog' || l === 'editorial' ? 'plano' : estilo.precioForma, modoProducto: l === 'minimal' ? 'libre' : 'tarjeta', rotProducto: l === 'playful' ? -3 : undefined });
+    lateral({ lado, precio: l === 'minimal' || l === 'catalog' || l === 'editorial' || l === 'cartel' || l === 'bloques' || l === 'arco' ? 'plano' : estilo.precioForma, modoProducto: l === 'minimal' || l === 'cartel' || l === 'bloques' || l === 'arco' ? 'libre' : 'tarjeta', rotProducto: l === 'playful' ? -3 : undefined, mascara: l === 'cartel' || l === 'bloques' || l === 'arco' ? 'circulo' : undefined });
   } else if (l === 'price-focus') {
     apilado({ tituloH: 0.12, tituloAlinear: 'center', precio: 'banda', modoProducto: 'tarjeta', chips: true, ladoOferta: 'izq', tituloMayus: true });
   } else if (l === 'playful') {

@@ -229,7 +229,7 @@ let creado = Date.now();
 let temporizador: ReturnType<typeof setTimeout> | null = null;
 
 const TABS_IZQ = [{ id: 'elementos', texto: 'Elementos' }, { id: 'fondo', texto: 'Fondo' }] as const;
-const NOMBRES_FUENTE: Record<string, string> = { impacto: 'Impacto', moderna: 'Moderna', elegante: 'Elegante (serif)', redonda: 'Redonda', limpia: 'Limpia', mono: 'Monoespaciada' };
+const NOMBRES_FUENTE: Record<string, string> = { cartel: 'Cartel (extra gruesa)', impacto: 'Impacto', moderna: 'Moderna', elegante: 'Elegante (serif)', redonda: 'Redonda', limpia: 'Limpia', mono: 'Monoespaciada' };
 const ALINEACIONES = [
   { id: 'izq', texto: 'Alinear a la izquierda', icono: AlignHorizontalJustifyStart },
   { id: 'centroH', texto: 'Centrar horizontalmente', icono: AlignHorizontalJustifyCenter },
