@@ -227,16 +227,204 @@ export function validarBorrador(
 
 const pesos = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
+/** Categoría donde cae todo artículo publicado sin categoría. Se crea en el catálogo la primera vez que hace falta */
+export const CATEGORIA_SIN = { id: 'sin-categoria', nombre: 'Sin categoría', descripcion: 'Artículos publicados sin categoría' } as const;
+export const esCategoriaSin = (nombre: unknown) => normalizar(nombre) === normalizar(CATEGORIA_SIN.nombre);
+
 export function resumenBorrador(b: Borrador, nombreTienda: string): string {
   const l = [`🛍️ *${b.nombre}*`, `💲 ${pesos(b.precio)}`];
   if (b.descripcion) l.push(`📝 ${b.descripcion}`);
   const det = [b.marca && `Marca: ${b.marca}`, b.color && `Color: ${b.color}`, b.tamano && `Tamaño: ${b.tamano}`, b.material && `Material: ${b.material}`].filter(Boolean);
   if (det.length) l.push(det.join(' · '));
-  l.push(b.porPedido ? '📦 Bajo pedido' : b.stock === -1 ? '📦 Sin control de existencias' : `📦 Existencias: ${b.stock}`);
-  l.push(`🏷️ Categoría: ${b.categoria || 'sin categoría'}`);
+  l.push(
+    b.porPedido
+      ? '📦 Bajo pedido (no controla cantidad)'
+      : b.stock === -1
+        ? '📦 Cantidad: sin definir (toca ✏️ Editar para ponerla)'
+        : `📦 Cantidad: ${b.stock} ${b.unidadMedida || 'pz'}`,
+  );
+  l.push(`🏷️ Categoría: ${b.categoria || CATEGORIA_SIN.nombre}`);
   l.push(`🏪 Tienda: ${nombreTienda}`);
   return l.join('\n');
 }
+
+/** "5 piezas", "10 unidades", "cantidad 12", "tengo 8": la cantidad que la tienda escribió (red de seguridad si la IA no la devuelve) */
+export function cantidadDelTexto(texto: unknown): number | null {
+  const t = normalizar(texto);
+  const m = /(?<![\w.$])(\d{1,6})\s*(?:piezas?|pzas?|pz|unidades|unidad|existencias|disponibles)\b/.exec(t) ?? /\b(?:cantidad|existencias?|stock|inventario|tengo|tenemos|hay)\s*(?:de|es|:)?\s*(\d{1,6})\b/.exec(t);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 1 && n <= 100_000 ? n : null;
+}
+
+/* ---------------- edición del borrador desde el chat ---------------- */
+
+const CAMPOS_EDICION: [RegExp, string][] = [
+  [/^(?:bajo pedido|sobre pedido|por pedido|por encargo|a pedido)/, 'bajoPedido'],
+  [/^(?:unidad de medida|unidad|medida)/, 'unidad'],
+  [/^(?:nombre|titulo)/, 'nombre'],
+  [/^(?:precio|costo|vale|cuesta)/, 'precio'],
+  [/^(?:descripcion|detalles?)/, 'descripcion'],
+  [/^(?:cantidad|existencias?|stock|inventario|piezas|disponibles)/, 'cantidad'],
+  [/^(?:categoria|rubro)/, 'categoria'],
+  [/^marca/, 'marca'],
+  [/^color/, 'color'],
+  [/^(?:tamano|talla)/, 'tamano'],
+  [/^material/, 'material'],
+];
+
+export const AYUDA_EDICION = [
+  '✏️ *¿Qué quieres cambiar?* Escribe el campo y su valor (puedes mandar varios, uno por línea):',
+  '• nombre Pastel grande',
+  '• precio 400',
+  '• cantidad 12',
+  '• unidad kg',
+  '• categoría Postres',
+  '• bajo pedido sí  (o no)',
+  '• descripción Hecho a mano',
+  '• marca / color / tamaño / material',
+  'Para vaciar un dato escribe "ninguno" (ej. color ninguno).',
+].join('\n');
+
+export interface ResultadoEdicion {
+  borrador: Borrador;
+  /** Cambios aplicados, ya redactados para mostrarlos */
+  cambios: string[];
+  /** Líneas que se reconocieron pero no se pudieron aplicar, con el motivo */
+  errores: string[];
+  /** Cuántas líneas hablaban de un campo (aplicadas o no): 0 = no era una edición */
+  reconocidos: number;
+}
+
+const VACIO = /^(ninguno|ninguna|nada|vacio|quitar|borrar|-|—)$/;
+
+/**
+ * Aplica "campo valor" (una por línea o separadas por ;) sobre una COPIA del borrador, con las mismas reglas de
+ * validación que la publicación. Lo que no cumple se rechaza con su motivo y el resto sí se aplica.
+ */
+export function editarBorrador(actual: Borrador, entrada: unknown, categorias: CategoriaLite[]): ResultadoEdicion {
+  const b: Borrador = { ...actual };
+  const cambios: string[] = [];
+  const errores: string[] = [];
+  let reconocidos = 0;
+  const lineas = String(entrada ?? '')
+    .split(/[\n;]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  for (const linea of lineas) {
+    const n = normalizar(linea);
+    // El nombre del campo debe ser una palabra completa ("marca" sí, "marcador" no)
+    const hallado = CAMPOS_EDICION.map(([re, c]): [RegExp, string] => [new RegExp(`${re.source}(?![a-z])`), c]).find(([re]) => re.test(n));
+    if (!hallado) continue;
+    const campo = hallado[1];
+    const largo = (hallado[0].exec(n) as RegExpExecArray)[0].length;
+    // El valor se toma de la línea original (con mayúsculas y acentos); quitar acentos no cambia el largo
+    let valor = linea.slice(largo).replace(/^\s*[:=]?\s*/, '').trim();
+    // En campos de número o sí/no se admite "precio es 400", "cantidad de 12"; en los de texto libre no ("descripción a mano")
+    if (['precio', 'cantidad', 'bajoPedido'].includes(campo)) valor = valor.replace(/^(?:es|de|a)\b\s*/i, '');
+    reconocidos++;
+    const v = normalizar(valor);
+
+    switch (campo) {
+      case 'nombre': {
+        const x = texto(valor, 80);
+        if (x.length < 2) errores.push('nombre: escribe el nombre, ej. "nombre Pastel grande"');
+        else {
+          b.nombre = x;
+          cambios.push(`Nombre: ${x}`);
+        }
+        break;
+      }
+      case 'precio': {
+        const p = leerPrecio(valor);
+        if (p === null || p <= 0 || p > MAX_PRECIO) errores.push(`precio: "${valor}" no es un precio válido (entre $0.01 y $${MAX_PRECIO.toLocaleString('es-MX')})`);
+        else {
+          b.precio = Math.round(p * 100) / 100;
+          cambios.push(`Precio: ${pesos(b.precio)}`);
+        }
+        break;
+      }
+      case 'cantidad': {
+        if (/^(sin control|sin limite|ilimitad[oa]s?|no (?:controlo|llevo))/.test(v)) {
+          b.stock = -1;
+          cambios.push('Cantidad: sin definir');
+          break;
+        }
+        // Solo un entero, con unidad opcional ("12", "12 piezas"): "2.5" o "muchas" se rechazan en vez de adivinar
+        const num = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\s+[a-záéíóúñ.]+)?$/i.exec(valor);
+        const q = num ? Number(num[1].replace(/,/g, '')) : NaN;
+        if (!Number.isInteger(q) || q < 1 || q > 100_000) errores.push('cantidad: escribe un número entero de 1 a 100,000');
+        else if (b.porPedido) errores.push('cantidad: este artículo es *bajo pedido* y no controla cantidad. Escribe primero "bajo pedido no"');
+        else {
+          b.stock = q;
+          cambios.push(`Cantidad: ${q} ${b.unidadMedida || 'pz'}`);
+        }
+        break;
+      }
+      case 'unidad': {
+        const x = texto(valor, 12);
+        if (!x) errores.push('unidad: escribe la unidad, ej. "unidad kg"');
+        else {
+          b.unidadMedida = x;
+          cambios.push(`Unidad: ${x}`);
+        }
+        break;
+      }
+      case 'bajoPedido': {
+        if (esSi(valor) || /^(true|verdadero|activado|activa)$/.test(v)) {
+          b.porPedido = true;
+          b.stock = -1;
+          cambios.push('Bajo pedido: sí');
+        } else if (esNo(valor) || /^(false|falso|desactivado|desactiva)$/.test(v)) {
+          b.porPedido = false;
+          cambios.push('Bajo pedido: no');
+        } else errores.push('bajo pedido: responde "sí" o "no"');
+        break;
+      }
+      case 'categoria': {
+        if (!v || VACIO.test(v) || esCategoriaSin(v)) {
+          b.categoriaId = '';
+          b.categoria = '';
+          cambios.push(`Categoría: ${CATEGORIA_SIN.nombre}`);
+          break;
+        }
+        const exacta = categorias.find((c) => normalizar(c.nombre) === v);
+        const parecidas = exacta ? [exacta] : categorias.filter((c) => normalizar(c.nombre).includes(v) || (v.length >= 4 && v.includes(normalizar(c.nombre))));
+        if (parecidas.length === 1) {
+          b.categoriaId = parecidas[0].id;
+          b.categoria = parecidas[0].nombre;
+          cambios.push(`Categoría: ${parecidas[0].nombre}`);
+        } else if (parecidas.length > 1) {
+          errores.push(`categoría: "${valor}" coincide con varias (${parecidas.slice(0, 5).map((c) => c.nombre).join(', ')}). Escríbela completa`);
+        } else {
+          errores.push(`categoría: no existe "${valor}". Escribe "categoría ninguna" para dejarla en ${CATEGORIA_SIN.nombre}`);
+        }
+        break;
+      }
+      case 'descripcion': {
+        b.descripcion = VACIO.test(v) ? '' : texto(valor, 500);
+        cambios.push(b.descripcion ? 'Descripción actualizada' : 'Descripción quitada');
+        break;
+      }
+      default: {
+        // marca, color, tamano, material
+        const max = campo === 'marca' || campo === 'material' ? 40 : 30;
+        const x = VACIO.test(v) ? '' : texto(valor, max);
+        if (!x && !VACIO.test(v)) {
+          errores.push(`${campo === 'tamano' ? 'tamaño' : campo}: escribe el valor, ej. "${campo === 'tamano' ? 'tamaño' : campo} ..."`);
+          break;
+        }
+        (b as any)[campo] = x;
+        cambios.push(`${{ marca: 'Marca', color: 'Color', tamano: 'Tamaño', material: 'Material' }[campo as 'marca']}: ${x || 'quitado'}`);
+      }
+    }
+  }
+  return { borrador: b, cambios, errores, reconocidos };
+}
+
+/** ¿Pide editar el artículo pendiente? ("editar", "corregir", "modificar") */
+export const pideEditar = (t: unknown) => /^(editar|edito|edita|corregir|corrige|modificar|modifica|cambiar algo|editar articulo)\s*$/.test(normalizar(t).replace(/[^a-z ]/g, '').trim());
 
 /** Variante base, con la misma forma que crea el formulario de la app */
 export function construirArticulo(

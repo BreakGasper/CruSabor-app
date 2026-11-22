@@ -138,7 +138,7 @@ El token que da Meta en *Paso 1. Probar* dura unas 24 horas. Para uno permanente
 1. Desde un celular agregado como destinatario, escribir **hola** al número de WhatsApp: debe responder el menú.
 2. Escribir **¿tienen pasteles?**: responde con el catálogo (usa Gemini).
 3. Escribir **entrar** (desde el celular que está registrado en la tienda) y la contraseña; borrar ese mensaje del chat.
-4. Enviar una **foto** con el nombre y el precio en el mismo mensaje: aparece el resumen con **Publicar / Descartar**.
+4. Enviar una **foto** con el nombre y el precio en el mismo mensaje: aparece el resumen con **Publicar / Editar / Descartar**. *Editar* permite cambiar o completar nombre, precio, cantidad, unidad, categoría, bajo pedido y detalles (ej. `cantidad 12`); sin categoría se guarda en *Sin categoría*.
 
 ---
 
