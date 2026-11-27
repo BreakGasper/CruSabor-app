@@ -82,8 +82,13 @@
                   </button>
                 </li>
               </ul>
-              <p v-if="!cargandoPerfiles && !errorPerfiles && !perfiles.cliente && !perfiles.tiendas.length" class="notif-vacio">
-                Tu celular no tiene otros perfiles registrados.
+              <p v-if="!cargandoPerfiles && !errorPerfiles && !perfiles.cliente && !perfiles.tiendas.length" class="notif-vacio" data-test="sin-perfiles">
+                {{
+                  celularBuscado
+                    ? `Tu celular (terminado en ${celularBuscado.slice(-4)}) no tiene otros perfiles registrados.`
+                    : 'Tu cuenta de administrador no tiene un celular guardado.'
+                }}
+                Aquí solo aparecen el cliente y las tiendas registrados con ese mismo celular.
               </p>
             </div>
           </div>
@@ -152,7 +157,7 @@ import ArrowBack from '@/components/ArrowBack.vue';
 import { sessionAdmin, cerrarSesionAdmin } from '@/utils/sessionAdmin';
 import { useSolicitudesPago } from '@/composables/useSolicitudesPago';
 import { PLAN_LABEL } from '@/composables/useAdminTiendas';
-import { perfilesDelCelular, cambiarACliente, cambiarATienda, type PerfilesDelCelular } from '@/composables/cambioPerfil';
+import { perfilesDelCelular, cambiarACliente, cambiarATienda, celularDe10, type PerfilesDelCelular } from '@/composables/cambioPerfil';
 import type { TiendaDeCuenta } from '@/composables/cuentaTienda';
 
 withDefaults(defineProps<{ titulo?: string; volver?: string }>(), { titulo: 'Panel de administración' });
@@ -174,6 +179,7 @@ const perfilAbierto = ref(false);
 const cargandoPerfiles = ref(false);
 const errorPerfiles = ref('');
 const perfiles = ref<PerfilesDelCelular>({ cliente: null, tiendas: [] });
+const celularBuscado = computed(() => celularDe10(admin.value?.telefono));
 
 async function abrirPerfiles() {
   perfilAbierto.value = true;

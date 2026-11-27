@@ -53,6 +53,39 @@ describe('perfiles del celular', () => {
   });
 });
 
+describe('el celular del admin se normaliza', () => {
+  it('con espacios, guiones, +52 o como número también encuentra su cliente y sus tiendas', async () => {
+    for (const tel of ['331 234 5678', '(331) 234-5678', '+52 331 234 5678', '523312345678', 3312345678 as any]) {
+      const p = await perfilesDelCelular(tel);
+      expect(p.cliente?.nombre, String(tel)).toBe('Ana');
+      expect(p.tiendas, String(tel)).toHaveLength(2);
+    }
+  });
+
+  it('un celular vacío o inválido no encuentra nada (ni consulta toda la base)', async () => {
+    for (const tel of ['', '---', undefined as any, null as any]) {
+      expect(await perfilesDelCelular(tel)).toEqual({ cliente: null, tiendas: [] });
+    }
+  });
+
+  it('el selector funciona para otro administrador con su propio celular, y no mezcla perfiles ajenos', async () => {
+    guardarSesionAdmin({ id: 'adm-2', nombre: 'Otro admin', telefono: `+52 ${OTRO}`, rol: 'admin', inicio: '2026-11-09T00:00:00Z' });
+    const w = await montarBarra();
+    expect(w.findAll('[data-test="perfil-cliente"]')).toHaveLength(1);
+    expect(w.findAll('[data-test="perfil-tienda"]').map((b) => b.text()).join()).toContain('Ajena');
+    expect(w.text()).not.toContain('Uno');
+  });
+
+  it('si el admin no tiene perfiles, el aviso dice con qué celular se buscó (últimos 4) y qué se muestra aquí', async () => {
+    guardarSesionAdmin({ id: 'adm-3', nombre: 'Sin perfiles', telefono: '3300001111', rol: 'admin', inicio: '2026-11-09T00:00:00Z' });
+    const w = await montarBarra();
+    const aviso = w.find('[data-test="sin-perfiles"]').text();
+    expect(aviso).toContain('terminado en 1111');
+    expect(aviso).toContain('mismo celular');
+    expect(aviso).not.toContain('3300001111');
+  });
+});
+
 describe('selector junto a la campana', () => {
   it('lista solo los perfiles que tiene el celular del admin', async () => {
     const w = await montarBarra();
