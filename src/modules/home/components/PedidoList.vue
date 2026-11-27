@@ -131,6 +131,10 @@
         </li>
       </ul>
 
+      <p v-if="pedido.estatus !== 'Cancelado' && tieneArticulosPorPedido(pedido)" class="nota-bajo-pedido" data-testid="leyenda-bajo-pedido">
+        🛠️ {{ LEYENDA_BAJO_PEDIDO_CORTA }}
+      </p>
+
       <!-- Pie del pedido -->
       <div class="pedido-footer">
         <span class="resumen">
@@ -170,6 +174,7 @@
 </template>
 
 <script setup lang="ts">
+import { LEYENDA_BAJO_PEDIDO_CORTA } from "@/constants/bajoPedido";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
@@ -850,4 +855,6 @@ function onImageError(event: Event) {
   font-size: 0.8rem;
   line-height: 1.35;
 }
+
+.nota-bajo-pedido { margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.78rem; line-height: 1.35; }
 </style>

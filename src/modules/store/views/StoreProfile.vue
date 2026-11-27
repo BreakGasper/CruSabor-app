@@ -948,6 +948,7 @@ body {
      tema, en oscuro quedaban botones oscuros sobre una pantalla clara. */
   background: var(--bg-page);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 .store-card {
   width: 100%;

@@ -102,6 +102,15 @@
 
           <span v-if="avisoAtencion(pedido)" class="aviso-atencion">⏳ {{ avisoAtencion(pedido) }}</span>
           <span v-if="conBajoPedido(pedido)" class="bajo-pedido">🛠️ Incluye artículos bajo pedido</span>
+          <a
+            v-if="conBajoPedido(pedido) && enlaceWhatsapp(pedido)"
+            class="btn-whatsapp chico"
+            :href="enlaceWhatsapp(pedido)"
+            target="_blank"
+            rel="noopener"
+            data-testid="whatsapp-cabecera"
+            @click.stop
+          >💬 Mandar WhatsApp</a>
 
           <div class="total">${{ pedido.totalTienda }}</div>
 
@@ -120,6 +129,16 @@
           <!-- CLIENTE INFO -->
           <div class="extra" style="font-size: 12px">
             <p><strong>📱</strong> {{ pedido.usuario?.celular || '-' }}</p>
+            <a
+              v-if="enlaceWhatsapp(pedido)"
+              class="btn-whatsapp"
+              :href="enlaceWhatsapp(pedido)"
+              target="_blank"
+              rel="noopener"
+              data-testid="whatsapp-cliente"
+              @click.stop
+            >💬 Mandar WhatsApp al cliente</a>
+            <small v-else class="sin-whatsapp" data-testid="sin-whatsapp">Este cliente no tiene un celular válido para WhatsApp.</small>
             <p>
               <strong>📍</strong>
               {{ pedido.usuario?.calleNumero || pedido.domicilio.calleNumero }},
@@ -250,6 +269,15 @@
                 </strong>
               </div>
 
+              <a
+                v-if="clienteSeleccionado && enlaceWhatsapp(clienteSeleccionado)"
+                class="btn-whatsapp"
+                :href="enlaceWhatsapp(clienteSeleccionado)"
+                target="_blank"
+                rel="noopener"
+                data-testid="whatsapp-dialogo"
+              >💬 Mandar WhatsApp</a>
+
               <div class="info-row">
                 <span>📍 Dirección</span>
 
@@ -325,6 +353,7 @@ import {
 import { fetchUsuarioById, type Usuario } from '@/composables/useAuth';
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
 import defaultImg from '@/assets/icons/default_articulo.png';
+import { enlaceWhatsappCliente } from '@/utils/whatsappCliente';
 
 const pedidos = ref<Pedido[]>([]);
 
@@ -425,6 +454,18 @@ const motivoCancelado = (pedido: any) => textoCancelacion(motivoCancelacion(pedi
 
 /** ¿Incluye artículos que elaboro bajo pedido? */
 const conBajoPedido = (pedido: any) => tieneArticulosPorPedido(pedido, idTienda);
+
+/** "Mandar WhatsApp": abre el chat con el cliente con un mensaje ya escrito ('' si no tiene un celular válido) */
+function enlaceWhatsapp(pedido: any): string {
+  const mios: any[] = pedido?.itemsFiltrados ?? [];
+  const tienda = mios.find((i) => i?.nombreTienda)?.nombreTienda || pedido?.items?.find((i: any) => i?.nombreTienda)?.nombreTienda || '';
+  return enlaceWhatsappCliente(pedido?.usuario?.celular, {
+    cliente: pedido?.usuario?.nombre,
+    tienda,
+    idPedido: pedido?.id_pedido,
+    articulosBajoPedido: mios.filter((i) => i?.porPedido).map((i) => i.nombreProducto),
+  });
+}
 
 const etiqueta = (e: EstatusPedido) => ESTATUS_LABEL[e] || e;
 
@@ -643,13 +684,15 @@ function onImgError(e: Event) {
 .tabs {
   display: flex;
   gap: 6px;
+  overflow-x: auto; /* en teléfonos muy angostos las pestañas se deslizan en vez de salirse */
+  scrollbar-width: none;
   background: var(--surface-2);
   padding: 4px;
   border-radius: 12px;
   margin-bottom: 0.75rem;
 }
 .tab {
-  flex: 1;
+  flex: 1 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1262,4 +1305,9 @@ button {
     height: 44px;
   }
 }
+
+.btn-whatsapp { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 8px 12px; border-radius: 10px; background: #25d366; color: #0b3d1f; font-weight: 700; font-size: 0.85rem; text-decoration: none; }
+.btn-whatsapp:hover { filter: brightness(0.95); }
+.btn-whatsapp.chico { margin-top: 0; padding: 4px 10px; font-size: 0.75rem; }
+.sin-whatsapp { display: block; margin-top: 6px; color: var(--text-muted); }
 </style>

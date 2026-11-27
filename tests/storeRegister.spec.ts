@@ -70,6 +70,7 @@ async function montarEnPasoFinal() {
   await flush();
   // validateStep no valida nada en el paso 5, así que basta con situarse ahí.
   (wrapper.vm as any).step = 5;
+  (wrapper.vm as any).aceptaTerminosTienda = true; // sin aceptar los Términos no se registra (ver más abajo)
   await wrapper.vm.$nextTick();
   return wrapper;
 }
@@ -82,6 +83,37 @@ beforeEach(() => {
   telefonoExiste.mockResolvedValue(false);
   revisarTelefono.mockResolvedValue('libre');
   replace.mockClear();
+});
+
+describe('StoreRegister: términos y condiciones', () => {
+  it('sin aceptar los Términos no se registra la tienda y se explica por qué', async () => {
+    const wrapper = await montarEnPasoFinal();
+    (wrapper.vm as any).aceptaTerminosTienda = false;
+    await wrapper.vm.$nextTick();
+    await botonFinalizar(wrapper)!.trigger('click');
+    await flush();
+    expect(crearTienda).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('Debes aceptar los Términos y condiciones');
+    expect(wrapper.find('[data-testid="acepto-terminos-tienda"]').exists()).toBe(true);
+  });
+
+  it('aceptados, la tienda se guarda con la versión de los Términos y la fecha', async () => {
+    crearTienda.mockResolvedValue('t-nueva');
+    const wrapper = await montarEnPasoFinal();
+    await botonFinalizar(wrapper)!.trigger('click');
+    await flush();
+    expect(crearTienda).toHaveBeenCalledTimes(1);
+    expect(crearTienda.mock.calls[0][0]).toMatchObject({ aceptoTerminos: true, versionTerminos: '2026-11-27' });
+    expect(new Date(crearTienda.mock.calls[0][0].aceptoTerminosEn).getTime()).toBeGreaterThan(Date.now() - 60_000);
+  });
+
+  it('el paso final muestra los avisos de la tienda y los enlaces a los Términos y al Aviso de privacidad', async () => {
+    const wrapper = await montarEnPasoFinal();
+    expect(wrapper.text()).toContain('Tu compromiso como tienda');
+    const enlaces = wrapper.findAll('a').map((a: any) => a.attributes('href'));
+    expect(enlaces).toContain('/terminos.html');
+    expect(enlaces).toContain('/privacidad.html');
+  });
 });
 
 describe('StoreRegister: no duplicar la tienda', () => {
@@ -172,6 +204,7 @@ describe('StoreRegister: aviso de registro correcto', () => {
     const wrapper = mount(StoreRegister, { global: { stubs: { TopBarFija: true } } });
     await vi.advanceTimersByTimeAsync(0);
     (wrapper.vm as any).step = 5;
+    (wrapper.vm as any).aceptaTerminosTienda = true;
     await wrapper.vm.$nextTick();
 
     await botonFinalizar(wrapper)!.trigger('click');

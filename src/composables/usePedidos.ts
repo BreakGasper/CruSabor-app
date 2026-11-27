@@ -152,6 +152,8 @@ export interface Pedido {
   fecha_hora: string;
   /** ISO, para ordenar y calcular tiempos */
   fecha_creacion?: string;
+  /** Términos y condiciones que el cliente aceptó al hacer el pedido */
+  terminos?: { version: string; fecha: string };
   fechaEntrega?: string;
   canceladoPor?: ActorPedido;
   motivoCancelacion?: string;
@@ -379,6 +381,8 @@ export async function guardarPedidos(
   carrito: any[],
   metodoPago: string,
   domicilioForm: any,
+  /** Versión de los Términos que el cliente aceptó al confirmar (se guarda con el pedido) */
+  aceptacionTerminos?: { version: string; fecha: string },
 ): Promise<string> {
   if (!sessionUser.value?.id) throw new Error('Usuario no autenticado');
   if (!carrito?.length) throw new Error('El carrito está vacío');
@@ -458,6 +462,7 @@ export async function guardarPedidos(
     historial: [{ estatus: 'Preparacion', fecha: fechaISO, por: 'cliente', nota: 'Pedido creado' }],
     fecha_hora: new Date().toLocaleString(),
     fecha_creacion: fechaISO,
+    ...(aceptacionTerminos ? { terminos: aceptacionTerminos } : {}),
     total_compra: items.reduce((acc, i) => acc + i.precio * i.cantidad, 0),
     domicilio: {
       calleNumero: `${domicilioForm.calle} #${domicilioForm.numero}`,

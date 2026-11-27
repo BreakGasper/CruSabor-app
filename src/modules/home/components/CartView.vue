@@ -63,6 +63,7 @@
             <p class="precio">${{ item.precio.toFixed(2) }}</p>
             <p class="detalle">{{ item.detalle }}</p>
             <p v-if="item.porPedido" class="bajo-pedido">🛠️ Bajo pedido</p>
+            <p v-if="item.porPedido" class="bajo-pedido-nota" data-testid="leyenda-bajo-pedido">{{ LEYENDA_BAJO_PEDIDO_CORTA }}</p>
           </div>
 
           <!-- Botones de cantidad estilo detalle -->
@@ -135,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import { LEYENDA_BAJO_PEDIDO_CORTA } from "@/constants/bajoPedido";
 import { reactive, ref, computed, onMounted, onUnmounted } from "vue";
 import { useHorarioTiendas } from "@/composables/useHorarioTienda";
 import { useEstadoTiendas } from "@/composables/useMembresia";
@@ -639,4 +641,6 @@ function onImgError(e: Event) {
     min-width: 84px;
   }
 }
+
+.bajo-pedido-nota { margin: 2px 0 0; font-size: 0.75rem; line-height: 1.3; color: var(--text-muted); }
 </style>

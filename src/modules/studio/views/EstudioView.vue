@@ -1,5 +1,5 @@
 <template>
-  <div class="estudio" :class="{ enEditor: seccion === 'editor' }">
+  <div class="estudio" :class="{ enEditor: seccion === 'editor' }" data-sin-recarga>
     <nav v-if="seccion !== 'editor'" class="lateral" aria-label="CG-Rat Promo Studio">
       <div class="logo">
         <span class="marca" aria-hidden="true"><Sparkles :size="18" /></span>

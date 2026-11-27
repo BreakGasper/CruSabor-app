@@ -1,5 +1,5 @@
 <template>
-  <div class="register-container">
+  <div class="register-container" data-sin-recarga>
     <!-- Header -->
     <div class="register-header">
       <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="intentarSalir" />
@@ -47,6 +47,7 @@
             <input
               type="file"
               ref="fileInput"
+              accept="image/*"
               @change="onImageSelected"
               hidden
             />
@@ -61,6 +62,10 @@
               <span>+</span>
             </div>
           </div>
+          <button v-if="form.url" type="button" class="btn-recortar" data-testid="recortar-principal" @click="reeditarFotoPrincipal">
+            ✂️ Recortar / ajustar foto
+          </button>
+          <small class="foto-ayuda">Al elegir tu foto podrás recortarla, girarla y ajustar brillo, contraste y color.</small>
         </div>
 
         <div class="button-row">
@@ -172,8 +177,72 @@
           <i class="fa-solid fa-gear"></i> Opciones Avanzadas
         </h2>
 
+        <!-- ¿Crear variantes? (opcional) -->
+        <div class="form-group variantes-switch">
+          <label class="switch-fila" data-testid="switch-variantes">
+            <input
+              type="checkbox"
+              role="switch"
+              class="switch-input"
+              :checked="usarVariantes"
+              data-testid="switch-variantes-input"
+              @change="alternarVariantes(($event.target as HTMLInputElement).checked, $event.target as HTMLInputElement)"
+            />
+            <span class="switch-pista" aria-hidden="true"></span>
+            <span class="switch-texto">
+              <strong>Crear variantes de este producto</strong>
+              <small>Opcional</small>
+            </span>
+          </label>
+          <p class="switch-leyenda" data-testid="leyenda-variantes">
+            Si lo activas, se crearán más artículos (variantes) sobre la misma línea de este producto: por ejemplo otro
+            color, tamaño o material, cada uno con su foto, precio y existencias. Si lo dejas apagado, se crea el
+            artículo con lo básico y los datos de filtro (color, tamaño y material) se guardan como genéricos.
+          </p>
+        </div>
+
+        <!-- Sin variantes: solo lo básico (código y existencias del artículo) -->
+        <div v-if="!usarVariantes && varianteBase" class="form-group variante-simple" data-testid="bloque-sin-variantes">
+          <label>Código y existencias</label>
+          <div class="variante-card">
+            <div class="form-group">
+              <label>SKU (opcional)</label>
+              <div style="display: flex; gap: 0.5rem; align-items: center">
+                <input v-model="varianteBase.sku" type="text" class="form-input" placeholder="Código SKU" />
+                <button type="button" class="circle-button" @click="abrirScanner(0)">📷</button>
+              </div>
+              <div v-if="scannerIndex === 0" id="scanner-0" style="width: 100%; margin-top: 0.5rem"></div>
+            </div>
+
+            <div v-if="form.porPedido" class="variante-row">
+              <label>Bajo pedido: sin control de stock</label>
+            </div>
+            <template v-else>
+              <div class="variante-row">
+                <label>¿Tienes stock?</label>
+                <input type="checkbox" v-model="varianteBase.tieneStock" class="stock-check" />
+              </div>
+              <div v-if="varianteBase.tieneStock" class="variante-row">
+                <label>Stock disponible</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  v-model.number="varianteBase.stock"
+                  class="form-input small-input stock-input"
+                  placeholder="Cantidad disponible"
+                />
+              </div>
+              <div v-else class="variante-row">
+                <label>Stock ilimitado</label>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <!-- Variantes del producto -->
-        <div class="form-group">
+        <div v-if="usarVariantes" class="form-group">
           <label>Caracteristica del producto</label>
           <div
             v-for="(variante, index) in form.variantes"
@@ -225,6 +294,7 @@
                 <input
                   type="file"
                   :ref="(el) => (variantFileInputs[index] = el)"
+                  accept="image/*"
                   @change="(e) => onVariantImageSelected(e, variante)"
                   hidden
                   :disabled="variante.isDefault"
@@ -437,6 +507,32 @@
         </div>
       </div>
     </div>
+    <!-- Botón flotante: vista previa de cómo lo verá un cliente -->
+    <button
+      v-if="!fotoPorRecortar && !vistaPreviaAbierta"
+      type="button"
+      class="fab-vista"
+      data-testid="abrir-vista-previa"
+      aria-label="Ver vista previa del artículo"
+      @click="vistaPreviaAbierta = true"
+    >
+      <span aria-hidden="true">👁️</span> Vista previa
+    </button>
+
+    <VistaPreviaArticulo
+      :visible="vistaPreviaAbierta"
+      :articulo="articuloVista"
+      :logo-tienda="logoTienda"
+      @cerrar="vistaPreviaAbierta = false"
+    />
+
+    <RecortadorImagen
+      :archivo="fotoPorRecortar"
+      @listo="alRecorteListo"
+      @sin-cambios="alRecorteSinCambios"
+      @cancelar="alRecorteCancelado"
+    />
+
     <Dialog
       v-model:visible="dialogError"
       modal
@@ -495,6 +591,9 @@ import Swal from 'sweetalert2';
 import { tiendasSinMembresiaVigente, MOTIVO_SIN_MEMBRESIA_LABEL } from '@/composables/useMembresia';
 import { Html5Qrcode } from 'html5-qrcode';
 import TopBarFija from '@/components/TopBarFija.vue';
+import RecortadorImagen from '@/components/RecortadorImagen.vue';
+import VistaPreviaArticulo, { type ArticuloVista } from '@/modules/store/components/VistaPreviaArticulo.vue';
+import { computed } from 'vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -671,6 +770,52 @@ function sincronizarImagenVariantes(url: string) {
   }
 }
 
+/* ---------- Recorte y ajuste de fotos ---------- */
+type DestinoFoto = { tipo: 'principal' } | { tipo: 'variante'; variante: any };
+const fotoPorRecortar = ref<File | null>(null);
+let destinoFoto: DestinoFoto | null = null;
+let entradaFoto: HTMLInputElement | null = null;
+/** La foto tal como se eligió (sin recortar), para poder volver a recortarla desde cero */
+const fotoOriginalPrincipal = ref<File | null>(null);
+
+function abrirRecorte(file: File, destino: DestinoFoto, input: HTMLInputElement | null = null) {
+  destinoFoto = destino;
+  entradaFoto = input;
+  fotoPorRecortar.value = file;
+}
+
+function aplicarFoto(file: File) {
+  const d = destinoFoto;
+  if (!d) return;
+  if (d.tipo === 'principal') {
+    imagenFile.value = file; // guardar archivo real
+    form.value.url = URL.createObjectURL(file); // preview
+    sincronizarImagenVariantes(form.value.url); // el paso 3 debe reflejarlo
+  } else {
+    d.variante._file = file;
+    d.variante.url = URL.createObjectURL(file);
+  }
+}
+
+function cerrarRecorte() {
+  fotoPorRecortar.value = null;
+  destinoFoto = null;
+  if (entradaFoto) entradaFoto.value = ''; // permite elegir la misma foto otra vez
+  entradaFoto = null;
+}
+
+function alRecorteListo(file: File) {
+  aplicarFoto(file);
+  cerrarRecorte();
+}
+function alRecorteSinCambios() {
+  if (fotoPorRecortar.value) aplicarFoto(fotoPorRecortar.value);
+  cerrarRecorte();
+}
+function alRecorteCancelado() {
+  cerrarRecorte();
+}
+
 const onImageSelected = (e: Event) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -679,9 +824,23 @@ const onImageSelected = (e: Event) => {
     input.value = '';
     return;
   }
-  imagenFile.value = file; // guardar archivo real
-  form.value.url = URL.createObjectURL(file); // preview
-  sincronizarImagenVariantes(form.value.url); // el paso 3 debe reflejarlo
+  fotoOriginalPrincipal.value = file;
+  abrirRecorte(file, { tipo: 'principal' }, input);
+};
+
+/** "Recortar / ajustar" sobre la foto ya elegida (o, al editar, la que ya estaba publicada) */
+async function reeditarFotoPrincipal() {
+  let origen: File | null = fotoOriginalPrincipal.value || imagenFile.value;
+  if (!origen && form.value.url) {
+    try {
+      const blob = await (await fetch(form.value.url)).blob();
+      origen = new File([blob], 'foto.jpg', { type: blob.type || 'image/jpeg' });
+    } catch {
+      mostrarDialogo('No se pudo abrir la foto actual para recortarla. Sube una foto nueva.');
+      return;
+    }
+  }
+  if (origen) abrirRecorte(origen, { tipo: 'principal' });
 };
 
 /** Quitar la foto del producto: las variantes que la seguían se quedan sin ella */
@@ -709,12 +868,14 @@ function triggerVariantFileInput(index: number) {
   variantFileInputs.value[index]?.click();
 }
 function onVariantImageSelected(e: Event, variante: any) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-
-  if (file) {
-    variante._file = file; // guardamos archivo real
-    variante.url = URL.createObjectURL(file); // preview inmediato
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!imagenValida(file)) {
+    input.value = '';
+    return;
   }
+  abrirRecorte(file, { tipo: 'variante', variante }, input);
 }
 
 function abrirScanner(index: number) {
@@ -941,6 +1102,7 @@ onMounted(async () => {
 
       // cargar variantes
       form.value.variantes = data.variantes || [];
+      usarVariantes.value = (Array.isArray(data.variantes) ? data.variantes : Object.values(data.variantes || {})).filter((v: any) => !v?.isDefault).length > 0;
 
       // Qué imágenes tenía al abrir: al guardar, las que dejen de usarse se borran
       urlsOriginales.value = urlsDelArticulo(data.url, data.variantes);
@@ -1061,6 +1223,65 @@ function nextStep() {
     form.value.variantes.push(crearVarianteBase());
   }
 }
+
+/* ---------- Variantes opcionales ---------- */
+/** Sin variantes se guarda solo la base, con color, tamaño y material genéricos para que el artículo entre en los filtros */
+const usarVariantes = ref(false);
+const varianteBase = computed<any>(() => (form.value.variantes as any[]).find((v) => v.isDefault) ?? null);
+
+async function alternarVariantes(activar: boolean, casilla?: HTMLInputElement) {
+  if (activar) {
+    usarVariantes.value = true;
+    return;
+  }
+  const extras = (form.value.variantes as any[]).filter((v) => !v.isDefault).length;
+  if (extras > 0) {
+    const { isConfirmed } = await Swal.fire({
+      icon: 'warning',
+      title: '¿Quitar las variantes?',
+      text: `Se descartarán las ${extras} variante(s) que agregaste y el artículo se guardará solo con lo básico.`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, quitarlas',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: 'var(--color-bg-blue-dark)',
+      cancelButtonColor: 'var(--color-bg-blue-ligth)',
+    });
+    if (!isConfirmed) {
+      usarVariantes.value = true;
+      if (casilla) casilla.checked = true; // el interruptor vuelve a su sitio (Vue no lo repinta: el valor no cambió)
+      return;
+    }
+    form.value.variantes = (form.value.variantes as any[]).filter((v) => v.isDefault) as any;
+  }
+  usarVariantes.value = false;
+}
+
+/* ---------- Vista previa flotante ---------- */
+const vistaPreviaAbierta = ref(false);
+const logoTienda = (() => {
+  try {
+    return String(JSON.parse(localStorage.getItem('tiendas') || '{}')?.logoUrl || '');
+  } catch {
+    return '';
+  }
+})();
+/** Lo que ve el cliente, con lo que lleva capturado hasta ahora (aunque falten pasos) */
+const articuloVista = computed<ArticuloVista>(() => {
+  const variantes = (form.value.variantes as any[]).length
+    ? (form.value.variantes as any[])
+    : [{ precio: precioValue.value, url: form.value.url, tieneStock: false, stock: -1, isDefault: true }];
+  return {
+    nombre: form.value.nombre,
+    descripcion: form.value.descripcion,
+    precio: precioValue.value,
+    unidadMedida: form.value.unidadMedida,
+    categoria: form.value.categoria,
+    tiendaNombre: form.value.tiendaNombre,
+    url: form.value.url,
+    porPedido: form.value.porPedido === true,
+    variantes,
+  };
+});
 
 function crearVarianteBase() {
   return {
@@ -1278,6 +1499,7 @@ function validarPaso2() {
 .register-container {
   background: var(--surface-2);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -1729,4 +1951,40 @@ function validarPaso2() {
   align-items: center;
   cursor: pointer;
 }
+
+.btn-recortar { margin-top: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.foto-ayuda { display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.78rem; }
+
+.variantes-switch { margin-bottom: 14px; }
+.switch-fila { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-pista { position: relative; flex: none; width: 46px; height: 26px; border-radius: 999px; background: var(--border); transition: background 0.2s; }
+.switch-pista::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.2s; }
+.switch-input:checked + .switch-pista { background: var(--color-bg-blue-ligth); }
+.switch-input:checked + .switch-pista::after { transform: translateX(20px); }
+.switch-input:focus-visible + .switch-pista { outline: 3px solid var(--brand-blue-text); outline-offset: 2px; }
+.switch-texto { display: flex; flex-direction: column; line-height: 1.2; }
+.switch-texto small { color: var(--text-muted); }
+.switch-leyenda { margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.82rem; line-height: 1.4; }
+
+.fab-vista {
+  position: fixed;
+  right: 14px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-bg-blue-ligth);
+  color: var(--on-primary);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.fab-vista:active { transform: translateY(1px); }
 </style>

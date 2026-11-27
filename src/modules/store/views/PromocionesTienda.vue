@@ -350,6 +350,7 @@ if (!esDueno.value && tiendaId.value) router.replace(`/store/profile/${tiendaId.
 <style scoped>
 .promos-container {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-page);
 }
 .promos-main {

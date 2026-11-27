@@ -1,5 +1,5 @@
 <template>
-  <div class="wizard-container">
+  <div class="wizard-container" data-sin-recarga>
     <!-- ENCABEZADO -->
     <TopBarFija titulo="Registro de tienda" @back="salirDelRegistro" />
 
@@ -734,6 +734,20 @@
           />
         </div>
 
+        <AvisoProteccion :avisos="AVISOS_TIENDA" titulo="Tu compromiso como tienda" :con-enlaces="false" />
+        <div class="form-group">
+          <label class="terminos-tienda" :class="{ 'terminos-error': !!errors.terminos }">
+            <input v-model="aceptaTerminosTienda" type="checkbox" data-testid="acepto-terminos-tienda" />
+            <span>
+              Acepto los
+              <a :href="URL_TERMINOS" target="_blank" rel="noopener">Términos y condiciones</a>
+              y el
+              <a :href="URL_PRIVACIDAD" target="_blank" rel="noopener">Aviso de privacidad</a>.
+            </span>
+          </label>
+          <small v-if="errors.terminos" class="terminos-msg" role="alert">{{ errors.terminos }}</small>
+        </div>
+
         <div class="buttons">
           <button type="button" class="btn-secondary" :disabled="enviando" @click="prevStep">Atrás</button>
           <button type="button" class="btn-success" :disabled="enviando" @click="submitStore">
@@ -777,6 +791,8 @@ import {
 import eyeIcon from "@/assets/icons/eye.png";
 import eyeOffIcon from "@/assets/icons/eye-off.png";
 import { useConfiguracion } from "@/composables/useConfiguracion";
+import AvisoProteccion from "@/components/AvisoProteccion.vue";
+import { AVISOS_TIENDA, URL_PRIVACIDAD, URL_TERMINOS, aceptacionActual } from "@/legal/avisos";
 import { esEnlaceValido, normalizarEnlace } from "@/utils/enlaces";
 import { cpDeColonia } from "@/composables/coloniasLocales";
 import { useHorarioRapido } from "@/composables/useHorarioRapido";
@@ -1092,6 +1108,7 @@ async function errorTelefonoCuenta(): Promise<string> {
   return "";
 }
 const errors = ref<any>({});
+const aceptaTerminosTienda = ref(false);
 
 // Candado de envío: crearTienda tarda (hash de contraseña + subida de logo,
 // banner y galería), y sin esto cada toque extra en "Finalizar" creaba otra
@@ -1179,6 +1196,9 @@ async function validateStep() {
       errors.value.facebookUrl = "Escribe una dirección válida (ej. facebook.com/mi-tienda)";
     if (form.value.conEnlaceInstagram && form.value.instagram.trim() && !esEnlaceValido(form.value.instagramUrl))
       errors.value.instagramUrl = "Escribe una dirección válida (ej. instagram.com/mi-tienda)";
+  }
+  if (step.value === 5 && !aceptaTerminosTienda.value) {
+    errors.value.terminos = "Debes aceptar los Términos y condiciones para registrar tu tienda";
   }
   if (step.value === 4) {
     if (form.value.metodosPago.length === 0)
@@ -1332,8 +1352,12 @@ async function submitStore() {
     // casillas no se guardan: son del formulario, no de la tienda.
     const { conEnlaceFacebook, conEnlaceInstagram, ...datos } = form.value;
 
+    const aceptacion = aceptacionActual();
     const nuevaId = await crearTienda({
       ...datos,
+      aceptoTerminos: true,
+      versionTerminos: aceptacion.version,
+      aceptoTerminosEn: aceptacion.fecha,
       facebookUrl: conEnlaceFacebook ? normalizarEnlace(form.value.facebookUrl) || "" : "",
       instagramUrl: conEnlaceInstagram ? normalizarEnlace(form.value.instagramUrl) || "" : "",
       password: hashedPassword,
@@ -1471,6 +1495,7 @@ watch(
 /* ===== Contenedor ===== */
 .wizard-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2139,4 +2164,10 @@ select:focus {
   font-size: 0.78rem;
   color: #c0392b;
 }
+
+.terminos-tienda { display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+.terminos-tienda input { margin-top: 3px; }
+.terminos-tienda a { color: var(--brand-blue-text); font-weight: 600; }
+.terminos-error { color: #d93025; }
+.terminos-msg { display: block; margin-top: 4px; color: #d93025; font-size: 0.82rem; }
 </style>

@@ -493,6 +493,7 @@ console.log("Correo:", sessionUser.value?.email);
 .profile-container {
   background: var(--surface-2);
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   padding-left: 0;
 }

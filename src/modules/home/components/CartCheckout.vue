@@ -1,5 +1,5 @@
 <template>
-  <div class="checkout-container">
+  <div class="checkout-container" data-sin-recarga>
     <div class="checkout-header">
       <TopBarFija titulo="Confirmar pedido" @back="FlechaBack()" />
       <h1 class="title">Confirmar Pedido</h1>
@@ -117,6 +117,9 @@
             <span>Transferencia</span>
           </div>
         </div>
+
+        <!-- Protección: el pago es directo con la tienda -->
+        <AvisoProteccion :avisos="AVISOS_PEDIDO" />
       </div>
 
       <!-- Paso 3: Resumen -->
@@ -166,6 +169,22 @@
           <span>Total:</span>
           <span>${{ total.toFixed(2) }}</span>
         </div>
+
+        <!-- Artículos bajo pedido: la tienda se pone en contacto -->
+        <p v-if="hayBajoPedido" class="nota-bajo-pedido" data-testid="leyenda-bajo-pedido">🛠️ {{ LEYENDA_BAJO_PEDIDO }}</p>
+
+        <!-- Protección y aceptación antes de confirmar -->
+        <AvisoProteccion :avisos="AVISOS_PEDIDO" titulo="Antes de confirmar" />
+        <label class="acepto-pedido" :class="{ 'acepto-error': faltaAceptar }">
+          <input v-model="aceptaPedido" type="checkbox" data-testid="acepto-pedido" @change="faltaAceptar = false" />
+          <span>
+            {{ TEXTO_ACEPTO_PEDIDO }}
+            (<a :href="URL_TERMINOS" target="_blank" rel="noopener">Ver términos</a>)
+          </span>
+        </label>
+        <p v-if="faltaAceptar" class="acepto-msg" role="alert" data-testid="acepto-pedido-error">
+          Para confirmar tu pedido debes aceptar los Términos y condiciones.
+        </p>
       </div>
 
       <!-- Botones de navegación -->
@@ -191,6 +210,9 @@ import { useCarrito } from "@/db/composables/useCarrito";
 import { guardarPedidos, MENSAJE_LIMITE_CANCELACION } from "@/composables/usePedidos";
 import { tiendasCerradas } from "@/composables/useHorarioTienda";
 import DireccionForm from "@/components/DireccionForm.vue";
+import { LEYENDA_BAJO_PEDIDO } from "@/constants/bajoPedido";
+import AvisoProteccion from "@/components/AvisoProteccion.vue";
+import { AVISOS_PEDIDO, RECORDATORIO_PEDIDO_CONFIRMADO, TEXTO_ACEPTO_PEDIDO, URL_TERMINOS, aceptacionActual } from "@/legal/avisos";
 import {
   useDirecciones,
   direccionTexto,
@@ -205,6 +227,9 @@ const router = useRouter();
 const paso = ref(1);
 const metodoPago = ref("");
 const mpago = ref(false);
+const aceptaPedido = ref(false);
+const hayBajoPedido = computed(() => carrito.some((i: any) => i.porPedido));
+const faltaAceptar = ref(false);
 const subtotal = ref(0);
 const envio = ref(0);
 const total = ref(0);
@@ -287,6 +312,12 @@ const siguientePaso = async () => {
     return; // evita pasar al siguiente paso
   }
 
+  if (paso.value === 3 && !aceptaPedido.value) {
+    // Sin aceptar los Términos (y el aviso de trato directo con la tienda) no se confirma el pedido
+    faltaAceptar.value = true;
+    return;
+  }
+
   if (paso.value === 3) {
     console.log("Pedido confirmado:", {
       domicilio: direccionFinal.value,
@@ -294,7 +325,7 @@ const siguientePaso = async () => {
     });
 
     try {
-      await guardarPedidos(carrito, metodoPago.value, domicilioForm.value);
+      await guardarPedidos(carrito, metodoPago.value, domicilioForm.value, aceptacionActual());
     } catch (e: any) {
       if (e?.name === "TiendaCerradaError") {
         // Una tienda cerró mientras se confirmaba: sus artículos se quedan en el carrito
@@ -339,7 +370,7 @@ const siguientePaso = async () => {
       title: "¡Gracias por tu compra! 🎉",
       // La ventana para cancelar es corta: se avisa aquí, recién hecho el pedido,
       // que es cuando todavía se está a tiempo de usarla.
-      html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong>`,
+      html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong>${hayBajoPedido.value ? `<br><br><small>🛠️ ${LEYENDA_BAJO_PEDIDO}</small>` : ""}<br><br><small>🛡️ ${RECORDATORIO_PEDIDO_CONFIRMADO}</small>`,
       icon: "success",
       confirmButtonText: "Aceptar",
       confirmButtonColor: "var(--color-bg-blue-ligth)",
@@ -459,6 +490,7 @@ const FlechaBack = () => {
 .checkout-container {
   background: var(--surface-2);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -838,4 +870,12 @@ const FlechaBack = () => {
     gap: 1rem;
   }
 }
+
+.acepto-pedido { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 4px; font-size: 0.86rem; line-height: 1.4; cursor: pointer; color: var(--text); }
+.acepto-pedido input { margin-top: 3px; flex: none; }
+.acepto-pedido a { color: var(--brand-blue-text); font-weight: 600; }
+.acepto-error { color: #d93025; }
+.acepto-msg { margin: 4px 0 0; color: #d93025; font-size: 0.82rem; font-weight: 600; }
+
+.nota-bajo-pedido { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.85rem; line-height: 1.4; }
 </style>

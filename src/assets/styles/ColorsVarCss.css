@@ -281,10 +281,28 @@
   color: var(--on-primary) !important;
 }
 
-/* Evitar zoom en botones e inputs por doble tap o pinch */
+/* Pantalla fija a las dimensiones del teléfono: sin pellizco para acercar/alejar ni doble toque para ampliar.
+   (Se desplaza solo arriba/abajo y a los lados donde haya carruseles.) */
 html, body {
-  touch-action: manipulation; /* previene pinch zoom */
-  -ms-touch-action: manipulation;
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+html {
+  overscroll-behavior-y: contain; /* el "jalar para actualizar" lo hace la app (PullToRefresh.vue) */
+}
+/* Nada se sale a los lados del teléfono */
+img, video, canvas, svg, iframe, table {
+  max-width: 100%;
+}
+/* iPhone hace zoom solo al enfocar un campo si su letra es menor de 16 px: en pantallas táctiles se evita */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
 }
 
 button,

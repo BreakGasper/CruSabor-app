@@ -32,6 +32,9 @@ export interface Usuario {
 
   // Otros datos opcionales
   aceptoTerminos?: boolean;
+  /** Versión de los Términos que aceptó y cuándo (ISO) */
+  versionTerminos?: string;
+  aceptoTerminosEn?: string;
 }
 
 export interface Tienda {

@@ -109,6 +109,7 @@
 
       <p v-if="producto.porPedido" class="stock-badge por-pedido">
         🛠️ Se elabora bajo pedido: la tienda lo prepara cuando lo pides
+        <small class="leyenda-bajo-pedido" data-testid="leyenda-bajo-pedido">{{ LEYENDA_BAJO_PEDIDO_CORTA }}</small>
       </p>
       <p v-else class="stock-badge" :class="estadoStock">
         <span v-if="estadoStock === 'agotado'">🔴 Agotado</span>
@@ -211,6 +212,7 @@
 </template>
 
 <script setup lang="ts">
+import { LEYENDA_BAJO_PEDIDO_CORTA } from "@/constants/bajoPedido";
 import { ref, watch, computed, reactive, onMounted } from 'vue';
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
 import defaultImg from '@/assets/icons/default_articulo.png';
@@ -561,6 +563,7 @@ function onImgError(e: Event) {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--surface);
 }
 
@@ -1002,4 +1005,6 @@ function onImgError(e: Event) {
     border-radius: 25px 25px 0 25px; /* inf der recta también en escritorio */
   }
 }
+
+.leyenda-bajo-pedido { display: block; margin-top: 4px; font-weight: 400; font-size: 0.8rem; line-height: 1.35; opacity: 0.9; }
 </style>

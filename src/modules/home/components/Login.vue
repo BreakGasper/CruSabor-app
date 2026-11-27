@@ -90,6 +90,13 @@
         >¿Olvidaste tu contraseña?</a
       >
 
+      <p class="legal-links">
+        Al entrar aceptas los
+        <a :href="URL_TERMINOS" target="_blank" rel="noopener">Términos y condiciones</a>
+        y el
+        <a :href="URL_PRIVACIDAD" target="_blank" rel="noopener">Aviso de privacidad</a>.
+      </p>
+
       <!-- Acciones -->
       <button type="submit" class="btn-primary">Entrar</button>
 
@@ -162,6 +169,7 @@
 </template>
 
 <script setup lang="ts">
+import { URL_PRIVACIDAD, URL_TERMINOS } from "@/legal/avisos";
 import { ref } from "vue";
 import { findUserByPhone } from "@/composables/useAuth";
 import TopBarFija from "@/components/TopBarFija.vue";
@@ -340,6 +348,7 @@ function forgotPassword() {
 <style scoped>
 .login-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -771,4 +780,7 @@ function forgotPassword() {
     left: 1.5rem;
   }
 }
+
+.legal-links { margin: 6px 0 12px; font-size: 0.78rem; color: var(--text-muted); text-align: center; line-height: 1.4; }
+.legal-links a { color: var(--brand-blue-text); font-weight: 600; }
 </style>

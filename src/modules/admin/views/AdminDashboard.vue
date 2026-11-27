@@ -219,6 +219,7 @@ function fechaCorta(iso?: string) {
 <style scoped>
 .admin-container {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--surface-2);
   font-family: 'Poppins', 'Segoe UI', sans-serif;
   color: var(--text);

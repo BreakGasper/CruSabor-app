@@ -19,39 +19,52 @@
 export const UMBRAL = 70;
 
 /**
- * Zonas desde las que se puede empezar el gesto: solo las cabeceras.
- *
- * Antes se escuchaba en toda la página y, en cuanto el arrastre pasaba de 10 px,
- * `onMove` hacía `preventDefault()`. Eso entorpecía el desplazamiento normal en
- * todas las pantallas. Limitándolo a la cabecera, el resto del contenido nunca
- * ve un `preventDefault` y se desplaza con total libertad.
- *
- * Son las cabeceras de página, no las de tarjetas, paneles ni modales
- * (`.panel-head`, `.grupo-header`, `.se-header`, `.cmp-head` quedan fuera a propósito).
+ * Zonas donde el gesto NO debe empezar:
+ *  - campos de texto y editables (el dedo ahí es para escribir o mover el cursor);
+ *  - diálogos y ventanas encima de la pantalla (tienen su propio desplazamiento);
+ *  - lienzos (el editor de diseños, mapas) y cualquier zona marcada con `data-sin-recarga`;
+ *    las pantallas con un formulario a medias se marcan así para no perder lo capturado.
  */
-export const SELECTOR_CABECERA = [
-  '.page-header', // PageHeader.vue: barra azul de listas y detalles
-  '.top-bar-fija', // TopBarFija.vue: píldora de login, registro, checkout, perfil…
-  '.top-bar-top', // barra superior de la portada (menú · buscador · carrito · perfil)
-  '.admin-topbar', // AdminTopbar.vue: panel de administración
-  '.store-banner', // portada del perfil de tienda, que hace de cabecera
-  '.detalle-header', // imagen superior del detalle de producto, con su botón de volver
-  '[data-pull-refresh]', // escotilla: cualquier pantalla puede habilitar su propia zona
+export const SELECTOR_EXCLUIDO = [
+  'input',
+  'textarea',
+  'select',
+  '[contenteditable="true"]',
+  'canvas',
+  '[data-sin-recarga]',
+  '[role="dialog"]',
+  '.swal2-container',
+  '.p-dialog-mask',
+  '.p-dialog',
+  '.rec-overlay',
+  '.vp-overlay',
 ].join(',');
+
+/** ¿Puede empezar el gesto aquí? Pantalla arriba del todo y nada con scroll propio ya desplazado bajo el dedo */
+export function puedeIniciarGesto(objetivo: EventTarget | null, scrollY = window.scrollY): boolean {
+  if (scrollY > 0 || document.documentElement.scrollTop > 0) return false;
+  const el = objetivo instanceof Element ? objetivo : null;
+  if (el?.closest(SELECTOR_EXCLUIDO)) return false;
+  // Si hay un campo enfocado (teclado abierto), el gesto no se arma
+  const activo = document.activeElement;
+  if (activo && /^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName)) return false;
+  let cursor: Element | null = el;
+  while (cursor && cursor !== document.body) {
+    if (cursor.scrollTop > 0) return false;
+    cursor = cursor.parentElement;
+  }
+  return true;
+}
 </script>
 
 <script setup lang="ts">
 /**
- * Deslizar hacia abajo para actualizar (móvil).
+ * Deslizar hacia abajo para actualizar (móvil), **desde cualquier parte de la pantalla**.
  *
- * El gesto solo empieza **desde la cabecera** (ver SELECTOR_CABECERA). Si además la
- * pantalla está en la parte superior (ni la ventana ni el contenedor con scroll bajo
- * el dedo se han desplazado) y el usuario arrastra hacia abajo más de UMBRAL px, emite
- * `refresh`. App.vue responde volviendo a montar la vista actual, así cada pantalla
- * recarga sus datos con su propio onMounted, sin recargar la página ni perder la sesión.
- *
- * Empezar fuera de la cabecera no arma nada: el gesto se ignora por completo y el
- * desplazamiento del contenido queda intacto.
+ * Funciona como un F5: al soltar después del umbral se emite `refresh` y App.vue recarga la página.
+ * El gesto solo se arma si la pantalla está arriba del todo, el arrastre es sobre todo vertical y no
+ * empieza en un campo de texto, un diálogo, un lienzo o una zona con `data-sin-recarga` (ver arriba).
+ * Un arrastre horizontal (carruseles, deslizar entre pestañas) lo cancela.
  *
  * Necesario porque la app desactiva el "pull to refresh" nativo del navegador
  * (overscroll-behavior: contain) y en modo PWA no hay botón de recargar.
@@ -64,46 +77,37 @@ const props = defineProps<{ refrescando?: boolean }>();
 const desplazamiento = ref(0);
 const listo = ref(false);
 let inicioY: number | null = null;
+let inicioX = 0;
 let activo = false;
-
-/** ¿El dedo empezó sobre una cabecera de página? */
-function enCabecera(objetivo: EventTarget | null): boolean {
-  return objetivo instanceof Element && objetivo.closest(SELECTOR_CABECERA) !== null;
-}
-
-/** ¿Todo lo que hay bajo el dedo está en la parte superior de su scroll? */
-function arriba(objetivo: EventTarget | null): boolean {
-  if (window.scrollY > 0 || document.documentElement.scrollTop > 0) return false;
-  let el = objetivo instanceof Element ? objetivo : null;
-  while (el && el !== document.body) {
-    if (el.scrollTop > 0) return false;
-    el = el.parentElement;
-  }
-  return true;
-}
 
 function onStart(e: TouchEvent) {
   if (props.refrescando || e.touches.length !== 1) return;
-  // Fuera de la cabecera el gesto ni se arma, y así onMove nunca llega a
-  // preventDefault: el contenido se desplaza sin estorbos.
-  if (!enCabecera(e.target) || !arriba(e.target)) {
+  if (!puedeIniciarGesto(e.target)) {
     inicioY = null;
     return;
   }
   inicioY = e.touches[0].clientY;
+  inicioX = e.touches[0].clientX ?? 0;
   activo = false;
 }
 
 function onMove(e: TouchEvent) {
   if (inicioY === null || props.refrescando) return;
-  const delta = e.touches[0].clientY - inicioY;
+  const t = e.touches[0];
+  const delta = t.clientY - inicioY;
   if (delta <= 0) {
     desplazamiento.value = 0;
     listo.value = false;
     return;
   }
-  // Un input enfocado o un arrastre horizontal no deben disparar el gesto
-  if (!activo && delta < 10) return;
+  if (!activo) {
+    if (delta < 10) return; // tolerancia
+    // Un arrastre más horizontal que vertical no es este gesto (carruseles, pestañas)
+    if (Math.abs((t.clientX ?? 0) - inicioX) > delta * 0.8) {
+      inicioY = null;
+      return;
+    }
+  }
   activo = true;
   // Resistencia: el indicador avanza más lento que el dedo
   desplazamiento.value = Math.min(delta * 0.5, UMBRAL + 40);

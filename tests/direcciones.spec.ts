@@ -266,12 +266,21 @@ describe('Checkout · domicilio de entrega', () => {
     await w.find('.button-row button').trigger('click'); // paso 3
     expect(w.find('.resumen-pedido').text()).toContain('Hidalgo #55, La Villa, Ameca, Jalisco, CP 46601');
 
+    // Sin aceptar los Términos no se confirma
+    await w.find('.button-row button').trigger('click');
+    await flushPromises();
+    expect(Object.values(__getAt('pedidos') || {})).toHaveLength(0);
+    expect(w.find('[data-testid="acepto-pedido-error"]').exists()).toBe(true);
+    await w.find('[data-testid="acepto-pedido"]').setValue(true);
+    expect(w.find('[data-testid="acepto-pedido-error"]').exists()).toBe(false);
+
     await w.find('.button-row button').trigger('click'); // confirmar
     await flushPromises();
     await flushPromises();
 
     const pedidos = Object.values(__getAt('pedidos') || {}) as any[];
     expect(pedidos).toHaveLength(1);
+    expect(pedidos[0].terminos).toMatchObject({ version: '2026-11-27' }); // el pedido guarda qué Términos se aceptaron
     expect(pedidos[0].domicilio).toEqual({
       calleNumero: 'Hidalgo #55',
       lugar: 'La Villa',

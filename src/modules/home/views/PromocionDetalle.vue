@@ -215,6 +215,7 @@ function onImgError(e: Event) {
 <style scoped>
 .promo-detalle {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-page);
   padding-bottom: 2rem;
 }

@@ -63,6 +63,23 @@ async function subirImagen(w: any, selector: string, nombre = 'foto.jpg', tipo =
   const file = new File([new Uint8Array(bytes)], nombre, { type: tipo });
   Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
   await input.trigger('change');
+  await flushPromises();
+  // La foto válida abre el recortador (en un diálogo aparte): se confirma tal cual para seguir con el formulario
+  const usarTal = document.body.querySelector('[data-testid="rec-original"]') as HTMLElement | null;
+  if (usarTal) {
+    usarTal.click();
+    await flushPromises();
+  }
+}
+
+/** El diálogo del recortador, si está abierto */
+const recortador = () => document.body.querySelector('[data-testid="rec-original"]');
+async function elegirSinConfirmar(w: any, selector: string, nombre = 'foto.jpg') {
+  const input = w.find(selector);
+  const file = new File([new Uint8Array(1000)], nombre, { type: 'image/jpeg' });
+  Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+  await input.trigger('change');
+  await flushPromises();
 }
 
 /** Botón del pie del paso, por su texto (al editar hay uno más: "Guardar") */
@@ -164,8 +181,9 @@ describe('ProductForm · validaciones', () => {
     expect(mensaje(w)).toContain('mínimo 1');
     await cerrarDialogo(w);
 
-    // segunda variante con el mismo SKU que la base
+    // segunda variante con el mismo SKU que la base (las variantes se activan con el interruptor)
     await stock.setValue('5');
+    await w.find('[data-testid="switch-variantes-input"]').setValue(true);
     await w.find('.small-button').trigger('click');
     const skus = w.findAll('input[placeholder="Código SKU"]');
     await skus[1].setValue(skus[0].element.value);
@@ -542,5 +560,201 @@ describe('ProductForm · guardar desde cualquier paso (edición)', () => {
     expect(w.find('input[placeholder="$0.00"]').exists()).toBe(true); // se movió al paso 2
     expect((__getAt('articulos/art-1') as any).precio).toBe(0); // no se guardó nada
     expect(routerMock.replace).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('ProductForm · variantes opcionales', () => {
+  const guardar = async (w: any) => {
+    await w.findAll('.button-row .modern-button')[1].trigger('click'); // Registrar
+    await flushPromises();
+    await flushPromises();
+  };
+
+  it('por defecto el interruptor está apagado: se explica y solo se piden SKU y existencias', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    expect((w.find('[data-testid="switch-variantes-input"]').element as HTMLInputElement).checked).toBe(false);
+    expect(w.find('[data-testid="leyenda-variantes"]').text()).toMatch(/se crearán más artículos \(variantes\) sobre la misma línea/);
+    expect(w.find('[data-testid="leyenda-variantes"]').text()).toMatch(/genéricos/);
+    expect(w.find('[data-testid="bloque-sin-variantes"]').exists()).toBe(true);
+    expect(w.find('.small-button').exists()).toBe(false); // sin "Agregar variante"
+    expect(w.findAll('.variante-card')).toHaveLength(1); // solo el bloque simple
+  });
+
+  it('sin variantes se guarda un artículo con lo básico y color, tamaño y material genéricos para los filtros', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    await w.find('.stock-check').setValue(true);
+    await w.find('.stock-input').setValue('7');
+    await guardar(w);
+    const a = (Object.values(__getAt('articulos') || {}) as any[])[0];
+    expect(a.variantes).toHaveLength(1);
+    expect(a.variantes[0]).toMatchObject({ isDefault: true, color: 'Gris', tamano: 'Otro', material: 'Otro', detalle: 'Producto Base', stock: 7, tieneStock: true, precio: 45 });
+  });
+
+  it('al encenderlo aparece el editor de variantes y se puede agregar otra', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    await w.find('[data-testid="switch-variantes-input"]').setValue(true);
+    expect(w.find('[data-testid="bloque-sin-variantes"]').exists()).toBe(false);
+    expect(w.find('.small-button').exists()).toBe(true);
+    await w.find('.small-button').trigger('click');
+    expect(w.findAll('.variante-card')).toHaveLength(2);
+  });
+
+  it('apagarlo con variantes agregadas pide confirmar y las descarta; si no confirma, se queda encendido', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    const sw = w.find('[data-testid="switch-variantes-input"]');
+    await sw.setValue(true);
+    await w.find('.small-button').trigger('click');
+
+    swalMock.fire.mockResolvedValueOnce({ isConfirmed: false });
+    await sw.setValue(false);
+    await flushPromises();
+    expect((swalMock.fire.mock.calls.at(-1)![0] as any).title).toBe('¿Quitar las variantes?');
+    expect((sw.element as HTMLInputElement).checked).toBe(true);
+    expect(w.findAll('.variante-card')).toHaveLength(2);
+
+    swalMock.fire.mockResolvedValueOnce({ isConfirmed: true });
+    await sw.setValue(false);
+    await flushPromises();
+    expect(w.find('[data-testid="bloque-sin-variantes"]').exists()).toBe(true);
+    await guardar(w);
+    expect(((Object.values(__getAt('articulos') || {}) as any[])[0]).variantes).toHaveLength(1);
+  });
+
+  it('al editar un artículo que ya tiene variantes, el interruptor arranca encendido; con solo la base, apagado', async () => {
+    const base = { isDefault: true, sku: 'CRU-1', color: 'Gris', tamano: 'Otro', material: 'Otro', detalle: 'Producto Base', precio: 32, stock: -1, tieneStock: false, url: 'https://cdn.test/v.jpg' };
+    const art = (variantes: any[]) => ({
+      nombre: 'Jericalla', descripcion: 'Postre', url: 'https://cdn.test/v.jpg', precio: 32, unidadMedida: 'pz', categoria: 'Alimentos y Bebidas', categoriaId: 'cat-1', tiendaId: TIENDA, tiendaNombre: 'Postres Lola', variantes,
+    });
+    __reset({ articulos: { 'art-1': art([base, { ...base, isDefault: false, sku: 'CRU-2', color: 'Rojo', detalle: 'Rojo', tamano: 'Chico', material: 'Cartón' }]) }, categorias: {} });
+    routeMock.params = { articuloId: 'art-1' };
+    const w = await montar();
+    await flushPromises();
+    (w.vm as any).step = 3;
+    await w.vm.$nextTick();
+    expect((w.find('[data-testid="switch-variantes-input"]').element as HTMLInputElement).checked).toBe(true);
+
+    __reset({ articulos: { 'art-1': art([base]) }, categorias: {} });
+    const w2 = await montar();
+    await flushPromises();
+    (w2.vm as any).step = 3;
+    await w2.vm.$nextTick();
+    expect((w2.find('[data-testid="switch-variantes-input"]').element as HTMLInputElement).checked).toBe(false);
+  });
+});
+
+describe('ProductForm · vista previa flotante', () => {
+  const dialogo = () => document.body.querySelector('[data-testid="vp-titulo"]');
+  const texto = (sel: string) => (document.body.querySelector(sel)?.textContent || '').replace(/\s+/g, ' ').trim();
+
+  it('hay un botón flotante en todos los pasos y abre el detalle como lo vería un cliente, con lo capturado', async () => {
+    const w = await montar();
+    expect(w.find('[data-testid="abrir-vista-previa"]').exists()).toBe(true);
+    await w.find('input[placeholder="Nombre del artículo"]').setValue('Chocoflan pay');
+    await w.find('textarea[placeholder="Descripción breve"]').setValue('Rebanada artesanal');
+
+    await w.find('[data-testid="abrir-vista-previa"]').trigger('click');
+    await flushPromises();
+    expect(dialogo()).not.toBeNull();
+    expect(texto('[data-testid="vp-titulo"]')).toBe('Chocoflan pay');
+    expect(document.body.textContent).toContain('Rebanada artesanal');
+    expect(document.body.textContent).toContain('Postres Lola'); // la tienda
+    expect(document.body.textContent).toContain('así lo verá tu cliente');
+    expect((document.body.querySelector('.vp-agregar') as HTMLButtonElement).disabled).toBe(true); // es solo vista previa
+
+    (document.body.querySelector('[data-testid="vp-cerrar"]') as HTMLElement).click();
+    await flushPromises();
+    expect(dialogo()).toBeNull();
+    // al cerrar, el botón flotante vuelve
+    expect(w.find('[data-testid="abrir-vista-previa"]').exists()).toBe(true);
+  });
+
+  it('muestra el precio, "bajo pedido" y la disponibilidad según lo que se vaya capturando', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    await w.find('.stock-check').setValue(true);
+    await w.find('.stock-input').setValue('3');
+    await w.find('[data-testid="abrir-vista-previa"]').trigger('click');
+    await flushPromises();
+    expect(texto('[data-testid="vp-precio"]')).toContain('$45.00');
+    expect(texto('[data-testid="vp-disponibilidad"]')).toContain('Últimas 3 unidades');
+    (document.body.querySelector('[data-testid="vp-cerrar"]') as HTMLElement).click();
+    await flushPromises();
+
+    // bajo pedido: lo dice y lleva la leyenda de contacto
+    await w.find('.button-row .secondary').trigger('click'); // paso 2
+    await w.find('input.por-pedido-check').setValue(true);
+    await w.find('[data-testid="abrir-vista-previa"]').trigger('click');
+    await flushPromises();
+    expect(document.body.textContent).toContain('Se elabora bajo pedido');
+    expect(document.body.textContent).toMatch(/la tienda se pondrá en contacto/i);
+    (document.body.querySelector('[data-testid="vp-cerrar"]') as HTMLElement).click();
+  });
+
+  it('con variantes muestra sus opciones y al elegir otra cambia el precio', async () => {
+    const w = await montar();
+    await completarPaso1(w);
+    await completarPaso2(w);
+    await w.find('[data-testid="switch-variantes-input"]').setValue(true);
+    await w.find('.small-button').trigger('click');
+    (w.vm as any).form.variantes[1].precio = 99;
+    (w.vm as any).form.variantes[1].colorCodigo = '#ff0000';
+    await w.find('[data-testid="abrir-vista-previa"]').trigger('click');
+    await flushPromises();
+    const puntos = document.body.querySelectorAll('[data-testid="vp-variante"]');
+    expect(puntos).toHaveLength(2);
+    expect(texto('[data-testid="vp-precio"]')).toContain('$45.00');
+    (puntos[1] as HTMLElement).click();
+    await flushPromises();
+    expect(texto('[data-testid="vp-precio"]')).toContain('$99.00');
+    (document.body.querySelector('[data-testid="vp-cerrar"]') as HTMLElement).click();
+  });
+});
+
+describe('ProductForm · recortar y ajustar la foto', () => {
+  it('al elegir una foto se abre el recortador y la foto NO se aplica hasta confirmar', async () => {
+    const w = await montar();
+    await elegirSinConfirmar(w, 'input[type=file]', 'tarta.jpg');
+    expect(recortador()).not.toBeNull();
+    expect(document.body.textContent).toContain('Recortar y ajustar tu foto');
+    expect(w.find('.image-preview').exists()).toBe(false);
+    for (const id of ['rec-zoom', 'rec-girar-izq', 'rec-girar-der', 'rec-brillo', 'rec-contraste', 'rec-color', 'rec-aplicar', 'aspecto-1:1', 'aspecto-4:3', 'aspecto-3:4']) {
+      expect(document.body.querySelector(`[data-testid="${id}"]`), id).not.toBeNull();
+    }
+  });
+
+  it('cancelar descarta la foto; "Usar sin recortar" la aplica tal cual', async () => {
+    const w = await montar();
+    await elegirSinConfirmar(w, 'input[type=file]');
+    const cancelar = [...document.body.querySelectorAll('.rec-pie button')].find((b) => b.textContent === 'Cancelar') as HTMLElement;
+    cancelar.click();
+    await flushPromises();
+    expect(recortador()).toBeNull();
+    expect(w.find('.image-preview').exists()).toBe(false);
+
+    await elegirSinConfirmar(w, 'input[type=file]', 'tarta.jpg');
+    (recortador() as HTMLElement).click(); // Usar sin recortar
+    await flushPromises();
+    expect(recortador()).toBeNull();
+    expect(w.find('.image-preview').exists()).toBe(true);
+    expect(w.find('[data-testid="recortar-principal"]').exists()).toBe(true); // se puede volver a recortar
+  });
+
+  it('una foto inválida (PDF o muy pesada) no abre el recortador', async () => {
+    const w = await montar();
+    await subirImagen(w, 'input[type=file]', 'doc.pdf', 'application/pdf');
+    expect(recortador()).toBeNull();
+    await cerrarDialogo(w);
+    await subirImagen(w, 'input[type=file]', 'grande.jpg', 'image/jpeg', 6 * 1024 * 1024);
+    expect(recortador()).toBeNull();
   });
 });

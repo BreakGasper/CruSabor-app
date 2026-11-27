@@ -11,6 +11,7 @@ import Dialog from "primevue/dialog";
 import Button from "primevue/button";
 import ToastService from "primevue/toastservice";
 import { instalarCarga } from "./services/carga";
+import { instalarSinZoom } from "./utils/sinZoom";
 const app = createApp(App);
 
 app.config.devtools = true;
@@ -24,5 +25,7 @@ app.use(createPinia());
 
 // Indicador de carga con el logo: escucha los toques y rastrea las llamadas al servidor
 instalarCarga();
+// Sin zoom con el pellizco: la app queda fija a las dimensiones del teléfono
+instalarSinZoom();
 
 app.mount("#app");

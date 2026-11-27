@@ -22,8 +22,16 @@ export interface PerfilesDelCelular {
   tiendas: TiendaDeCuenta[];
 }
 
+/** Celular a 10 dígitos: acepta espacios, guiones, "+52", o un número guardado como tipo numérico */
+export const celularDe10 = (telefono: unknown): string => {
+  const d = String(telefono ?? '').replace(/\D/g, '');
+  return d.length > 10 ? d.slice(-10) : d;
+};
+
 export async function perfilesDelCelular(telefono: string): Promise<PerfilesDelCelular> {
-  const [cliente, tiendas] = await Promise.all([findUserByPhone(telefono), tiendasDelTelefono(telefono)]);
+  const tel = celularDe10(telefono);
+  if (!tel) return { cliente: null, tiendas: [] };
+  const [cliente, tiendas] = await Promise.all([findUserByPhone(tel), tiendasDelTelefono(tel)]);
   return { cliente, tiendas };
 }
 

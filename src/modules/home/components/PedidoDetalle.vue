@@ -62,6 +62,14 @@
           <span v-if="motivoDe()" class="motivo">· {{ motivoDe() }}</span>
         </p>
 
+        <p
+          v-if="pedido.estatus !== 'Cancelado' && tieneArticulosPorPedido(pedido)"
+          class="leyenda-bajo-pedido"
+          data-testid="leyenda-bajo-pedido"
+        >
+          🛠️ {{ LEYENDA_BAJO_PEDIDO }}
+        </p>
+
         <p v-if="pedido.estatus === 'Atendiendo'" class="atendiendo-msg">
           👨‍🍳 La tienda ya está atendiendo tu pedido{{ tieneArticulosPorPedido(pedido) ? ': tus artículos bajo pedido se están elaborando' : '' }}.
           Te avisaremos cuando vaya en camino.
@@ -84,6 +92,9 @@
         >
           ✖ {{ motivoDe(tiendas[0]) }}
         </p>
+
+        <!-- Protección al recibir el pedido -->
+        <AvisoProteccion v-if="pedido.estatus !== 'Cancelado'" :avisos="AVISOS_ENTREGA" titulo="Al recibir tu pedido" />
 
         <!-- Historial -->
         <details v-if="pedido.historial?.length" class="historial">
@@ -226,6 +237,9 @@ import type { Pedido, PedidoItem } from "@/composables/usePedidos";
 import { useTiendas } from "@/composables/useTiendas";
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import PageHeader from "@/components/PageHeader.vue";
+import AvisoProteccion from "@/components/AvisoProteccion.vue";
+import { AVISOS_ENTREGA } from "@/legal/avisos";
+import { LEYENDA_BAJO_PEDIDO } from "@/constants/bajoPedido";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import moneyIcon from "@/assets/icons/money.png";
 import cardIcon from "@/assets/icons/trasfer.png";
@@ -879,4 +893,6 @@ function onImgError(e: Event) {
   font-size: 0.8rem;
   line-height: 1.35;
 }
+
+.leyenda-bajo-pedido { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.85rem; line-height: 1.4; }
 </style>
