@@ -127,6 +127,8 @@
       @close="pagoVisible = false"
       @saved="onPagoGuardado"
     />
+
+    <VersionApp />
   </div>
 </template>
 
@@ -134,6 +136,7 @@
 import { computed, onMounted, ref } from 'vue';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
+import VersionApp from '@/components/VersionApp.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
 import { PLAN_LABEL, type PagoRegistrado } from '@/composables/useAdminTiendas';
 import { useSolicitudesPago, atenderSolicitud, type SolicitudPago } from '@/composables/useSolicitudesPago';

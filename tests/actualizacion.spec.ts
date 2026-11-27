@@ -171,3 +171,71 @@ describe('Firebase Hosting: caché', () => {
     expect(hosting.rewrites).toEqual([{ source: '**', destination: '/index.html' }]);
   });
 });
+
+import { estadoCarga, mostrarCargaYa, ocultarCargaYa, __resetCarga, iniciarOperacion } from '@/services/carga';
+import { CLAVE_RECARGANDO, marcarRecargando, vienesDeRecarga } from '@/utils/actualizacion';
+import VersionApp from '@/components/VersionApp.vue';
+
+describe('carga al deslizar para actualizar', () => {
+  beforeEach(() => { __resetCarga(); vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); __resetCarga(); });
+
+  it('mostrarCargaYa muestra el indicador de inmediato (sin esperar a que algo tarde)', () => {
+    expect(estadoCarga.visible.value).toBe(false);
+    mostrarCargaYa();
+    expect(estadoCarga.visible.value).toBe(true);
+  });
+
+  it('se esconde sola si la recarga no llega a ocurrir (p. ej. sin internet)', () => {
+    mostrarCargaYa(5000);
+    vi.advanceTimersByTime(4900);
+    expect(estadoCarga.visible.value).toBe(true);
+    vi.advanceTimersByTime(200);
+    expect(estadoCarga.visible.value).toBe(false);
+  });
+
+  it('ocultarCargaYa lo esconde, salvo que haya algo pendiente de verdad', () => {
+    mostrarCargaYa();
+    ocultarCargaYa();
+    expect(estadoCarga.visible.value).toBe(false);
+    const terminar = iniciarOperacion();
+    mostrarCargaYa();
+    ocultarCargaYa();
+    expect(estadoCarga.visible.value).toBe(true);
+    terminar();
+  });
+
+  it('recargar deja la marca; al arrancar se consume una sola vez y solo vale 30 segundos', async () => {
+    const memoria: Record<string, string> = {};
+    const almacen = { getItem: (k: string) => memoria[k] ?? null, setItem: (k: string, v: string) => { memoria[k] = v; }, removeItem: (k: string) => { delete memoria[k]; } };
+    expect(vienesDeRecarga(1000, almacen)).toBe(false);
+    marcarRecargando(almacen);
+    expect(Object.keys(memoria)).toEqual([CLAVE_RECARGANDO]);
+    expect(vienesDeRecarga(Date.now() + 2000, almacen)).toBe(true);
+    expect(vienesDeRecarga(Date.now() + 2000, almacen)).toBe(false); // ya se consumió
+    marcarRecargando(almacen);
+    expect(vienesDeRecarga(Date.now() + 60_000, almacen)).toBe(false); // muy vieja
+  });
+
+  it('recargarConLoNuevo deja la marca antes de recargar', async () => {
+    sessionStorage.clear();
+    let marcaAlRecargar: string | null = null;
+    await recargarConLoNuevo({ consultar: (async () => respuesta({})) as any, recargar: () => { marcaAlRecargar = sessionStorage.getItem(CLAVE_RECARGANDO); } });
+    expect(marcaAlRecargar).not.toBeNull();
+  });
+});
+
+describe('pantalla de arranque y versión visible', () => {
+  it('index.html trae una pantalla de carga dentro de #app, para que nunca se vea vacío antes de que cargue el JavaScript', () => {
+    const html = readFileSync(resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/<div id="app">[\s\S]*class="arranque"[\s\S]*<\/div>\s*<script type="module"/);
+    expect(html).toContain('role="status"');
+    expect(html).toContain('prefers-color-scheme: dark');
+  });
+
+  it('la etiqueta de versión muestra la versión que corre', () => {
+    const w = mount(VersionApp);
+    expect(w.text()).toMatch(/^Versión \S+/);
+    expect(w.find('[data-testid="version-app"]').exists()).toBe(true);
+  });
+});

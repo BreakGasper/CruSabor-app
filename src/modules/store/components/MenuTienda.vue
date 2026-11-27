@@ -86,6 +86,7 @@
             <button type="button" class="mt-opcion mt-salir" @click="$emit('accion', 'cerrar-sesion')">
               <span class="mt-icono" aria-hidden="true">🚪</span><span>Cerrar sesión</span>
             </button>
+            <VersionApp />
           </footer>
         </aside>
       </div>
@@ -95,6 +96,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import VersionApp from '@/components/VersionApp.vue';
 import { useRouter } from 'vue-router';
 import { cambiarTiendaActiva, MAX_TIENDAS_POR_TELEFONO, type TiendaEnCuenta } from '@/composables/cuentaTienda';
 

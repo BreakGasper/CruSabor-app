@@ -32,6 +32,7 @@ import { useRoute } from "vue-router";
 import PullToRefresh from "@/components/PullToRefresh.vue";
 import AvisoActualizacion from "@/components/AvisoActualizacion.vue";
 import { recargarConLoNuevo, vigilarVersion } from "@/utils/actualizacion";
+import { mostrarCargaYa } from "@/services/carga";
 import { cargarSesion } from "@/utils/sessionUser";
 import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
@@ -86,6 +87,7 @@ const refrescando = ref(false);
 function refrescarVista() {
   if (refrescando.value) return;
   refrescando.value = true; // el indicador gira mientras el navegador recarga
+  mostrarCargaYa(); // y el logo de carga cubre la pantalla: nunca se ve vacía mientras se recarga
   // Primero se vuelve a pedir el HTML sin usar la copia guardada (en la app instalada del iPhone, la recarga
   // sola se quedaba con la versión vieja) y luego se recarga: así trae lo último publicado.
   void recargarConLoNuevo();
@@ -95,6 +97,7 @@ function refrescarVista() {
 const hayVersionNueva = ref(false);
 function actualizarAhora() {
   refrescando.value = true;
+  mostrarCargaYa();
   void recargarConLoNuevo();
 }
 let dejarDeVigilar: (() => void) | null = null;

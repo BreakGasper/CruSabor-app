@@ -169,6 +169,8 @@
     />
   </div>
 
+  <VersionApp />
+
   <ConfirmModal
     :visible="showConfirmLogout"
     mensaje="¿Estás seguro de cerrar tu sesión?"
@@ -184,6 +186,7 @@
 </template>
 
 <script setup lang="ts">
+import VersionApp from "@/components/VersionApp.vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 
 import { computed, onMounted, ref, watch } from "vue";

@@ -133,9 +133,33 @@ export async function conCarga<T>(tarea: Promise<T> | (() => Promise<T>)): Promi
   }
 }
 
+let timerForzado: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Muestra el indicador de inmediato, sin esperar a que algo tarde: se usa al deslizar para actualizar y mientras
+ * la app arranca después de recargarse, para que nunca se vea la pantalla vacía. Se esconde sola a los `maxMs`
+ * (por si la recarga no llega a ocurrir, p. ej. sin internet) o con `ocultarCargaYa()`.
+ */
+export function mostrarCargaYa(maxMs = 12000) {
+  timerMostrar = limpiar(timerMostrar);
+  timerOcultar = limpiar(timerOcultar);
+  timerForzado = limpiar(timerForzado);
+  visible.value = true;
+  lento.value = false;
+  visibleDesde = Date.now();
+  timerForzado = setTimeout(() => ocultarCargaYa(), maxMs);
+}
+
+/** Esconde el indicador mostrado con `mostrarCargaYa` (si hay algo pendiente de verdad, sigue visible) */
+export function ocultarCargaYa() {
+  timerForzado = limpiar(timerForzado);
+  if (pendientes.value === 0) ocultar();
+}
+
 /** Botón "Ocultar" del indicador: lo esconde, aunque lo pendiente siga corriendo */
 export function ocultarIndicador() {
   timerMostrar = limpiar(timerMostrar);
+  timerForzado = limpiar(timerForzado);
   ocultar();
 }
 
@@ -164,6 +188,7 @@ export function instalarCarga() {
 
 /** Solo para pruebas */
 export function __resetCarga() {
+  timerForzado = limpiar(timerForzado);
   timerMostrar = limpiar(timerMostrar);
   timerLento = limpiar(timerLento);
   timerOcultar = limpiar(timerOcultar);
