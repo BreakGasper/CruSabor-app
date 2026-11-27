@@ -100,6 +100,9 @@ export function marcarRecargaPorVersion(ahora = Date.now(), almacen: Pick<Storag
   }
 }
 
+/** ¿Hay un formulario a medias en pantalla? (las pantallas de captura se marcan con `data-sin-recarga`) */
+export const hayFormularioAbierto = (doc: Document = document) => !!doc.querySelector('[data-sin-recarga]');
+
 /** ¿Es seguro recargar solo? No si hay un formulario a medias o se está escribiendo en un campo */
 export function sePuedeRecargarSolo(doc: Document = document): boolean {
   if (doc.querySelector('[data-sin-recarga]')) return false;
