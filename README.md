@@ -619,3 +619,11 @@ Herramienta gratuita y local para crear publicidad de productos (flyers, banners
 - **Giros:** *Calzado* (letras enormes y color fuerte; las medidas se llaman "Tallas"), *Ropa y moda* (editorial y elegante; "Tallas") y *Maquillaje y belleza* (rosas, dorados y brillo; "Contenido" y "Tono"), cada uno con dos paletas.
 - **Recursos gráficos** (`motor/decor.ts`): confeti, estrellas, burbujas, destellos, rayos, franjas, colinas, sol, tablones, papel picado, puntos, marco, brillo, círculos, líneas y esquinas, todos generados con formas (nada se descarga). Tipografías: las del sistema (funciona sin internet).
 - **Pendiente (siguiente fase):** recorte de fondo local (modelo ONNX, descarga opcional y avisando el tamaño), OCR local para autollenar los datos, recorte manual de la foto y plantillas guardables.
+
+## Términos, privacidad y avisos de protección
+
+- **Páginas públicas:** `public/terminos.html` (Términos y condiciones) y `public/privacidad.html`; se enlazan entre sí, desde el inicio de sesión, el registro de clientes, el de tiendas y el checkout.
+- **Un solo lugar para los textos:** `src/legal/avisos.ts` (versión `VERSION_TERMINOS`, avisos del pedido, de la entrega y de las tiendas). Si se cambian los Términos, hay que subir la versión y la fecha (hay una prueba que comprueba que la página y la app coinciden). El plazo de cancelación que dicen los Términos también se comprueba contra el de la app.
+- **Aceptación guardada:** el cliente (`versionTerminos`, `aceptoTerminosEn` en su usuario), la tienda (en su registro, ahora obligatoria) y cada pedido (`pedidos/{id}/terminos`) guardan qué versión se aceptó y cuándo.
+- **Checkout:** el paso de pago y el resumen muestran el aviso de protección (trato directo con la tienda, Crustore no cobra ni pide dinero/claves, no es responsable) y **no se puede confirmar sin aceptar** los Términos. El detalle del pedido muestra el aviso "Al recibir tu pedido".
+- **Importante:** los textos describen cómo funciona hoy (pago directo a la tienda en efectivo o transferencia). Si algún día se cobra dentro de la plataforma, hay que cambiar `avisos.ts` y `terminos.html`. Son textos generales: conviene que los revise una persona abogada.

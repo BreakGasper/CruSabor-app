@@ -9,6 +9,10 @@ import { tiendasDelTelefono } from "@/composables/cuentaTienda";
 
 export interface Tienda extends ControlTienda {
   tiendaId?: string;
+  /** Versión de los Términos que aceptó al registrarse y cuándo (ISO) */
+  aceptoTerminos?: boolean;
+  versionTerminos?: string;
+  aceptoTerminosEn?: string;
   nombreTienda: string;
   categoria: string;
   descripcion: string;

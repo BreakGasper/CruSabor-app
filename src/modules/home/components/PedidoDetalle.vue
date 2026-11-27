@@ -85,6 +85,9 @@
           ✖ {{ motivoDe(tiendas[0]) }}
         </p>
 
+        <!-- Protección al recibir el pedido -->
+        <AvisoProteccion v-if="pedido.estatus !== 'Cancelado'" :avisos="AVISOS_ENTREGA" titulo="Al recibir tu pedido" />
+
         <!-- Historial -->
         <details v-if="pedido.historial?.length" class="historial">
           <summary>Ver historial ({{ pedido.historial.length }})</summary>
@@ -226,6 +229,8 @@ import type { Pedido, PedidoItem } from "@/composables/usePedidos";
 import { useTiendas } from "@/composables/useTiendas";
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from "@/constants/firebase_util";
 import PageHeader from "@/components/PageHeader.vue";
+import AvisoProteccion from "@/components/AvisoProteccion.vue";
+import { AVISOS_ENTREGA } from "@/legal/avisos";
 import userDefaultImage from "@/assets/icons/user_back_profile.png";
 import moneyIcon from "@/assets/icons/money.png";
 import cardIcon from "@/assets/icons/trasfer.png";

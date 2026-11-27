@@ -362,7 +362,9 @@
             <input type="checkbox" v-model="aceptaTerminos" />
             <span>
               Acepto los
-              <a href="#" target="_blank">Términos y Privacidad</a>
+              <a :href="URL_TERMINOS" target="_blank" rel="noopener">Términos y condiciones</a>
+              y el
+              <a :href="URL_PRIVACIDAD" target="_blank" rel="noopener">Aviso de privacidad</a>
             </span>
           </label>
           <small v-if="termsError" class="error-text">{{ termsError }}</small>
@@ -424,6 +426,7 @@ const codigoPostal = ref("");
 const estado = ref("");
 
 const aceptaTerminos = ref(false);
+import { URL_PRIVACIDAD, URL_TERMINOS, aceptacionActual } from "@/legal/avisos";
 
 const errors = reactive({
   nombre: "",
@@ -693,6 +696,7 @@ async function handleRegister() {
     return;
   }
 
+  const aceptacion = aceptacionActual();
   const id = Date.now().toString();
   let fotoURL = "";
   if (foto.value) {
@@ -715,6 +719,8 @@ async function handleRegister() {
     tipo: "client",
     token: "",
     aceptoTerminos: true,
+    versionTerminos: aceptacion.version,
+    aceptoTerminosEn: aceptacion.fecha,
   };
 
   await saveUser(nuevoUsuario);
