@@ -5,9 +5,9 @@
       :mensaje="configuracion.mantenimiento.mensaje"
       :contacto="contactoSoporte"
     />
-    <!-- Deslizar hacia abajo en móvil vuelve a montar la vista actual (recarga sus datos) -->
+    <!-- Deslizar hacia abajo (en cualquier pantalla del móvil) recarga la página, como un F5 -->
     <PullToRefresh v-else :refrescando="refrescando" @refresh="refrescarVista">
-      <router-view :key="claveVista" />
+      <router-view />
     </PullToRefresh>
   </div>
 
@@ -74,17 +74,14 @@ watch(
 );
 const mantenimientoActivo = computed(() => enMantenimientoPara(configuracion.value, route.path));
 
-/* Pull to refresh: cambiar la clave del router-view desmonta y vuelve a montar la pantalla,
- * con lo que cada vista repite sus cargas de onMounted. La sesión y el carrito local no se tocan. */
-const claveVista = ref(0);
+/* Pull to refresh: es un F5 de verdad (recarga la página). La sesión y el carrito están guardados en el
+ * navegador, así que no se pierden. Las pantallas con un formulario a medias se marcan con
+ * `data-sin-recarga` y el gesto no empieza en ellas. */
 const refrescando = ref(false);
-async function refrescarVista() {
+function refrescarVista() {
   if (refrescando.value) return;
-  refrescando.value = true;
-  claveVista.value++;
-  await nextTick();
-  // Tiempo mínimo para que el indicador se vea y la vista alcance a pintar sus datos
-  setTimeout(() => (refrescando.value = false), 700);
+  refrescando.value = true; // el indicador gira mientras el navegador recarga
+  window.location.reload();
 }
 const toast = useToast();
 </script>
@@ -98,6 +95,7 @@ html, body {
 
 #app-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

@@ -1,5 +1,5 @@
 <template>
-  <div class="wizard-container">
+  <div class="wizard-container" data-sin-recarga>
     <!-- ENCABEZADO -->
     <TopBarFija titulo="Registro de tienda" @back="salirDelRegistro" />
 
@@ -1495,6 +1495,7 @@ watch(
 /* ===== Contenedor ===== */
 .wizard-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;

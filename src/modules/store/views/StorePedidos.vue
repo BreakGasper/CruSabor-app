@@ -684,13 +684,15 @@ function onImgError(e: Event) {
 .tabs {
   display: flex;
   gap: 6px;
+  overflow-x: auto; /* en teléfonos muy angostos las pestañas se deslizan en vez de salirse */
+  scrollbar-width: none;
   background: var(--surface-2);
   padding: 4px;
   border-radius: 12px;
   margin-bottom: 0.75rem;
 }
 .tab {
-  flex: 1;
+  flex: 1 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -1,5 +1,5 @@
 <template>
-  <div class="register-container">
+  <div class="register-container" data-sin-recarga>
     <!-- Header -->
     <div class="register-header">
       <TopBarFija :titulo="isEdit ? 'Editar artículo' : 'Registrar artículo'" @back="intentarSalir" />
@@ -1499,6 +1499,7 @@ function validarPaso2() {
 .register-container {
   background: var(--surface-2);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: flex-start;
   align-items: center;

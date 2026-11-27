@@ -1,5 +1,5 @@
 <template>
-  <div class="checkout-container">
+  <div class="checkout-container" data-sin-recarga>
     <div class="checkout-header">
       <TopBarFija titulo="Confirmar pedido" @back="FlechaBack()" />
       <h1 class="title">Confirmar Pedido</h1>
@@ -490,6 +490,7 @@ const FlechaBack = () => {
 .checkout-container {
   background: var(--surface-2);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;

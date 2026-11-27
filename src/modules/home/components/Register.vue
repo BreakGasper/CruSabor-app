@@ -1,5 +1,5 @@
 <template>
-  <div class="register-container">
+  <div class="register-container" data-sin-recarga>
     <!-- Volver -->
     <TopBarFija titulo="Crear cuenta" @back="$router.back()" />
 
@@ -731,6 +731,7 @@ async function handleRegister() {
 <style scoped>
 .register-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
