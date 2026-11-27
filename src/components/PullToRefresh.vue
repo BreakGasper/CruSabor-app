@@ -22,16 +22,15 @@ export const UMBRAL = 70;
  * Zonas donde el gesto NO debe empezar:
  *  - campos de texto y editables (el dedo ahí es para escribir o mover el cursor);
  *  - diálogos y ventanas encima de la pantalla (tienen su propio desplazamiento);
- *  - lienzos (el editor de diseños, mapas) y cualquier zona marcada con `data-sin-recarga`;
- *    las pantallas con un formulario a medias se marcan así para no perder lo capturado.
+ *  - lienzos (el editor de diseños, mapas);
+ *  - el CONTENIDO de una pantalla marcada con `data-sin-recarga` (formulario a medias): ahí solo se puede empezar
+ *    desde la cabecera, y al soltar la app pide confirmar antes de recargar para no perder lo capturado.
  */
+/** Campos de texto: excluidos en el contenido, pero NO en la cabecera (p. ej. el buscador de la portada ocupa casi toda la barra) mientras no estén enfocados */
+const SELECTOR_CAMPOS = 'input, textarea, select, [contenteditable="true"]';
+
 export const SELECTOR_EXCLUIDO = [
-  'input',
-  'textarea',
-  'select',
-  '[contenteditable="true"]',
   'canvas',
-  '[data-sin-recarga]',
   '[role="dialog"]',
   '.swal2-container',
   '.p-dialog-mask',
@@ -40,11 +39,50 @@ export const SELECTOR_EXCLUIDO = [
   '.vp-overlay',
 ].join(',');
 
-/** ¿Puede empezar el gesto aquí? Pantalla arriba del todo y nada con scroll propio ya desplazado bajo el dedo */
-export function puedeIniciarGesto(objetivo: EventTarget | null, scrollY = window.scrollY): boolean {
+/**
+ * Cabeceras de página desde las que se puede deslizar para actualizar: las barras de arriba de cada pantalla de
+ * cliente, tienda y administrador. NO el contenido: al deslizar a la mitad de la pantalla solo se desplaza la página.
+ *
+ * Son las cabeceras de página, no las de tarjetas, paneles ni modales (`.panel-head`, `.grupo-header`,
+ * `.se-header`, `.cmp-head` quedan fuera a propósito).
+ */
+export const SELECTOR_CABECERA = [
+  '.page-header', // PageHeader.vue: barra azul de listas y detalles
+  '.top-bar-fija', // TopBarFija.vue: píldora de login, registro, checkout, perfil…
+  '.top-bar-top', // barra superior de la portada (menú · buscador · carrito · perfil)
+  '.admin-topbar', // AdminTopbar.vue: panel de administración
+  '.store-banner', // portada del perfil de tienda, que hace de cabecera
+  '.detalle-header', // imagen superior del detalle de producto, con su botón de volver
+  '.login-header', // encabezado de inicio de sesión (cliente, tienda)
+  '.register-header', // encabezado de registro y del formulario de artículo
+  '.profile-header', // encabezado del perfil del cliente
+  '.checkout-header',
+  '.cart-header',
+  '[data-pull-refresh]', // escotilla: cualquier pantalla puede habilitar su propia zona
+].join(',');
+
+/**
+ * Franja de arriba de la pantalla (px desde el borde superior): en una pantalla cuya cabecera no está en la lista
+ * de arriba (o que aún no cargó), tocar aquí también cuenta como cabecera, siempre que el contenido esté arriba.
+ */
+export const ALTO_FRANJA_CABECERA = 120;
+
+/**
+ * ¿Puede empezar el gesto aquí?
+ *  - solo desde una cabecera (SELECTOR_CABECERA) o, si no la hay, desde la franja de arriba de la pantalla;
+ *  - nunca en campos de texto, diálogos, lienzos ni zonas `data-sin-recarga`;
+ *  - con la página arriba del todo (y, en la franja, también el contenido: aquí el que se desplaza es el <body>);
+ *  - sin un contenedor con scroll ya desplazado bajo el dedo.
+ */
+export function puedeIniciarGesto(objetivo: EventTarget | null, clientY = 0, scrollY = window.scrollY): boolean {
   if (scrollY > 0 || document.documentElement.scrollTop > 0) return false;
   const el = objetivo instanceof Element ? objetivo : null;
   if (el?.closest(SELECTOR_EXCLUIDO)) return false;
+  const enCabecera = !!el?.closest(SELECTOR_CABECERA);
+  if (!enCabecera && el?.closest(SELECTOR_CAMPOS)) return false;
+  if (!enCabecera && el?.closest('[data-sin-recarga]')) return false;
+  // Fuera de una cabecera conocida solo cuenta la franja de arriba, y con el contenido arriba del todo
+  if (!enCabecera && (clientY > ALTO_FRANJA_CABECERA || document.body.scrollTop > 0)) return false;
   // Si hay un campo enfocado (teclado abierto), el gesto no se arma
   const activo = document.activeElement;
   if (activo && /^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName)) return false;
@@ -59,12 +97,13 @@ export function puedeIniciarGesto(objetivo: EventTarget | null, scrollY = window
 
 <script setup lang="ts">
 /**
- * Deslizar hacia abajo para actualizar (móvil), **desde cualquier parte de la pantalla**.
+ * Deslizar hacia abajo para actualizar (móvil), **desde la cabecera de cualquier pantalla de la app**.
  *
  * Funciona como un F5: al soltar después del umbral se emite `refresh` y App.vue recarga la página.
- * El gesto solo se arma si la pantalla está arriba del todo, el arrastre es sobre todo vertical y no
- * empieza en un campo de texto, un diálogo, un lienzo o una zona con `data-sin-recarga` (ver arriba).
- * Un arrastre horizontal (carruseles, deslizar entre pestañas) lo cancela.
+ * El gesto solo empieza en la cabecera (o en la franja de arriba de la pantalla) y con la página arriba del todo:
+ * en el resto de la pantalla, deslizar solo desplaza el contenido, nunca recarga por accidente. Tampoco empieza
+ * en un campo de texto, un diálogo, un lienzo ni una zona con `data-sin-recarga` (ver arriba), y un arrastre
+ * horizontal lo cancela.
  *
  * Necesario porque la app desactiva el "pull to refresh" nativo del navegador
  * (overscroll-behavior: contain) y en modo PWA no hay botón de recargar.
@@ -82,7 +121,7 @@ let activo = false;
 
 function onStart(e: TouchEvent) {
   if (props.refrescando || e.touches.length !== 1) return;
-  if (!puedeIniciarGesto(e.target)) {
+  if (!puedeIniciarGesto(e.target, e.touches[0].clientY)) {
     inicioY = null;
     return;
   }
