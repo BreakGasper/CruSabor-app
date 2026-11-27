@@ -16,6 +16,9 @@
 
   <VolverAdmin />
 
+  <!-- Versión nueva publicada y hay un formulario a medias: se avisa en vez de recargar sola -->
+  <AvisoActualizacion v-if="hayVersionNueva" @actualizar="actualizarAhora" @cerrar="hayVersionNueva = false" />
+
   <Toast position="bottom-center" />
 
   <!-- Logo animado si algo que pidió el usuario tarda (services/carga.ts) -->
@@ -24,9 +27,11 @@
 <script setup lang="ts">
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
-import { computed, ref, nextTick, watch } from "vue";
+import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import PullToRefresh from "@/components/PullToRefresh.vue";
+import AvisoActualizacion from "@/components/AvisoActualizacion.vue";
+import { recargarConLoNuevo, vigilarVersion } from "@/utils/actualizacion";
 import { cargarSesion } from "@/utils/sessionUser";
 import { iniciarSincronizacion } from "@/db/sync";
 import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfiguracion";
@@ -81,8 +86,22 @@ const refrescando = ref(false);
 function refrescarVista() {
   if (refrescando.value) return;
   refrescando.value = true; // el indicador gira mientras el navegador recarga
-  window.location.reload();
+  // Primero se vuelve a pedir el HTML sin usar la copia guardada (en la app instalada del iPhone, la recarga
+  // sola se quedaba con la versión vieja) y luego se recarga: así trae lo último publicado.
+  void recargarConLoNuevo();
 }
+
+/* Versión nueva publicada: se detecta al abrir, al volver a la app y al reconectarse (/version.json) */
+const hayVersionNueva = ref(false);
+function actualizarAhora() {
+  refrescando.value = true;
+  void recargarConLoNuevo();
+}
+let dejarDeVigilar: (() => void) | null = null;
+onMounted(() => {
+  dejarDeVigilar = vigilarVersion({ alHaberNueva: () => (hayVersionNueva.value = true) });
+});
+onBeforeUnmount(() => dejarDeVigilar?.());
 const toast = useToast();
 </script>
 
