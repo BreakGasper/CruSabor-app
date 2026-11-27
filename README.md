@@ -652,3 +652,10 @@ Firebase Hosting guarda por defecto todo una hora (`max-age=3600`, incluido `ind
 **Primera vez:** la app que ya estaba instalada trae el código anterior y puede tardar hasta una hora en recibir esta versión (o hasta cerrarla por completo y abrirla de nuevo). Para forzarlo: quitar el icono y volver a agregarlo, o Ajustes › Safari › Avanzado › Datos de sitios web › borrar el de Crustore.
 
 **Carga al actualizar:** al soltar el gesto de deslizar, el logo de carga (`CargandoCrustore`) cubre la pantalla de inmediato (`mostrarCargaYa` en `services/carga.ts`) y sigue visible al arrancar tras la recarga hasta que la primera pantalla está lista; antes de que cargue el JavaScript, `index.html` muestra su propia pantalla de carga dentro de `#app`. En el perfil del cliente, el menú de la tienda y el tablero del admin aparece "Versión xxxxxxx" (la del commit publicado) para comprobar qué versión corre cada teléfono.
+
+## Limpiar datos de prueba (Admin): vaciar los artículos de una tienda o de todas
+
+- **Una tienda:** Admin › Tiendas › Detalle › "Artículos de la tienda" muestra cuántos tiene y el botón "Vaciar artículos de esta tienda" (hay que escribir `VACIAR`).
+- **Todas:** al final de Admin › Tiendas, "Vaciar artículos de todas las tiendas" (hay que escribir `VACIAR TODO`).
+- **Qué borra** (`src/composables/vaciarArticulos.ts`): los artículos, sus promociones con descuento y sus fotos (el servidor solo borra las que nada más usa). **No toca** la tienda ni su perfil, los pedidos ya hechos (guardan su propia copia del nombre, precio y foto) ni los carritos y favoritos que cada cliente guarda en su teléfono (un artículo borrado que siga en un carrito se rechaza al confirmar el pedido).
+- **Seguridad:** borra solo lo que se mostró en el aviso (si alguien publica algo mientras tanto, no se pierde), y deja un registro en `auditoria/` con quién, cuándo y cuántos.
