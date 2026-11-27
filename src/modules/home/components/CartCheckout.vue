@@ -170,6 +170,9 @@
           <span>${{ total.toFixed(2) }}</span>
         </div>
 
+        <!-- Artículos bajo pedido: la tienda se pone en contacto -->
+        <p v-if="hayBajoPedido" class="nota-bajo-pedido" data-testid="leyenda-bajo-pedido">🛠️ {{ LEYENDA_BAJO_PEDIDO }}</p>
+
         <!-- Protección y aceptación antes de confirmar -->
         <AvisoProteccion :avisos="AVISOS_PEDIDO" titulo="Antes de confirmar" />
         <label class="acepto-pedido" :class="{ 'acepto-error': faltaAceptar }">
@@ -207,6 +210,7 @@ import { useCarrito } from "@/db/composables/useCarrito";
 import { guardarPedidos, MENSAJE_LIMITE_CANCELACION } from "@/composables/usePedidos";
 import { tiendasCerradas } from "@/composables/useHorarioTienda";
 import DireccionForm from "@/components/DireccionForm.vue";
+import { LEYENDA_BAJO_PEDIDO } from "@/constants/bajoPedido";
 import AvisoProteccion from "@/components/AvisoProteccion.vue";
 import { AVISOS_PEDIDO, RECORDATORIO_PEDIDO_CONFIRMADO, TEXTO_ACEPTO_PEDIDO, URL_TERMINOS, aceptacionActual } from "@/legal/avisos";
 import {
@@ -224,6 +228,7 @@ const paso = ref(1);
 const metodoPago = ref("");
 const mpago = ref(false);
 const aceptaPedido = ref(false);
+const hayBajoPedido = computed(() => carrito.some((i: any) => i.porPedido));
 const faltaAceptar = ref(false);
 const subtotal = ref(0);
 const envio = ref(0);
@@ -365,7 +370,7 @@ const siguientePaso = async () => {
       title: "¡Gracias por tu compra! 🎉",
       // La ventana para cancelar es corta: se avisa aquí, recién hecho el pedido,
       // que es cuando todavía se está a tiempo de usarla.
-      html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong><br><br><small>🛡️ ${RECORDATORIO_PEDIDO_CONFIRMADO}</small>`,
+      html: `Podrás ver tu pedido en tu perfil.<br><br><strong>⏱ ${MENSAJE_LIMITE_CANCELACION}</strong>${hayBajoPedido.value ? `<br><br><small>🛠️ ${LEYENDA_BAJO_PEDIDO}</small>` : ""}<br><br><small>🛡️ ${RECORDATORIO_PEDIDO_CONFIRMADO}</small>`,
       icon: "success",
       confirmButtonText: "Aceptar",
       confirmButtonColor: "var(--color-bg-blue-ligth)",
@@ -870,4 +875,6 @@ const FlechaBack = () => {
 .acepto-pedido a { color: var(--brand-blue-text); font-weight: 600; }
 .acepto-error { color: #d93025; }
 .acepto-msg { margin: 4px 0 0; color: #d93025; font-size: 0.82rem; font-weight: 600; }
+
+.nota-bajo-pedido { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.85rem; line-height: 1.4; }
 </style>

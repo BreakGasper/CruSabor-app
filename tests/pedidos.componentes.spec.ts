@@ -484,3 +484,84 @@ describe('CLIENTE · PedidoDetalle, el total refleja el estado real', () => {
     w.unmount();
   });
 });
+
+
+describe('artículos bajo pedido: leyenda al cliente y WhatsApp de la tienda', () => {
+  const conBajoPedido = async () => {
+    __reset({
+      articulos: {
+        'art-1': { nombre: 'Pastel de boda', tiendaId: TIENDA_A, porPedido: true, variantes: [{ sku: 'CHO-1', stock: -1, precio: 45 }] },
+        'art-3': { nombre: 'Café', tiendaId: TIENDA_B, variantes: [{ sku: 'CAF-1', stock: -1, precio: 30 }] },
+      },
+      pedidos: {},
+    });
+    sessionUser.value = { id: CLIENTE, nombre: 'Carlos Cliente' };
+    return guardarPedidos(
+      [
+        { id_articulo: 'art-1', sku: 'CHO-1', cantidad: 1, id_tienda: TIENDA_A, precio: 45, nombre: 'Pastel de boda', url: '', porPedido: true },
+        { id_articulo: 'art-3', sku: 'CAF-1', cantidad: 1, id_tienda: TIENDA_B, precio: 30, nombre: 'Café', url: '' },
+      ],
+      'Efectivo',
+      domicilio,
+    );
+  };
+
+  it('el cliente ve en el detalle del pedido que la tienda se pondrá en contacto y dónde ver el estatus', async () => {
+    const id = await conBajoPedido();
+    routeMock.params = { id };
+    const w = mount(PedidoDetalle, { global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    const leyenda = w.find('[data-testid="leyenda-bajo-pedido"]');
+    expect(leyenda.exists()).toBe(true);
+    expect(leyenda.text()).toMatch(/la tienda se pondrá en contacto contigo[\s\S]*Mis pedidos › Detalle del pedido/);
+    w.unmount();
+  });
+
+  it('sin artículos bajo pedido no aparece la leyenda', async () => {
+    const id = await crearPedidoMixto(); // los de beforeEach no son bajo pedido
+    routeMock.params = { id };
+    const w = mount(PedidoDetalle, { global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    expect(w.find('[data-testid="leyenda-bajo-pedido"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('la tienda ve "Mandar WhatsApp" con el chat del cliente y un mensaje que menciona su artículo bajo pedido', async () => {
+    const id = await conBajoPedido();
+    const w = mount(StorePedidos, { props: { id_tienda: TIENDA_A }, global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+
+    // en la tarjeta (sin expandir), porque el pedido incluye artículos bajo pedido
+    const cabecera = w.find('[data-testid="whatsapp-cabecera"]');
+    expect(cabecera.exists()).toBe(true);
+    const href = cabecera.attributes('href')!;
+    expect(href.startsWith('https://wa.me/523751234567?text=')).toBe(true);
+    const mensaje = decodeURIComponent(href.split('text=')[1]);
+    expect(mensaje).toContain('Hola Carlos');
+    expect(mensaje).toContain('Pastel de boda');
+    expect(mensaje).toContain(id.slice(-6));
+    expect(cabecera.attributes('target')).toBe('_blank');
+    expect(cabecera.attributes('rel')).toContain('noopener');
+
+    // y al abrir el pedido, el botón del cliente
+    await w.find('.card-header').trigger('click');
+    await flushPromises();
+    expect(w.find('[data-testid="whatsapp-cliente"]').attributes('href')).toBe(href);
+    w.unmount();
+  });
+
+  it('un pedido sin artículos bajo pedido no muestra el botón en la tarjeta, pero sí al abrirlo (se puede contactar igual)', async () => {
+    await crearPedidoMixto();
+    const w = mount(StorePedidos, { props: { id_tienda: TIENDA_A }, global: { stubs } });
+    await flushPromises();
+    await flushPromises();
+    expect(w.find('[data-testid="whatsapp-cabecera"]').exists()).toBe(false);
+    await w.find('.card-header').trigger('click');
+    await flushPromises();
+    expect(w.find('[data-testid="whatsapp-cliente"]').exists()).toBe(true);
+    w.unmount();
+  });
+});
