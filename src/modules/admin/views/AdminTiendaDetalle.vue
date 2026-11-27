@@ -107,6 +107,22 @@
             </details>
           </section>
 
+          <!-- Artículos: vaciar (datos de prueba) -->
+          <section class="card zona-peligro" data-testid="zona-articulos">
+            <h2>Artículos de la tienda</h2>
+            <p class="vacio" v-if="planArticulos === null">Contando artículos…</p>
+            <p v-else-if="!planArticulos.articulos.length" class="vacio" data-testid="sin-articulos">Esta tienda no tiene artículos.</p>
+            <template v-else>
+              <p class="evento-det" data-testid="cuenta-articulos">
+                Tiene <strong>{{ planArticulos.articulos.length }}</strong> artículo(s)<span v-if="planArticulos.promociones.length"> y {{ planArticulos.promociones.length }} promoción(es)</span>.
+              </p>
+              <p class="aviso-peligro">Sirve para limpiar datos de prueba. Se borran los artículos, sus promociones y sus fotos. La tienda, su perfil y los pedidos ya hechos no se tocan. No se puede deshacer.</p>
+              <button type="button" class="btn-peligro" :disabled="vaciando" data-testid="vaciar-articulos" @click="vaciarArticulosTienda">
+                {{ vaciando ? 'Borrando…' : 'Vaciar artículos de esta tienda' }}
+              </button>
+            </template>
+          </section>
+
           <!-- Pagos -->
           <section class="card">
             <h2>Pagos de membresía</h2>
@@ -168,6 +184,7 @@ import { db } from '@/firebase';
 import { ref as dbRef, onValue } from '@/services/baseDatos';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
+import { leerPlanVaciado, vaciarArticulos, type PlanVaciado } from '@/composables/vaciarArticulos';
 import type { Tienda } from '@/composables/useTiendas';
 import { estadoEfectivo, diasParaVencer, ESTADO_LABEL } from '@/composables/useMembresia';
 import {
@@ -187,6 +204,48 @@ const route = useRoute();
 const tiendaId = computed(() => String(route.params.id || ''));
 
 const tienda = ref<Tienda | null>(null);
+
+/* ---------- Vaciar artículos (datos de prueba) ---------- */
+const planArticulos = ref<PlanVaciado | null>(null);
+const vaciando = ref(false);
+async function contarArticulos() {
+  const id = tiendaId.value;
+  if (!id) return;
+  try {
+    planArticulos.value = await leerPlanVaciado(id);
+  } catch (e) {
+    console.error('No se pudieron contar los artículos:', e);
+    planArticulos.value = { articulos: [], promociones: [], imagenes: [] };
+  }
+}
+async function vaciarArticulosTienda() {
+  const plan = planArticulos.value;
+  if (!plan || !plan.articulos.length || vaciando.value || !tienda.value) return;
+  const r = await Swal.fire({
+    icon: 'warning',
+    title: `¿Vaciar los artículos de «${tienda.value.nombreTienda}»?`,
+    html: `Se borrarán <b>${plan.articulos.length} artículo(s)</b>${plan.promociones.length ? `, ${plan.promociones.length} promoción(es)` : ''} y sus fotos.<br>No se puede deshacer.`,
+    input: 'text',
+    inputPlaceholder: 'Escribe VACIAR para confirmar',
+    showCancelButton: true,
+    confirmButtonText: 'Borrar todo',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#c0392b',
+    inputValidator: (v: string) => (String(v).trim().toUpperCase() === 'VACIAR' ? null : 'Escribe VACIAR para continuar'),
+  });
+  if (!r.isConfirmed || String(r.value ?? '').trim().toUpperCase() !== 'VACIAR') return;
+  vaciando.value = true;
+  try {
+    // Se usa el plan que la persona vio y confirmó, no uno nuevo: si alguien publicó algo entre tanto, no se borra
+    const res = await vaciarArticulos(tiendaId.value, plan);
+    await Swal.fire({ icon: 'success', title: 'Artículos borrados', text: `${res.articulos} artículo(s) y ${res.promociones} promoción(es).`, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
+  } catch (e: any) {
+    await Swal.fire({ icon: 'error', title: 'No se pudo vaciar', text: e?.message || 'Intenta de nuevo.' });
+  } finally {
+    vaciando.value = false;
+    await contarArticulos();
+  }
+}
 const cargando = ref(true);
 let off: (() => void) | null = null;
 
@@ -201,6 +260,7 @@ function suscribir() {
   off = onValue(dbRef(db, `tiendas/${tiendaId.value}`), (snap) => {
     const data = snap.val();
     tienda.value = data ? { ...data, tiendaId: tiendaId.value } : null;
+    if (data && planArticulos.value === null) void contarArticulos();
     cargando.value = false;
   });
 }
@@ -589,4 +649,9 @@ async function onPagoGuardado(p: PagoRegistrado) {
     justify-content: center;
   }
 }
+
+.zona-peligro { border: 1px solid #e8b4ad; }
+.aviso-peligro { margin: 6px 0 10px; font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); }
+.btn-peligro { border: 0; border-radius: 10px; padding: 10px 14px; background: #c0392b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.btn-peligro:disabled { opacity: 0.6; cursor: wait; }
 </style>

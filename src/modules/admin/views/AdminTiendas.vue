@@ -102,6 +102,15 @@
           </div>
         </li>
       </ul>
+
+      <!-- Limpiar datos de prueba: artículos de TODAS las tiendas -->
+      <section class="zona-peligro-global" data-testid="zona-global">
+        <h2>Limpiar datos de prueba</h2>
+        <p>Borra los artículos (con sus promociones y fotos) de <strong>todas</strong> las tiendas. Las tiendas, sus perfiles y los pedidos ya hechos no se tocan. No se puede deshacer.</p>
+        <button type="button" class="btn-peligro" :disabled="vaciandoTodas" data-testid="vaciar-todas" @click="vaciarTodas">
+          {{ vaciandoTodas ? 'Borrando…' : 'Vaciar artículos de todas las tiendas' }}
+        </button>
+      </section>
     </main>
 
     <PagoMembresiaModal
@@ -119,6 +128,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
+import { leerPlanVaciado, vaciarArticulos } from '@/composables/vaciarArticulos';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { estadoEfectivo, diasParaVencer, etiquetaPrueba, ESTADO_LABEL, type EstadoEfectivo } from '@/composables/useMembresia';
 import { aprobarTienda, bloquearTienda, desbloquearTienda, type PagoRegistrado } from '@/composables/useAdminTiendas';
@@ -277,6 +287,40 @@ async function desbloquear(t: Tienda) {
     toast('Tienda desbloqueada');
   } catch (e: any) {
     toast(e?.message || 'No se pudo desbloquear', 'error');
+  }
+}
+
+/* ---------- Vaciar los artículos de TODAS las tiendas (datos de prueba) ---------- */
+const vaciandoTodas = ref(false);
+async function vaciarTodas() {
+  if (vaciandoTodas.value) return;
+  vaciandoTodas.value = true;
+  try {
+    const plan = await leerPlanVaciado(null);
+    if (!plan.articulos.length) {
+      await Swal.fire({ icon: 'info', title: 'No hay artículos', text: 'Ninguna tienda tiene artículos.', confirmButtonColor: 'var(--color-bg-blue-ligth)' });
+      return;
+    }
+    const tiendas = new Set(plan.articulos.map((a) => a.tiendaId)).size;
+    const r = await Swal.fire({
+      icon: 'warning',
+      title: '¿Vaciar los artículos de TODAS las tiendas?',
+      html: `Se borrarán <b>${plan.articulos.length} artículo(s)</b> de ${tiendas} tienda(s)${plan.promociones.length ? `, ${plan.promociones.length} promoción(es)` : ''} y sus fotos.<br>No se puede deshacer.`,
+      input: 'text',
+      inputPlaceholder: 'Escribe VACIAR TODO para confirmar',
+      showCancelButton: true,
+      confirmButtonText: 'Borrar todo',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#c0392b',
+      inputValidator: (v: string) => (String(v).trim().toUpperCase() === 'VACIAR TODO' ? null : 'Escribe VACIAR TODO para continuar'),
+    });
+    if (!r.isConfirmed || String(r.value ?? '').trim().toUpperCase() !== 'VACIAR TODO') return;
+    const res = await vaciarArticulos(null, plan); // el plan que se vio y confirmó
+    await Swal.fire({ icon: 'success', title: 'Artículos borrados', text: `${res.articulos} artículo(s) y ${res.promociones} promoción(es).`, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
+  } catch (e: any) {
+    await Swal.fire({ icon: 'error', title: 'No se pudo vaciar', text: e?.message || 'Intenta de nuevo.' });
+  } finally {
+    vaciandoTodas.value = false;
   }
 }
 
@@ -563,4 +607,10 @@ function onPagoGuardado(p: PagoRegistrado) {
     flex: 1 1 45%;
   }
 }
+
+.zona-peligro-global { margin: 28px 0 12px; padding: 14px; border: 1px solid #e8b4ad; border-radius: 12px; background: var(--surface); text-align: left; }
+.zona-peligro-global h2 { margin: 0 0 6px; font-size: 1rem; }
+.zona-peligro-global p { margin: 0 0 10px; font-size: 0.86rem; line-height: 1.4; color: var(--text-muted); }
+.btn-peligro { border: 0; border-radius: 10px; padding: 10px 14px; background: #c0392b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.btn-peligro:disabled { opacity: 0.6; cursor: wait; }
 </style>
