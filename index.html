@@ -22,6 +22,16 @@
     <!-- Acceso directo en Android / Chrome -->
     <link rel="manifest" href="/manifest.webmanifest" />
 
+    <style>
+      .arranque { position: fixed; inset: 0; display: grid; place-items: center; align-content: center; gap: 18px; background: #f4f6ef; }
+      .arranque img { width: 84px; height: 84px; object-fit: contain; animation: arranque-latido 1.4s ease-in-out infinite; }
+      .arranque-anillo { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(120, 120, 120, 0.3); border-top-color: #8a8a8a; animation: arranque-giro 0.8s linear infinite; }
+      @keyframes arranque-giro { to { transform: rotate(360deg); } }
+      @keyframes arranque-latido { 50% { transform: scale(1.07); opacity: 0.85; } }
+      @media (prefers-color-scheme: dark) { .arranque { background: #121410; } }
+      @media (prefers-reduced-motion: reduce) { .arranque img, .arranque-anillo { animation: none; } }
+    </style>
+
     <!-- Paleta de colores: la última que eligió el admin, antes de pintar (ver src/composables/usePaleta.ts) -->
     <script>
       try {
@@ -42,7 +52,13 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Pantalla de carga: se ve desde el primer instante y Vue la reemplaza al arrancar -->
+      <div class="arranque" role="status" aria-label="Cargando Crustore">
+        <img src="/logo.png" alt="" width="84" height="84" />
+        <span class="arranque-anillo" aria-hidden="true"></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

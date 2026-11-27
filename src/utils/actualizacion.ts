@@ -42,6 +42,7 @@ export async function hayVersionNueva(consultar: Consulta = fetch, actual: strin
 export async function recargarConLoNuevo(opciones: { consultar?: Consulta; recargar?: () => void } = {}): Promise<void> {
   const consultar = opciones.consultar ?? fetch;
   const recargar = opciones.recargar ?? (() => window.location.reload());
+  marcarRecargando();
   try {
     await Promise.all([
       consultar('/index.html', { cache: 'reload' }),
@@ -51,6 +52,31 @@ export async function recargarConLoNuevo(opciones: { consultar?: Consulta; recar
     /* sin red o bloqueado: se recarga de todos modos */
   }
   recargar();
+}
+
+/**
+ * Se marca justo antes de recargar: al arrancar, la app ve la marca y mantiene el indicador de carga hasta que
+ * la pantalla esté lista, así entre la recarga y la primera pantalla nunca se ve todo vacío.
+ */
+export const CLAVE_RECARGANDO = 'crustore:recargando';
+
+export function marcarRecargando(almacen: Pick<Storage, 'setItem'> = sessionStorage) {
+  try {
+    almacen.setItem(CLAVE_RECARGANDO, String(Date.now()));
+  } catch {
+    /* sin almacenamiento: solo se pierde el indicador al arrancar */
+  }
+}
+
+/** ¿Venimos de una recarga reciente (menos de 30 s)? Consume la marca. */
+export function vienesDeRecarga(ahora = Date.now(), almacen: Pick<Storage, 'getItem' | 'removeItem'> = sessionStorage): boolean {
+  try {
+    const t = Number(almacen.getItem(CLAVE_RECARGANDO) || 0);
+    almacen.removeItem(CLAVE_RECARGANDO);
+    return t > 0 && ahora - t < 30_000;
+  } catch {
+    return false;
+  }
 }
 
 /** Marca en la sesión para no entrar en un ciclo de recargas si la red aún sirve la versión vieja */
