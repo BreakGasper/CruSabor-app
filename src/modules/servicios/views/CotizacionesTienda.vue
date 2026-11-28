@@ -72,7 +72,7 @@ import ResponderCotizacionModal from '../components/ResponderCotizacionModal.vue
 import { ahoraEnZona } from '../disponibilidad';
 import { ETIQUETA_COTIZACION, TONO_COTIZACION, accionesDeCotizacion, estadoEfectivoCotizacion } from '../estados';
 import { esDuenoDeTienda } from '../sesion';
-import { ErrorServicio } from '../catalogo';
+import { ErrorServicio, mensajeError } from '../catalogo';
 import { completarCotizacion, enlaceWhatsappCotizacion, marcarEnRevision, rechazarComoTienda, useCotizacionesTienda } from '../cotizaciones';
 import { dinero, fechaCorta, fechaHoraCorta } from '../formato';
 import type { Cotizacion, EstadoCotizacion } from '../tipos';
@@ -112,7 +112,7 @@ async function seguro(accion: () => Promise<void>) {
   try {
     await accion();
   } catch (e: any) {
-    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: mensajeError(e) });
   }
 }
 
