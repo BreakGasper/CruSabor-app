@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, get, set, update, push, onValue, query, orderByChild, equalTo, runTransaction, type Unsubscribe } from '@/services/baseDatos';
+import { ref as dbRef, get, set, update, push, onValue, runTransaction, type Unsubscribe } from '@/services/baseDatos';
 import { estadoEfectivo } from '@/composables/useMembresia';
 import { numeroParaWhatsapp } from '@/utils/whatsappCliente';
 import {
@@ -22,7 +22,7 @@ import {
 import { citaOcupaHorario, puedeCambiarCita, type Actor } from './estados';
 import { atiendeADomicilio, ofreceServicios } from './negocio';
 import { ErrorServicio, sePuedeAgendar } from './catalogo';
-import { registrarActividadCliente } from './clientes';
+import { registrarActividadCliente, documentosDelCliente } from './clientes';
 import { PROFESIONAL_PRINCIPAL, type Cita, type Disponibilidad, type EstadoCita, type EventoHistorial, type Profesional, type Servicio } from './tipos';
 
 /**
@@ -203,8 +203,8 @@ export async function reservarCita(tiendaId: string, s: SolicitudCita, ahora: Da
   if (!puedeReservar({ disp, fecha: s.fecha, duracionMin: s.servicio.duracionMin, inicio: s.inicio, ocupados: ocupacion[s.fecha], ahora: hoy })) throw new ErrorServicio(MENSAJE_OCUPADO);
 
   // Tope de citas abiertas del mismo cliente en la misma tienda
-  const previas = await get(query(dbRef(db, `citas/${tiendaId}`), orderByChild('clienteId'), equalTo(s.cliente.id)));
-  const abiertas = Object.values(previas.val() ?? {}).filter((c: any) => (c?.estado === 'pendiente' || c?.estado === 'confirmada') && c.fecha >= hoy.fecha).length;
+  const previas = await documentosDelCliente('citas', 'citasPorCliente', tiendaId, s.cliente.id);
+  const abiertas = previas.filter((c: any) => (c?.estado === 'pendiente' || c?.estado === 'confirmada') && c.fecha >= hoy.fecha).length;
   if (abiertas >= MAX_CITAS_ABIERTAS) throw new ErrorServicio('Ya tienes varias citas pendientes con esta tienda. Espera a que pasen o cancela alguna.');
 
   const id = push(dbRef(db, `citas/${tiendaId}`)).key!;

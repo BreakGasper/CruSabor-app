@@ -1,6 +1,6 @@
 import { db } from '@/firebase';
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
-import { ref as dbRef, runTransaction, onValue, update, type Unsubscribe } from '@/services/baseDatos';
+import { ref as dbRef, get, runTransaction, onValue, update, type Unsubscribe } from '@/services/baseDatos';
 import type { ClienteServicio } from './tipos';
 
 /**
@@ -65,4 +65,15 @@ export function useClientesServicio(tiendaId: () => string | undefined): { clien
 export async function guardarNotaCliente(tiendaId: string, clienteId: string, nota: string): Promise<void> {
   const limpia = nota.trim().slice(0, 500);
   await update(dbRef(db, `clientesServicio/${tiendaId}/${clienteId}`), { notas: limpia || null });
+}
+
+/**
+ * Documentos de un cliente en una tienda (citas o cotizaciones), leídos por su índice `{indice}/{clienteId}`.
+ * No usa consultas con orderByChild: esas exigen declarar `.indexOn` en las reglas de la base y fallan si falta.
+ */
+export async function documentosDelCliente<T = any>(nodo: 'citas' | 'cotizaciones', indice: 'citasPorCliente' | 'cotizacionesPorCliente', tiendaId: string, clienteId: string): Promise<T[]> {
+  const ids = await get(dbRef(db, `${indice}/${clienteId}`));
+  const propios = Object.entries((ids.val() ?? {}) as Record<string, { tiendaId?: string }>).filter(([, v]) => v?.tiendaId === tiendaId).map(([id]) => id);
+  const docs = await Promise.all(propios.map((id) => get(dbRef(db, `${nodo}/${tiendaId}/${id}`))));
+  return docs.filter((d) => d.exists()).map((d) => d.val() as T);
 }
