@@ -310,7 +310,7 @@ onUnmounted(() => {
   transition: background 0.3s;
 }
 .stock-fila.resaltada {
-  background: #e8f5e9;
+  background: var(--ok-fondo);
 }
 .stock-etiqueta {
   display: flex;

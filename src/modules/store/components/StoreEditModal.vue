@@ -713,7 +713,7 @@ watch(
   background: var(--surface-2);
 }
 .se-error { color: #c0392b; font-size: 0.82rem; }
-.se-error-general { margin: 0; padding: 8px 10px; background: #fdecea; border-radius: 8px; }
+.se-error-general { margin: 0; padding: 8px 10px; background: var(--peligro-fondo); border-radius: 8px; color: var(--peligro-texto); }
 
 .se-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .se-grid-2.calle { grid-template-columns: 2fr 1fr; }
@@ -732,7 +732,7 @@ watch(
 .se-zonas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .se-zona {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
-  background: #eef6fd; color: var(--brand-blue-text); font-size: 0.82rem;
+  background: var(--brand-blue-soft); color: var(--brand-blue-text); font-size: 0.82rem;
 }
 .se-zona button { border: none; background: transparent; color: var(--brand-blue-text); cursor: pointer; padding: 0; font-size: 0.75rem; }
 .se-zona-add { display: flex; gap: 8px; }

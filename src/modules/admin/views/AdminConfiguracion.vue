@@ -417,7 +417,7 @@ function fechaCorta(iso?: string) {
 }
 .modo.activo {
   border-color: #10b981;
-  background: #ecfdf5;
+  background: var(--ok-fondo);
 }
 .modo input {
   margin-top: 3px;

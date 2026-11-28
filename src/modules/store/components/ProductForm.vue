@@ -1583,7 +1583,7 @@ function validarPaso2() {
   padding: 10px 12px;
   border: 1px solid #c7d2fe;
   border-radius: 10px;
-  background: #eef2ff;
+  background: var(--brand-blue-soft);
   cursor: pointer;
 }
 .por-pedido-label span {

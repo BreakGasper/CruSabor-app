@@ -362,7 +362,7 @@ function onImgError(e: Event) {
   padding: 6px 4px 8px;
 }
 .grupo-tienda.cerrada {
-  background: #fff7ed;
+  background: var(--aviso-fondo);
 }
 .grupo-header {
   display: flex;
@@ -597,7 +597,7 @@ function onImgError(e: Event) {
   padding: 0;
 }
 .gratis {
-  color: #27ae60; /* verde opcional para resaltar "Gratis" */
+  color: var(--ok-texto); /* verde para resaltar "Gratis", legible en claro y oscuro */
   font-weight: normal;
 }
 

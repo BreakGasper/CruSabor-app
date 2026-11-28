@@ -470,12 +470,12 @@ const FlechaBack = () => {
 }
 
 .payment-option:hover {
-  background: #f0f8ff;
+  background: var(--surface-2);
 }
 
 .payment-option.active {
   border-color: var(--brand-blue-text);
-  background: #eaf6ff;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
   font-weight: bold;
 }
@@ -638,7 +638,7 @@ const FlechaBack = () => {
   width: 48%;
 }
 .modern-button.secondary {
-  background: #ddd;
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -702,7 +702,7 @@ const FlechaBack = () => {
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #e3e8ef;
+  background: var(--surface-2);
   color: var(--text-muted);
 }
 .dir-texto {
@@ -762,7 +762,7 @@ const FlechaBack = () => {
 }
 
 .gratis {
-  color: #27ae60; /* verde opcional para resaltar "Gratis" */
+  color: var(--ok-texto); /* verde para resaltar "Gratis", legible en claro y oscuro */
   font-weight: normal;
 }
 

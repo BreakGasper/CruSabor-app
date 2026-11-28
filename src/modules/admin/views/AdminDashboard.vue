@@ -367,7 +367,7 @@ function fechaCorta(iso?: string) {
   flex-wrap: wrap;
   padding: 8px 10px;
   border-radius: 10px;
-  background: #fffbeb;
+  background: var(--aviso-fondo);
 }
 .solicitud-info {
   display: flex;

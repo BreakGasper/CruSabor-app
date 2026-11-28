@@ -464,7 +464,7 @@ function salir() {
   border-left: 3px solid #f59e0b;
 }
 .notif-item:hover {
-  background: #fffbeb;
+  background: var(--aviso-fondo);
 }
 .perfil-item {
   box-sizing: border-box;

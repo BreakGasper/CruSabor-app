@@ -389,7 +389,7 @@ function onPagoGuardado(p: PagoRegistrado) {
 }
 .btn-cerrar-registro {
   background: var(--surface);
-  color: #b91c1c;
+  color: var(--peligro-texto);
   border-color: #fca5a5;
 }
 .btn-abrir-registro {
@@ -423,7 +423,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   font-size: 0.72rem;
   padding: 1px 7px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--surface-2);
   color: var(--text);
 }
 .chip.active {
@@ -575,7 +575,7 @@ function onPagoGuardado(p: PagoRegistrado) {
   border-color: #fca5a5;
 }
 .btn-bloquear:hover {
-  background: #fdecea;
+  background: var(--peligro-fondo);
 }
 .btn-pago {
   background: #111827;

@@ -215,7 +215,7 @@ function onImgError(e: Event) {
   height: 28px;
   border: none;
   border-radius: 50%;
-  background: #dfe3e8;
+  background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
   font-size: 0.8rem;
@@ -318,7 +318,7 @@ function onImgError(e: Event) {
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 999px;
-  background: #e8f1fc;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 .categoria-item.vacia .badge {
