@@ -660,3 +660,11 @@ Firebase Hosting guarda por defecto todo una hora (`max-age=3600`, incluido `ind
 - **Todas:** al final de Admin › Tiendas, "Vaciar artículos de todas las tiendas" (hay que escribir `VACIAR TODO`).
 - **Qué borra** (`src/composables/vaciarArticulos.ts`): los artículos, sus promociones con descuento y sus fotos (el servidor solo borra las que nada más usa). **No toca** la tienda ni su perfil, los pedidos ya hechos (guardan su propia copia del nombre, precio y foto) ni los carritos y favoritos que cada cliente guarda en su teléfono (un artículo borrado que siga en un carrito se rechaza al confirmar el pedido).
 - **Seguridad:** borra solo lo que se mostró en el aviso (si alguien publica algo mientras tanto, no se pierde), y deja un registro en `auditoria/` con quién, cuándo y cuántos.
+
+## Sorteo patrocinado por tiendas
+
+Todos los clientes registrados participan en el **mismo sorteo**. Cada tienda patrocinadora recibe un código; el cliente lo escribe en su perfil (sección «Sorteos») y así se sabe qué tienda lo trajo. Una participación por cliente y sorteo.
+
+- Admin › **Sorteos** (`/admin/sorteos`): crear el sorteo (nombre, premio, fechas, activo), crear códigos por tienda (generados o propios, con límite de usos opcional), ver cuántos participantes trajo cada tienda y **sortear** (al azar, con `crypto`, sin repetir ganador; cierra la participación).
+- Cliente (perfil): carrusel con los **logos de las tiendas patrocinadoras**, campo del código y estado ("Ya estás participando"). El ganador se muestra con nombre recortado ("María G.").
+- Datos: `sorteos/{id}` (con `codigos/` y `ganadores/`) y `sorteoParticipantes/{id}/{clienteId}` (aparte, para no cargar a todos los clientes). Lógica en `src/composables/useSorteos.ts`.
