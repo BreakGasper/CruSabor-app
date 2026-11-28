@@ -926,7 +926,7 @@ function onImgError(e: Event) {
 }
 
 .stock-badge.normal {
-  background: #eef6ff;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 

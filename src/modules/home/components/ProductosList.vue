@@ -211,7 +211,7 @@ function onImgError(e: Event) {
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none; }
 .clear-btn {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px;
-  border: none; border-radius: 50%; background: #dfe3e8; color: var(--text); cursor: pointer; font-size: 0.8rem; padding: 0;
+  border: none; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 0.8rem; padding: 0;
 }
 
 /* Toolbar */

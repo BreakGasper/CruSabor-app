@@ -1001,6 +1001,7 @@ body {
   justify-content: center;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
+  color: #1c1f1a; /* el círculo es blanco en ambos temas: la flecha va oscura */
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }

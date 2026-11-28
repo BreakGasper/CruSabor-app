@@ -426,7 +426,7 @@ async function login() {
   justify-content: center;
 }
 .toggle-password:hover {
-  background: #d1fae5;
+  background: var(--ok-fondo);
 }
 .toggle-password img {
   width: 20px;

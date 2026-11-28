@@ -281,7 +281,7 @@ async function toggleActivo(a: Admin) {
 .tab-cuenta.active {
   background: rgba(16, 185, 129, 0.15);
   border-color: #10b981;
-  color: #059669;
+  color: var(--ok-texto);
 }
 .buscar-cliente {
   width: 100%;

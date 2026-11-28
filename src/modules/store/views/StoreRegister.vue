@@ -1729,7 +1729,7 @@ select:focus {
   justify-content: center;
 }
 .toggle-password:hover {
-  background: #fef3c7;
+  background: var(--aviso-fondo);
 }
 .toggle-password img {
   width: 20px;
@@ -1813,7 +1813,7 @@ select:focus {
   font-size: 0.95rem;
 }
 .autocomplete-list li:hover {
-  background: #fef3c7;
+  background: var(--aviso-fondo);
 }
 
 /* ===== Subida de imágenes ===== */
@@ -1838,7 +1838,7 @@ select:focus {
 .banner-upload:hover,
 .logo-upload:hover,
 .gallery-item.add-image:hover {
-  background: #fef3c7;
+  background: var(--aviso-fondo);
   border-color: #d97706;
 }
 .banner-upload {
@@ -1943,12 +1943,12 @@ select:focus {
 .payment-option:hover,
 .check-card:hover {
   border-color: #f59e0b;
-  background: #fffbeb;
+  background: var(--aviso-fondo);
 }
 .payment-option:has(input:checked),
 .check-card:has(input:checked) {
   border-color: #f59e0b;
-  background: #fef3c7;
+  background: var(--aviso-fondo);
 }
 .payment-icon {
   width: 24px;

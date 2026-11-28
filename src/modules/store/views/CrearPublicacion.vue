@@ -399,22 +399,22 @@ const fecha = (iso: string) => {
 </script>
 
 <style scoped>
-.pub-container { min-height: 100vh; background: var(--color-bg, #f5f6f8); }
+.pub-container { min-height: 100vh; background: var(--bg-page); }
 .pub-main { max-width: 1000px; margin: 0 auto; padding: 16px; }
-.hint, .aviso { color: #555; font-size: 0.95rem; margin: 8px 0 14px; }
+.hint, .aviso { color: var(--text-muted); font-size: 0.95rem; margin: 8px 0 14px; }
 .pestanas { display: flex; gap: 8px; margin-bottom: 16px; }
-.pestanas button { flex: 1; padding: 10px; border: 1px solid #ccd; border-radius: 10px; background: #fff; font-weight: 600; cursor: pointer; }
+.pestanas button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; }
 .pestanas button.activa { background: var(--color-bg-blue-ligth); color: var(--on-primary, #fff); border-color: transparent; }
 .contador { background: rgba(0, 0, 0, 0.15); border-radius: 999px; padding: 0 8px; margin-left: 4px; font-size: 0.8rem; }
 .crear { display: grid; grid-template-columns: 1fr; gap: 20px; }
 @media (min-width: 820px) { .crear { grid-template-columns: 1fr 1fr; align-items: start; } }
-.form, .vista { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+.form, .vista { background: var(--surface); color: var(--text); border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
 .campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-weight: 600; font-size: 0.92rem; }
-.campo small { color: #777; font-weight: 400; }
-.input { padding: 10px 12px; border: 1px solid #ccd; border-radius: 10px; font: inherit; font-weight: 400; width: 100%; box-sizing: border-box; }
+.campo small { color: var(--text-muted); font-weight: 400; }
+.input { padding: 10px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 10px; font: inherit; font-weight: 400; width: 100%; box-sizing: border-box; }
 .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #ccd; border-radius: 999px; background: #fff; cursor: pointer; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); cursor: pointer; font-weight: 600; }
 .chip.activa { border-color: var(--color-bg-blue-ligth); box-shadow: 0 0 0 2px var(--color-bg-blue-ligth) inset; }
 .muestra { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
 .vista-titulo { margin: 0 0 8px; font-weight: 700; }
@@ -423,14 +423,14 @@ const fecha = (iso: string) => {
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .btn-pri, .btn-sec { padding: 11px 14px; border-radius: 10px; border: 0; font-weight: 700; cursor: pointer; }
 .btn-pri { background: var(--color-bg-blue-ligth); color: var(--on-primary, #fff); }
-.btn-sec { background: #eef1f6; color: #222; }
+.btn-sec { background: var(--surface-2); color: var(--text); }
 .btn-pri:disabled, .btn-sec:disabled { opacity: 0.6; cursor: wait; }
 .btn-txt { background: none; border: 0; color: var(--brand-blue-text, #1f5fbf); font-weight: 600; cursor: pointer; padding: 6px 8px; text-decoration: none; font-size: 0.9rem; }
-.btn-txt.peligro { color: #c0392b; }
-.error-msg { color: #c0392b; font-weight: 600; }
-.ok-msg { color: #1b7a43; font-weight: 600; }
+.btn-txt.peligro { color: var(--peligro-texto); }
+.error-msg { color: var(--peligro-texto); font-weight: 600; }
+.ok-msg { color: var(--ok-texto); font-weight: 600; }
 .tarjetas { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.tarjeta { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+.tarjeta { background: var(--surface); color: var(--text); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
 .tarjeta-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: #e9ecf1; display: block; }
 .tarjeta-datos { padding: 12px; }
 .tarjeta-datos h3 { margin: 0 0 4px; font-size: 1.05rem; }

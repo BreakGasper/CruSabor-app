@@ -181,7 +181,7 @@ async function confirmarEliminar(d: Direccion) {
   color: var(--on-primary);
 }
 .tag.suave {
-  background: #e3e8ef;
+  background: var(--surface-2);
   color: var(--text-muted);
 }
 .dir-texto {

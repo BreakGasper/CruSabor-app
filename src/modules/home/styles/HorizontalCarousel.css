@@ -246,6 +246,11 @@
   height: 14px;
 }
 
+/* "menos" lleva el color principal de fondo (lima en modo oscuro): su icono usa el texto que va sobre él */
+.btn-menos svg {
+  color: var(--on-primary);
+}
+
 .btn-mas:hover,
 .btn-menos:hover,
 .btn-basura:hover {

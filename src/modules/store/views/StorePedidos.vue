@@ -716,7 +716,7 @@ function onImgError(e: Event) {
   min-width: 20px;
   padding: 0 6px;
   border-radius: 10px;
-  background: #dfe5ee;
+  background: var(--surface-2);
   color: var(--text);
   font-size: 0.72rem;
   line-height: 20px;
@@ -769,7 +769,7 @@ function onImgError(e: Event) {
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text);
-  background: #e6e9ef;
+  background: var(--surface-2);
 }
 .icon-btn.limpiar img {
   width: 16px;
@@ -839,7 +839,7 @@ function onImgError(e: Event) {
 }
 
 .status.preparacion {
-  background: #fff3cd;
+  background: var(--aviso-fondo); color: var(--aviso-texto);
 }
 
 .status.atendiendo {
@@ -848,7 +848,7 @@ function onImgError(e: Event) {
 }
 
 .status.enviado {
-  background: #d4edda;
+  background: var(--ok-fondo); color: var(--ok-texto);
 }
 
 .bajo-pedido {
@@ -885,11 +885,11 @@ function onImgError(e: Event) {
 }
 
 .status.cancelado {
-  background: #f8d7da;
+  background: var(--peligro-fondo); color: var(--peligro-texto);
 }
 
 .status.entregado {
-  background: #cfe8ff;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 
@@ -1113,13 +1113,13 @@ button {
 /* CLOSE */
 .close-btn {
   border: none;
-  background: #f3f3f3;
+  background: var(--surface-2);
 
   width: 35px;
   height: 35px;
 
   border-radius: 50%;
-  cursor: pointer;
+  cursor: pointer; color: var(--text);
 }
 
 /* CONTENT */

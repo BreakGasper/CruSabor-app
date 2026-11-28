@@ -112,7 +112,7 @@ function onImgError(e: Event) {
   min-width: 0;
 }
 .tf-card:hover {
-  background: #eef3fa;
+  background: var(--surface-2);
   transform: translateY(-1px);
 }
 .tf-logo {
@@ -168,7 +168,7 @@ function onImgError(e: Event) {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 .tf-quitar:hover {
-  background: #ffecec;
+  background: var(--peligro-fondo);
 }
 .tf-ver-todas {
   margin-top: 0.6rem;

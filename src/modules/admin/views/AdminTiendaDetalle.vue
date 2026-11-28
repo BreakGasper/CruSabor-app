@@ -573,7 +573,7 @@ async function onPagoGuardado(p: PagoRegistrado) {
 }
 .evento-pendiente {
   border-left-color: #f59e0b;
-  background: #fffbeb;
+  background: var(--aviso-fondo);
   border-radius: 0 10px 10px 0;
   padding-right: 10px;
 }

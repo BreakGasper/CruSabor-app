@@ -197,7 +197,7 @@ function verTienda(t: Tienda) {
   height: 28px;
   border: none;
   border-radius: 50%;
-  background: #dfe3e8;
+  background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
   font-size: 0.8rem;

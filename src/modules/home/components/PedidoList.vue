@@ -511,7 +511,7 @@ function onImageError(event: Event) {
   min-width: 20px;
   padding: 0 6px;
   border-radius: 10px;
-  background: #dfe5ee;
+  background: var(--surface-2);
   color: var(--text);
   font-size: 0.72rem;
   line-height: 20px;
@@ -564,7 +564,7 @@ function onImageError(event: Event) {
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text);
-  background: #e6e9ef;
+  background: var(--surface-2);
 }
 .icon-btn.limpiar img {
   width: 16px;
@@ -666,7 +666,7 @@ function onImageError(event: Event) {
   color: #6b5400;
 }
 .estatus-enviado {
-  background: #e3f0ff;
+  background: var(--brand-blue-soft);
   color: var(--brand-blue-text);
 }
 .estatus-entregado {

@@ -46,6 +46,16 @@
   --logo-oscuro-chispa: #e9ff9e;
   --logo-oscuro-punto: #c6f432;
 
+  /* Estados con fondo suave (aviso / correcto / peligro): van SIEMPRE en pareja fondo + texto.
+     Antes se usaban fondos pastel fijos (#fffbeb, #ecfdf5, #fdecea…) con el texto del tema, y en modo oscuro
+     el texto claro quedaba sobre el pastel claro: invisible. */
+  --aviso-fondo: #fffbeb;
+  --aviso-texto: #78350f;
+  --ok-fondo: #ecfdf5;
+  --ok-texto: #065f46;
+  --peligro-fondo: #fdecea;
+  --peligro-texto: #991b1b;
+
   --color-hover-btn-gray: #999;
   --color-shadow: rgba(0, 0, 0, 0.2);
   --color-transparent-bg-alert: rgba(0, 0, 0, 0.5);
@@ -74,6 +84,12 @@
 /* ---------- A · Pin de tienda · oscuro ---------- */
 @media (prefers-color-scheme: dark) {
   :root {
+    --aviso-fondo: #3a2f12;
+    --aviso-texto: #fde68a;
+    --ok-fondo: #10302a;
+    --ok-texto: #a7f3d0;
+    --peligro-fondo: #3b1d1a;
+    --peligro-texto: #fecaca;
     --color-shadow: rgba(0, 0, 0, 0.55);
     --text: #edede9;
     --text-muted: #a6a6a0;

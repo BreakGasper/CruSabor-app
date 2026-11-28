@@ -511,7 +511,7 @@ function onImgError(e: Event) {
 
 .info-right {
   text-align: center;
-  background: #f0f4ff;
+  background: var(--surface-2);
   padding: 0.7rem 1.2rem;
   border-radius: 10px;
   min-width: 120px;

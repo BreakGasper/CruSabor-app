@@ -546,7 +546,7 @@ console.log("Correo:", sessionUser.value?.email);
 }
 
 .tab-button:hover {
-  background: #eef3ff;
+  background: var(--surface-2);
 }
 
 /* Pestaña para mostrar menú */

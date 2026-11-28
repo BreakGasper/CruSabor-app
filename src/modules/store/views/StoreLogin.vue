@@ -512,7 +512,7 @@ async function login() {
   justify-content: center;
 }
 .toggle-password:hover {
-  background: #fef3c7;
+  background: var(--aviso-fondo);
 }
 /* Oculta el ojo nativo de Edge/IE para no duplicar el botón propio */
 .form-input::-ms-reveal,
