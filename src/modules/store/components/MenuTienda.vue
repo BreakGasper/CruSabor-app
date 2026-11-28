@@ -24,14 +24,16 @@
           <nav class="mt-cuerpo">
             <!-- Dueña o dueño -->
             <template v-if="esDueno">
-              <template v-for="g in gruposDueno" :key="g.id">
+              <section v-for="g in gruposDueno" :key="g.id" class="mt-grupo" :data-grupo="g.id">
                 <p class="mt-seccion" :data-seccion="g.id">{{ g.titulo }}</p>
                 <button v-for="o in g.opciones" :key="o.accion" type="button" class="mt-opcion" @click="$emit('accion', o.accion)">
                   <span class="mt-icono" aria-hidden="true">{{ o.icono }}</span>
-                  <span>{{ o.texto }}</span>
+                  <span class="mt-texto">{{ o.texto }}</span>
+                  <span class="mt-flecha" aria-hidden="true">›</span>
                 </button>
-              </template>
+              </section>
 
+              <section class="mt-grupo" data-grupo="tiendas">
               <p class="mt-seccion">Mis tiendas</p>
               <button
                 v-for="t in cuenta"
@@ -63,6 +65,7 @@
                 <small>{{ cuenta.length }} de {{ MAX_TIENDAS_POR_TELEFONO }}</small>
               </button>
               <p v-else class="mt-nota">Ya tienes el máximo de {{ MAX_TIENDAS_POR_TELEFONO }} tiendas con tu número.</p>
+              </section>
             </template>
 
             <!-- Visitante -->
@@ -223,6 +226,8 @@ function agregarTienda() {
   color: var(--text);
   display: flex;
   flex-direction: column;
+  border-radius: 0 28px 28px 0;
+  overflow: hidden;
   box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25);
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -232,16 +237,17 @@ function agregarTienda() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  background: var(--color-bg-blue-dark);
+  padding: 18px 16px;
+  background: linear-gradient(135deg, var(--color-bg-blue-dark), color-mix(in srgb, var(--color-bg-blue-dark) 70%, #db2777));
   color: #fff;
 }
 .mt-logo {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 50%;
   object-fit: cover;
   background: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.85);
   flex-shrink: 0;
 }
 .mt-head-texto {
@@ -266,7 +272,7 @@ function agregarTienda() {
   width: 34px;
   height: 34px;
   padding: 0; /* sin esto hereda el padding global de button y la X queda chueca */
-  border-radius: 10px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -284,40 +290,79 @@ function agregarTienda() {
 .mt-cuerpo {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 10px 12px;
+  padding: 12px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+/* Cada panel es una tarjeta con borde y esquinas redondeadas */
+.mt-grupo {
+  --acento: var(--brand-blue-text);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.mt-grupo[data-grupo='articulos'] { --acento: #d97706; }
+.mt-grupo[data-grupo='servicios'] { --acento: #0891b2; }
+.mt-grupo[data-grupo='tiendas'] { --acento: #db2777; }
 .mt-seccion {
-  margin: 14px 8px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 10px 6px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+.mt-seccion::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--acento);
 }
 .mt-opcion {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 10px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   background: transparent;
   color: var(--text);
   font: inherit;
   font-size: 0.95rem;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 .mt-opcion:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--acento) 10%, var(--surface));
 }
+.mt-opcion:active:not(:disabled) {
+  transform: scale(0.98);
+}
+/* Icono dentro de un círculo del color del panel */
 .mt-icono {
-  width: 28px;
-  text-align: center;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--acento) 16%, var(--surface));
   font-size: 1.1rem;
   flex-shrink: 0;
+}
+.mt-texto {
+  flex: 1;
+  min-width: 0;
 }
 .mt-contador {
   margin-left: auto;
@@ -331,15 +376,17 @@ function agregarTienda() {
   text-align: center;
 }
 .mt-tienda.actual {
-  background: var(--brand-blue-soft);
+  background: color-mix(in srgb, var(--acento) 14%, var(--surface));
   cursor: default;
 }
 .mt-mini-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
 }
 .vacio {
   display: flex;
@@ -358,52 +405,67 @@ function agregarTienda() {
 }
 .mt-badge {
   font-size: 0.7rem;
-  font-weight: 700;
-  padding: 2px 8px;
+  font-weight: 800;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--brand-blue-text);
+  background: var(--acento);
+  color: #fff;
 }
 .mt-flecha {
   color: var(--text-muted);
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+  line-height: 1;
 }
 .mt-agregar {
-  margin: 6px 0 0;
+  margin: 6px 0 2px;
   width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 12px;
-  border-radius: 12px;
-  border: 2px dashed var(--brand-blue-text);
-  background: transparent;
-  color: var(--brand-blue-text);
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 2px dashed var(--acento);
+  background: color-mix(in srgb, var(--acento) 8%, var(--surface));
+  color: var(--acento);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 .mt-agregar small {
   margin-left: auto;
-  font-weight: 500;
-  opacity: 0.8;
+  font-weight: 600;
+  opacity: 0.85;
 }
 .mt-nota {
-  margin: 6px 8px 0;
+  margin: 6px 10px 4px;
   font-size: 0.8rem;
   color: var(--text-muted);
 }
 .mt-error {
-  margin: 6px 8px 0;
+  margin: 6px 10px 0;
   font-size: 0.82rem;
-  color: #b91c1c;
+  color: var(--peligro-texto, #b91c1c);
 }
 .mt-pie {
   border-top: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
 }
 .mt-salir {
-  color: #b91c1c;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: var(--peligro-fondo, #fee2e2);
+  color: var(--peligro-texto, #b91c1c);
+  font-weight: 700;
+}
+.mt-salir:hover:not(:disabled) {
+  background: var(--peligro-fondo, #fee2e2);
+  filter: brightness(0.97);
+}
+.mt-salir .mt-icono {
+  width: auto;
+  height: auto;
+  background: transparent;
 }
 
 /* Entrada: el fondo aparece y el panel se desliza desde la izquierda */
