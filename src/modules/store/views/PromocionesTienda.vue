@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { recortarFoto } from '@/utils/recortarFoto';
 /**
  * Panel de promociones de una tienda: crear, editar, pausar, renovar y eliminar.
  *
@@ -254,9 +255,13 @@ function onArticuloElegido() {
   form.precioOriginal = Number(a?.precio) || 0;
 }
 
-function onBannerElegido(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
+async function onBannerElegido(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const elegida = input.files?.[0];
+  if (!elegida) return;
+  const file = await recortarFoto(elegida, '16:9'); // recorte básico
   if (file) bannerFile.value = file;
+  else input.value = '';
 }
 
 function onImgError(e: Event) {

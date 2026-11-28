@@ -82,6 +82,11 @@ function fijarAspecto() {
 fijarAspecto();
 
 async function abrir(f: File) {
+  // Cada foto puede pedir su proporción (logo cuadrado, banner 3:1…); sin pedirla se conserva la última elegida
+  if (props.aspectoInicial && props.aspectoInicial !== aspectoId.value) {
+    aspectoId.value = props.aspectoInicial;
+    fijarAspecto();
+  }
   cargando.value = true;
   error.value = '';
   fuente?.close?.();

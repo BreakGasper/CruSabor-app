@@ -824,6 +824,7 @@
 
 <script setup lang="ts">
 import TopBarFija from "@/components/TopBarFija.vue";
+import { recortarFoto, recortarFotos } from "@/utils/recortarFoto";
 import CustomToast from "@/components/CustomToast.vue";
 import { ref, reactive, watch, computed, onMounted, defineAsyncComponent } from "vue";
 import Swal from "sweetalert2";
@@ -935,11 +936,16 @@ const bannerInput = ref<HTMLInputElement | null>(null);
 function triggerBanner() {
   bannerInput.value?.click();
 }
-function handleBannerChange(e: Event) {
+async function handleBannerChange(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files?.[0]) {
-    form.value.banner = target.files[0];
-    bannerPreview.value = URL.createObjectURL(target.files[0]);
+    const foto = await recortarFoto(target.files[0], "3:1"); // recorte básico: banner panorámico
+    if (!foto) {
+      target.value = "";
+      return;
+    }
+    form.value.banner = foto;
+    bannerPreview.value = URL.createObjectURL(foto);
   }
 }
 // ------------------- MUNICIPIOS Y PUEBLOS EN TIEMPO REAL -------------------
@@ -1113,23 +1119,30 @@ const galleryInput = ref<HTMLInputElement | null>(null);
 function triggerLogo() {
   logoInput.value?.click();
 }
-function handleLogoChange(e: Event) {
+async function handleLogoChange(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files?.[0]) {
-    form.value.logo = target.files[0];
-    logoPreview.value = URL.createObjectURL(target.files[0]);
+    const foto = await recortarFoto(target.files[0], "1:1"); // recorte básico: logo cuadrado
+    if (!foto) {
+      target.value = "";
+      return;
+    }
+    form.value.logo = foto;
+    logoPreview.value = URL.createObjectURL(foto);
   }
 }
 function triggerGallery() {
   galleryInput.value?.click();
 }
-function handleGallery(e: Event) {
+async function handleGallery(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files) {
-    const newFiles = Array.from(target.files).slice(
+    const elegidas = Array.from(target.files).slice(
       0,
       3 - form.value.gallery.length
     );
+    const newFiles = await recortarFotos(elegidas, "4:3"); // recorte básico de cada foto
+    target.value = "";
     form.value.gallery.push(...newFiles);
     galleryPreview.value = form.value.gallery.map((f) =>
       URL.createObjectURL(f)

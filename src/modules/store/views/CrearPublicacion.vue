@@ -184,6 +184,7 @@ import {
 } from '@/composables/usePublicaciones';
 import { canvasABlob, dibujarPublicacion } from '../utils/dibujarPublicacion';
 import { recortarFondo } from '../utils/quitarFondo';
+import { recortarFoto } from '@/utils/recortarFoto';
 import { ESTILOS_ESCENA, ErrorEscena, estadoEscenas, generarEscena } from '../utils/escenas';
 
 const route = useRoute();
@@ -339,9 +340,16 @@ async function alElegirFoto(e: Event) {
     (e.target as HTMLInputElement).value = '';
     return;
   }
+  // Recorte básico antes de usarla: la proporción sigue al formato elegido
+  const aspectoDe: Record<string, string> = { cuadrado: '1:1', historia: '3:4', banner: '3:1', horizontal: '16:9' };
+  const recortada = await recortarFoto(f, aspectoDe[form.formato] || '1:1');
+  if (!recortada) {
+    (e.target as HTMLInputElement).value = '';
+    return;
+  }
   try {
     if (urlFotoLocal) URL.revokeObjectURL(urlFotoLocal);
-    urlFotoLocal = URL.createObjectURL(f);
+    urlFotoLocal = URL.createObjectURL(recortada);
     foto = await cargarImagen(urlFotoLocal, false);
     articuloId.value = '';
     prepararRecorte();

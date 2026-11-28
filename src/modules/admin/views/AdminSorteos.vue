@@ -92,6 +92,7 @@ import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import SorteoDetalleModal from '../components/SorteoDetalleModal.vue';
 import { uploadImage, eliminarImagenReemplazada } from '@/composables/useCloudinary';
+import { recortarFoto } from '@/utils/recortarFoto';
 import { useTiendas } from '@/composables/useTiendas';
 import {
   useSorteos,
@@ -124,8 +125,13 @@ const subiendo = ref(false);
 const imagenAlEditar = ref('');
 
 async function onArchivo(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
+  const elegida = (e.target as HTMLInputElement).files?.[0];
+  if (!elegida) return;
+  const file = await recortarFoto(elegida, '3:1'); // recorte básico del banner
+  if (!file) {
+    if (fileInput.value) fileInput.value.value = '';
+    return;
+  }
   subiendo.value = true;
   try {
     form.imagenUrl = await uploadImage(file);

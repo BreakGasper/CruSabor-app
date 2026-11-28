@@ -80,6 +80,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import PageHeader from '@/components/PageHeader.vue';
 import { uploadImage } from '@/composables/useCloudinary';
+import { recortarFotos } from '@/utils/recortarFoto';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { sessionUser } from '@/utils/sessionUser';
 import type { Servicio } from '../tipos';
@@ -129,8 +130,12 @@ const irALogin = () => router.push({ path: '/login', query: { redirect: `/cotiza
 
 async function alElegirImagenes(e: Event) {
   const input = e.target as HTMLInputElement;
-  const archivos = Array.from(input.files ?? []).slice(0, MAX_IMAGENES_COTIZACION - form.imagenes.length);
-  if (!archivos.length) return;
+  const elegidos = Array.from(input.files ?? []).slice(0, MAX_IMAGENES_COTIZACION - form.imagenes.length);
+  const archivos = await recortarFotos(elegidos, '4:3');
+  if (!archivos.length) {
+    input.value = '';
+    return;
+  }
   subiendo.value = true;
   try {
     for (const a of archivos) form.imagenes.push(await uploadImage(a));
