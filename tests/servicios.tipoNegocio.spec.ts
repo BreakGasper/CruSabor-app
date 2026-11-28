@@ -336,7 +336,7 @@ describe('Menú de la tienda según lo que ofrece', () => {
   it('productos (o sin tipo): el menú de siempre', () => {
     for (const tipoNegocio of [undefined, 'productos']) {
       const o = opciones(montar({ esDueno: true, tipoNegocio, promocionesHabilitadas: true }));
-      expect(o.join('|')).toMatch(/Crear publicación.*Mis artículos.*Agregar artículo.*Pedidos.*Crear promoción/);
+      expect(o.join('|')).toMatch(/Mis artículos.*Agregar artículo.*Pedidos.*Crear promoción/);
     }
   });
 
@@ -344,7 +344,7 @@ describe('Menú de la tienda según lo que ofrece', () => {
     const w = montar({ esDueno: true, tipoNegocio: 'servicios', promocionesHabilitadas: true });
     const o = opciones(w).join('|');
     expect(o).toContain('Editar mi tienda');
-    expect(o).toContain('Crear publicación');
+    expect(o).not.toContain('Crear publicación'); // oculta del menú
     expect(o).not.toContain('Estudio de diseño'); // oculto del menú
     for (const propia of ['Resumen', 'Mis servicios', 'Citas', 'Cotizaciones', 'Clientes', 'Horarios y equipo']) expect(o, propia).toContain(propia);
     for (const fuera of ['Pedidos', 'Agregar artículo', 'Mis artículos', 'Crear promoción']) expect(o, fuera).not.toContain(fuera);

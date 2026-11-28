@@ -157,7 +157,7 @@ const gruposDueno = computed(() => {
       titulo: 'Mi tienda',
       opciones: [
         { accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' },
-        { accion: 'crear-publicacion', icono: '📣', texto: 'Crear publicación' },
+        // «Crear publicación» (/store/publicaciones/:id) está oculta del menú por ahora; la ruta y su acción siguen disponibles
         // «Estudio de diseño» (/studio) está oculto del menú por ahora; la ruta y su acción siguen disponibles
       ],
     },
