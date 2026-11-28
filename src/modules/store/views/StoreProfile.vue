@@ -63,9 +63,9 @@
           ✅ Avisaste tu pago el {{ fechaCorta(solicitudPendiente.fecha) }}<span v-if="solicitudPendiente.referencia"> (ref. {{ solicitudPendiente.referencia }})</span>.
           El administrador lo está revisando; tu membresía se activará al confirmarlo.
         </p>
-        <div v-else-if="pagoEnLineaDisponible && !membresiaVigente(store)" class="aviso-acciones">
+        <div v-else-if="pagoEnLineaDisponible && (!membresiaVigente(store) || bonoPrimerPagoDisponible(store))" class="aviso-acciones">
           <button type="button" class="btn-pagar-membresia" :disabled="iniciandoPago" @click="pagarMembresia">
-            {{ iniciandoPago ? 'Abriendo Mercado Pago...' : '💳 Pagar membresía' }}
+            {{ iniciandoPago ? 'Abriendo Mercado Pago...' : bonoPrimerPagoDisponible(store) ? '🎁 Pagar y llevarme 1 mes gratis' : '💳 Pagar membresía' }}
           </button>
           <button type="button" class="btn-ya-pague" @click="avisarPago()">Ya pagué</button>
         </div>
@@ -438,7 +438,7 @@ import { useTiendasFavoritas } from '@/db/composables/useTiendasFavoritas';
 import { FIREBASE_STORAGE_BASE_URL, imagenUrl } from '@/constants/firebase_util';
 import defaultArticulo from '@/assets/icons/default_articulo.png';
 import { sessionUsuarioValidation } from '@/utils/sessionUser';
-import { avisoEstadoTienda, tiendaPuedeVender, membresiaVigente, MENSAJE_SIN_MEMBRESIA } from '@/composables/useMembresia';
+import { avisoEstadoTienda, tiendaPuedeVender, membresiaVigente, bonoPrimerPagoDisponible, MENSAJE_SIN_MEMBRESIA } from '@/composables/useMembresia';
 import { useConfiguracion } from '@/composables/useConfiguracion';
 import { reportarPago, useSolicitudesPago } from '@/composables/useSolicitudesPago';
 import { iniciarPagoMembresia, resultadoPagoDesdeQuery, MENSAJE_RESULTADO_PAGO } from '@/composables/useMercadoPago';
