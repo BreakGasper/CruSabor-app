@@ -9,10 +9,20 @@ Los servicios NO son artículos: tienen su propio modelo, su propio flujo (agend
 |---|---|---|
 | 1. Base: tipos, agenda (lógica pura), estados, reglas de la base | ✅ | `src/modules/servicios/`, `database.rules.json` |
 | 2. Tipo de negocio al registrar y editar la tienda | ✅ | `StoreRegister.vue`, `StoreEditModal.vue`, `MenuTienda.vue`, `StoreProfile.vue` |
-| 3. Perfil profesional, servicios y portafolio | ⏳ | — |
-| 4. Agenda: horarios, reservas y citas | ⏳ | — |
-| 5. Cotizaciones | ⏳ | — |
+| 3. Catálogo de servicios, detalle con «Cotizar» y administración de servicios | ✅ | `catalogo.ts`, `CatalogoServicios.vue`, `ServicioDetalle.vue`, `MisServicios.vue` |
+| 4. Agenda: horarios, reservas y citas | ⏳ (la lógica de disponibilidad ya existe) | — |
+| 5. Cotizaciones (solicitud, respuesta, aceptar o rechazar) | ✅ | `cotizaciones.ts`, `SolicitarCotizacion.vue`, `CotizacionesTienda.vue`, `MisCotizaciones.vue` |
 | 6. Descubrimiento (portada, directorio) y panel de resumen | ⏳ | — |
+
+## Catálogo y cotizaciones (módulos 3 y 5)
+
+- **Catálogo:** la tienda publica sus servicios en `/store/servicios/:id` (nombre, categoría, descripción, hasta 6 fotos, precio fijo / desde / a cotizar, duración, modalidad, cómo se contrata). Los clientes lo ven en el perfil de la tienda («Catálogo de servicios»). Publicar exige membresía vigente, igual que los productos.
+- **Detalle** `/servicio/:tiendaId/:servicioId`: galería, precio, datos y el botón **«Cotizar»** (en un servicio nunca hay «agregar al carrito»). Si el servicio también se agenda, aparece «Agendar cita · próximamente» deshabilitado hasta el módulo 4.
+- **Solicitud** `/cotizar/:tiendaId/:servicioId` (requiere sesión de cliente): qué necesita, hasta 4 imágenes de referencia, fecha tentativa y si es a domicilio (con dirección). Máximo 5 solicitudes abiertas por cliente y tienda.
+- **Bandeja de la tienda** `/store/cotizaciones/:id`: filtros, imágenes, datos del cliente, WhatsApp, y las acciones que corresponden a cada estado (en revisión, responder con precio/descripción/condiciones/vigencia, rechazar, completar).
+- **Mis cotizaciones** `/mis-cotizaciones` (desde el perfil del cliente): estado, la respuesta de la tienda y aceptar o rechazar.
+- **Estados:** pendiente → en revisión → cotizada → aceptada → completada; rechazada y vencida. «Vencida» se calcula sola cuando pasa la vigencia (nadie tiene que escribirla).
+- **Concurrencia:** cada cambio de estado es una **transacción** sobre la cotización: si la tienda y el cliente actúan a la vez, solo uno gana y el otro recibe un aviso claro (por ejemplo, no se puede aceptar una cotización que la tienda ya retiró).
 
 ## Tipo de negocio
 

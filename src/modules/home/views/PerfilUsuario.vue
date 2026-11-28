@@ -139,6 +139,12 @@
         </div>
         <div class="config-buttons">
           <Button
+            label="💬 Mis cotizaciones"
+            class="modern-button mb-2 p-button-help"
+            data-testid="mis-cotizaciones"
+            @click="$router.push('/mis-cotizaciones')"
+          />
+          <Button
             label="🧾 Datos personales"
             class="modern-button mb-2 p-button-info"
             @click="openEditModal"

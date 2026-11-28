@@ -31,7 +31,7 @@
               </button>
 
               <p v-if="ofreceServ" class="mt-nota" data-testid="menu-servicios-pronto">
-                🗓️ Próximamente en este menú: Mis servicios, Citas y Cotizaciones.
+                🗓️ Próximamente: agenda y citas.
               </p>
 
               <p class="mt-seccion">Mis tiendas</p>
@@ -113,6 +113,8 @@ export type AccionMenuTienda =
   | 'crear-publicacion'
   | 'estudio'
   | 'productos'
+  | 'servicios'
+  | 'cotizaciones'
   | 'carrito'
   | 'mapa'
   | 'llamar'
@@ -147,6 +149,12 @@ const opcionesDueno = computed(() => {
     lista.push(
       { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
       { accion: 'agregar-articulo', icono: '➕', texto: 'Agregar artículo' },
+    );
+  }
+  if (ofreceServ.value) {
+    lista.push(
+      { accion: 'servicios', icono: '🗂️', texto: 'Mis servicios' },
+      { accion: 'cotizaciones', icono: '💬', texto: 'Cotizaciones' },
     );
   }
   lista.push(

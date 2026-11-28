@@ -298,6 +298,12 @@
         <p v-if="store.experiencia" class="servicios-experiencia">{{ store.experiencia }}</p>
       </div>
 
+      <!-- Catálogo del trabajo: servicios con fotos, precio y botón para cotizar -->
+      <div v-if="ofreceServicios(store) && store.tiendaId" class="card-section servicios-catalogo">
+        <h2>Catálogo de servicios</h2>
+        <CatalogoServicios :tienda-id="store.tiendaId" :es-dueno="esDuenoTienda" />
+      </div>
+
       <!-- Sección: Productos de la tienda (una tienda de solo servicios no tiene) -->
       <div v-if="vendeProductos(store)" class="card-section productos-section">
         <div class="productos-head">
@@ -469,6 +475,7 @@ import { urlPerfilTienda, textoCompartirTienda } from '@/composables/useComparti
 import { volverOInicio } from '@/utils/navegacion';
 import { normalizarEnlace } from '@/utils/enlaces';
 import { nombreCategoriaServicio } from '@/modules/servicios/tipos';
+import CatalogoServicios from '@/modules/servicios/components/CatalogoServicios.vue';
 import { ETIQUETA_MODALIDAD, modalidadDe, vendeProductos, ofreceServicios } from '@/modules/servicios/negocio';
 
 const router = useRouter();
@@ -778,6 +785,8 @@ function alElegirDelMenu(accion: AccionMenuTienda) {
     'crear-publicacion': irACrearPublicacion,
     estudio: () => router.push('/studio'),
     productos: irAArticulos,
+    servicios: () => router.push(`/store/servicios/${store.value?.tiendaId}`),
+    cotizaciones: () => router.push(`/store/cotizaciones/${store.value?.tiendaId}`),
     carrito: irAlCarrito,
     mapa: abrirMaps,
     llamar,
@@ -1825,4 +1834,7 @@ a.red-enlace-perfil:hover span {
 .servicios-chips { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .servicios-chips li { padding: 4px 10px; border-radius: 999px; background: var(--brand-blue-soft); color: var(--brand-blue-text); font-size: 0.8rem; font-weight: 600; }
 .servicios-experiencia { margin: 0; color: var(--text); font-size: 0.9rem; line-height: 1.45; white-space: pre-line; }
+
+.servicios-catalogo { text-align: left; }
+.servicios-catalogo h2 { margin: 0 0 10px; }
 </style>

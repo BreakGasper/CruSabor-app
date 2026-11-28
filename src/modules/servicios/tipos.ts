@@ -202,6 +202,9 @@ export interface RespuestaCotizacion {
 export interface Cotizacion {
   id: string;
   tiendaId: string;
+  /** Copias hechas al solicitar, para que el cliente vea de quién es y pueda contactarla sin otra consulta */
+  tiendaNombre?: string;
+  tiendaTelefono?: string;
   servicioId: string;
   servicioNombre: string;
   clienteId: string;
