@@ -18,6 +18,8 @@ export interface OpcionesDibujo {
   tienda: string;
   /** La foto ya viene sin fondo (recortada): se dibuja flotando, sin marco */
   recortada?: boolean;
+  /** Fondo inventado por la IA: cubre toda la imagen y el texto pasa a blanco sobre un degradado oscuro */
+  escena?: CanvasImageSource | null;
 }
 
 /**
@@ -76,19 +78,34 @@ function rectRedondeado(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
 
 const FUENTE = `'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
 
+/** Escena de IA: cubre todo el lienzo y un degradado oscuro deja leer el texto (a la izquierda en banners, abajo en los demás) */
+function pintarEscena(ctx: CanvasRenderingContext2D, escena: CanvasImageSource, W: number, H: number, horizontal: boolean) {
+  const ew = (escena as any).width || (escena as any).naturalWidth || W;
+  const eh = (escena as any).height || (escena as any).naturalHeight || H;
+  const e = Math.max(W / ew, H / eh);
+  ctx.drawImage(escena, (W - ew * e) / 2, (H - eh * e) / 2, ew * e, eh * e);
+  const g = horizontal ? ctx.createLinearGradient(0, 0, W * 0.65, 0) : ctx.createLinearGradient(0, H * 0.4, 0, H);
+  g.addColorStop(0, horizontal ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0)');
+  g.addColorStop(1, horizontal ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.78)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
 /** Producto sin fondo: círculo de color detrás, foto completa (sin recortar) y una sombra suave */
-function dibujarFotoRecortada(ctx: CanvasRenderingContext2D, foto: CanvasImageSource, x: number, y: number, w: number, h: number, acento: string, k: number) {
+function dibujarFotoRecortada(ctx: CanvasRenderingContext2D, foto: CanvasImageSource, x: number, y: number, w: number, h: number, acento: string, k: number, circulo = true) {
   const fw = (foto as any).width || (foto as any).naturalWidth || w;
   const fh = (foto as any).height || (foto as any).naturalHeight || h;
   const cx = x + w / 2;
   const cy = y + h / 2;
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = acento;
-  ctx.beginPath();
-  ctx.arc(cx, cy, Math.min(w, h) * 0.52, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  if (circulo) {
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = acento;
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.min(w, h) * 0.52, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   const escala = Math.min((w * 0.92) / fw, (h * 0.92) / fh);
   const dw = fw * escala;
   const dh = fh * escala;
@@ -112,6 +129,7 @@ function dibujarHorizontal(ctx: CanvasRenderingContext2D, o: OpcionesDibujo, pl:
   g.addColorStop(1, pl.fondo[1]);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  if (o.escena) pintarEscena(ctx, o.escena, W, H, true);
 
   // Foto a la derecha
   const colX = W * 0.56;
@@ -120,7 +138,7 @@ function dibujarHorizontal(ctx: CanvasRenderingContext2D, o: OpcionesDibujo, pl:
   const fotoW = W - colX - m;
   const fotoH = H - m * 2;
   if (o.foto && o.recortada) {
-    dibujarFotoRecortada(ctx, o.foto, fotoX, fotoY, fotoW, fotoH, pl.acento, k);
+    dibujarFotoRecortada(ctx, o.foto, fotoX, fotoY, fotoW, fotoH, pl.acento, k, !o.escena);
   } else {
     ctx.save();
     rectRedondeado(ctx, fotoX, fotoY, fotoW, fotoH, 30 * k);
@@ -221,7 +239,8 @@ function dibujarHorizontal(ctx: CanvasRenderingContext2D, o: OpcionesDibujo, pl:
 }
 
 export function dibujarPublicacion(canvas: HTMLCanvasElement, o: OpcionesDibujo): void {
-  const pl = plantillaPorId(o.plantilla);
+  const base = plantillaPorId(o.plantilla);
+  const pl = o.escena ? { ...base, texto: '#ffffff' } : base; // sobre una escena el texto va en blanco
   const fm = formatoPorId(o.formato);
   canvas.width = fm.ancho;
   canvas.height = fm.alto;
@@ -240,12 +259,13 @@ export function dibujarPublicacion(canvas: HTMLCanvasElement, o: OpcionesDibujo)
   g.addColorStop(1, pl.fondo[1]);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  if (o.escena) pintarEscena(ctx, o.escena, W, H, false);
 
   // Foto (recortada para llenar el recuadro, o sin fondo flotando sobre un círculo de color)
   const fotoY = vertical ? 110 : margen;
   const fotoH = vertical ? 1020 : 600;
   if (o.foto && o.recortada) {
-    dibujarFotoRecortada(ctx, o.foto, margen, fotoY, ancho, fotoH, pl.acento, 1);
+    dibujarFotoRecortada(ctx, o.foto, margen, fotoY, ancho, fotoH, pl.acento, 1, !o.escena);
   } else {
     ctx.save();
     rectRedondeado(ctx, margen, fotoY, ancho, fotoH, 36);
