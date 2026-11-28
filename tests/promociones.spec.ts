@@ -317,7 +317,7 @@ describe('"Crear promoción" en el menú de la tienda', () => {
     const w = await montarPerfil({ promosOn: false });
     const lista = await etiquetas(w);
     expect(lista).not.toContain('Crear promoción');
-    expect(lista).toContain('Mis productos'); // el resto del menú sigue igual
+    expect(lista).toContain('Mis artículos'); // el resto del menú sigue igual
   });
 
   it('un visitante no la ve aunque estén encendidas', async () => {

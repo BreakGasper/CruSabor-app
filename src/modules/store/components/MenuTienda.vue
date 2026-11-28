@@ -24,11 +24,13 @@
           <nav class="mt-cuerpo">
             <!-- Dueña o dueño -->
             <template v-if="esDueno">
-              <p class="mt-seccion">Mi tienda</p>
-              <button v-for="o in opcionesDueno" :key="o.accion" type="button" class="mt-opcion" @click="$emit('accion', o.accion)">
-                <span class="mt-icono" aria-hidden="true">{{ o.icono }}</span>
-                <span>{{ o.texto }}</span>
-              </button>
+              <template v-for="g in gruposDueno" :key="g.id">
+                <p class="mt-seccion" :data-seccion="g.id">{{ g.titulo }}</p>
+                <button v-for="o in g.opciones" :key="o.accion" type="button" class="mt-opcion" @click="$emit('accion', o.accion)">
+                  <span class="mt-icono" aria-hidden="true">{{ o.icono }}</span>
+                  <span>{{ o.texto }}</span>
+                </button>
+              </template>
 
               <p class="mt-seccion">Mis tiendas</p>
               <button
@@ -143,33 +145,44 @@ const totalEnCarrito = computed(() => props.totalEnCarrito ?? 0);
 const vendeProd = computed(() => vendeProductos({ tipoNegocio: props.tipoNegocio }));
 const ofreceServ = computed(() => ofreceServicios({ tipoNegocio: props.tipoNegocio }));
 
-const opcionesDueno = computed(() => {
-  const lista: Array<{ accion: AccionMenuTienda; icono: string; texto: string }> = [{ accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' }];
+type Opcion = { accion: AccionMenuTienda; icono: string; texto: string };
+/** Menú de la dueña o dueño en tres paneles: su tienda, los artículos (productos) y los servicios */
+const gruposDueno = computed(() => {
+  const grupos: Array<{ id: string; titulo: string; opciones: Opcion[] }> = [
+    {
+      id: 'tienda',
+      titulo: 'Mi tienda',
+      opciones: [
+        { accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' },
+        { accion: 'crear-publicacion', icono: '📣', texto: 'Crear publicación' },
+        { accion: 'estudio', icono: '🎨', texto: 'Estudio de diseño' },
+      ],
+    },
+  ];
   if (vendeProd.value) {
-    lista.push(
-      { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
+    const op: Opcion[] = [
+      { accion: 'productos', icono: '📋', texto: 'Mis artículos' },
       { accion: 'agregar-articulo', icono: '➕', texto: 'Agregar artículo' },
-    );
+      { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
+    ];
+    if (props.promocionesHabilitadas) op.push({ accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
+    grupos.push({ id: 'articulos', titulo: 'Panel de artículos', opciones: op });
   }
   if (ofreceServ.value) {
-    lista.push(
-      { accion: 'panel', icono: '📊', texto: 'Panel de servicios' },
-      { accion: 'servicios', icono: '🗂️', texto: 'Mis servicios' },
-      { accion: 'citas', icono: '🗓️', texto: 'Citas' },
-      { accion: 'cotizaciones', icono: '💬', texto: 'Cotizaciones' },
-      { accion: 'clientes', icono: '👥', texto: 'Clientes' },
-      { accion: 'horarios', icono: '⏰', texto: 'Horarios y equipo' },
-    );
+    grupos.push({
+      id: 'servicios',
+      titulo: 'Panel de servicios',
+      opciones: [
+        { accion: 'panel', icono: '📊', texto: 'Resumen' },
+        { accion: 'servicios', icono: '🗂️', texto: 'Mis servicios' },
+        { accion: 'citas', icono: '🗓️', texto: 'Citas' },
+        { accion: 'cotizaciones', icono: '💬', texto: 'Cotizaciones' },
+        { accion: 'clientes', icono: '👥', texto: 'Clientes' },
+        { accion: 'horarios', icono: '⏰', texto: 'Horarios y equipo' },
+      ],
+    });
   }
-  lista.push(
-    { accion: 'crear-publicacion', icono: '📣', texto: 'Crear publicación' },
-    { accion: 'estudio', icono: '🎨', texto: 'Estudio de diseño' },
-  );
-  if (vendeProd.value) {
-    lista.push({ accion: 'productos', icono: '📋', texto: 'Mis productos' });
-    if (props.promocionesHabilitadas) lista.push({ accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
-  }
-  return lista;
+  return grupos;
 });
 
 const inicial = (n?: string) => (n || '?').trim().charAt(0).toUpperCase();

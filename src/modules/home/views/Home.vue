@@ -153,6 +153,9 @@
     <!-- Destacados: las promociones vigentes de las tiendas -->
     <Destacados class="carrusel-div" />
 
+    <!-- Servicios recientes (junto a los productos) -->
+    <ServiciosRecientes />
+
     <!-- Lista de todos los productos -->
     <section class="destacados">
       <h2 class="title">Productos</h2>
@@ -188,6 +191,7 @@ import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import BannersCarousel from "../components/BannersCarousel.vue";
 import SelectorModo from "@/modules/servicios/components/SelectorModo.vue";
+import ServiciosRecientes from "@/modules/servicios/components/ServiciosRecientes.vue";
 import MarcaCrustore from "@/components/MarcaCrustore.vue";
 import LogoCrustore from "@/components/LogoCrustore.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
