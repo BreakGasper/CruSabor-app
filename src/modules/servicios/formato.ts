@@ -15,3 +15,10 @@ export function fechaHoraCorta(iso?: string): string {
 }
 
 export const dinero = (n: number): string => `$${Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+/** "2026-12-01" -> "mar, 1 dic" */
+export function fechaDia(aaaammdd?: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(aaaammdd ?? '');
+  if (!m) return '';
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+}

@@ -86,8 +86,20 @@
               {{ o.texto }}
             </label>
           </div>
-          <small class="pista">La agenda de citas llega pronto. Mientras tanto, tus clientes te piden cotización.</small>
+          <small class="pista">«Con cita» necesita una duración: tus clientes eligen día y hora según tu horario (se configura en «Horarios y equipo»).</small>
           <small v-if="errores.contratacion" class="error">{{ errores.contratacion }}</small>
+        </div>
+
+        <!-- Quién lo ofrece (solo si hay equipo) -->
+        <div v-if="equipo.length > 1" class="campo" data-testid="servicio-equipo">
+          <span>¿Quién lo ofrece?</span>
+          <div class="opciones">
+            <label v-for="p in equipo" :key="p.id" class="opcion" :class="{ on: form.profesionalIds.includes(p.id) }">
+              <input v-model="form.profesionalIds" type="checkbox" :value="p.id" :data-testid="'equipo-' + p.id" />
+              {{ p.nombre }}
+            </label>
+          </div>
+          <small class="pista">Sin elegir a nadie, lo ofrece todo el equipo.</small>
         </div>
 
         <!-- Modalidad -->
@@ -149,6 +161,7 @@ import { useTiendas } from '@/composables/useTiendas';
 import { CATEGORIAS_SERVICIO, type Servicio, type TipoPrecio, type Contratacion } from '../tipos';
 import { modalidadDe } from '../negocio';
 import { esDuenoDeTienda } from '../sesion';
+import { useProfesionales } from '../agenda';
 import {
   ErrorServicio,
   MAX_FOTOS_SERVICIO,
@@ -171,6 +184,8 @@ const router = useRouter();
 const tiendaId = computed(() => String(route.params.id ?? ''));
 const esDueno = computed(() => esDuenoDeTienda(tiendaId.value));
 const { obtenerTienda } = useTiendas();
+const { profesionales } = useProfesionales(() => (esDueno.value ? tiendaId.value : undefined));
+const equipo = computed(() => profesionales.value.filter((p) => p.activo));
 const { servicios, cargando } = useServiciosTienda(() => (esDueno.value ? tiendaId.value : undefined));
 
 const OPCIONES_PRECIO: { id: TipoPrecio; texto: string }[] = [
@@ -230,7 +245,7 @@ async function guardar() {
   if (Object.keys(errores.value).length) return;
   guardando.value = true;
   try {
-    await guardarServicio(tiendaId.value, editandoId.value, { ...form, fotos: [...form.fotos] }, modalidadTienda.value);
+    await guardarServicio(tiendaId.value, editandoId.value, { ...form, fotos: [...form.fotos], profesionalIds: [...form.profesionalIds] }, modalidadTienda.value);
     Swal.fire({ toast: true, position: 'bottom', timer: 1600, showConfirmButton: false, icon: 'success', title: editandoId.value ? 'Servicio actualizado' : 'Servicio publicado' });
     reiniciar();
   } catch (e: any) {
@@ -253,6 +268,7 @@ function editar(s: Servicio) {
     duracionMin: s.duracionMin,
     modalidad: s.modalidad,
     contratacion: s.contratacion,
+    profesionalIds: [...s.profesionalIds],
     activo: s.activo,
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });

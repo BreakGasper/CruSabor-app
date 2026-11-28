@@ -52,7 +52,7 @@
         </template>
         <template v-else>
           <button v-if="puedeCotizar(servicio)" type="button" class="btn-pri" data-testid="cotizar" @click="cotizar">💬 Cotizar</button>
-          <button v-if="sePuedeAgendar(servicio)" type="button" class="btn-sec" disabled data-testid="agendar-pronto">🗓️ Agendar cita · próximamente</button>
+          <button v-if="sePuedeAgendar(servicio)" type="button" :class="puedeCotizar(servicio) ? 'btn-sec' : 'btn-pri'" data-testid="agendar" @click="agendar">🗓️ Agendar cita</button>
         </template>
       </footer>
     </main>
@@ -102,6 +102,7 @@ function alDeslizar() {
 }
 
 const cotizar = () => router.push(`/cotizar/${tiendaId.value}/${servicioId.value}`);
+const agendar = () => router.push(`/reservar/${tiendaId.value}/${servicioId.value}`);
 </script>
 
 <style scoped>
@@ -132,6 +133,5 @@ const cotizar = () => router.push(`/cotizar/${tiendaId.value}/${servicioId.value
 .btn-pri, .btn-sec { width: 100%; max-width: 728px; margin: 0 auto; padding: 14px 16px; border: 0; border-radius: 12px; font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
 .btn-pri { background: var(--color-bg-blue-ligth); color: var(--on-primary); }
 .btn-sec { background: var(--surface-2); color: var(--text); }
-.btn-sec:disabled { opacity: 0.65; cursor: not-allowed; }
 .nota { margin: 0; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
 </style>

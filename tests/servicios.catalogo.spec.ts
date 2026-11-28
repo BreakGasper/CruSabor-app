@@ -427,14 +427,15 @@ describe('ServicioDetalle: «Cotizar» en lugar de «Agregar al carrito»', () =
     expect(routerMock.push).toHaveBeenCalledWith(`/store/profile/${T}`);
   });
 
-  it('si también se agenda, muestra «Agendar cita» deshabilitado (próximamente) además de «Cotizar»', async () => {
+  it('si también se agenda, muestra «Agendar cita» (que lleva a reservar) además de «Cotizar»', async () => {
     __reset({ tiendas: { [T]: tienda() }, servicios: { [T]: { s1: servicio({ contratacion: 'ambas' }) } } });
     const w = montar(ServicioDetalle);
     await listo();
     expect(w.find('[data-testid="cotizar"]').exists()).toBe(true);
-    const cita = w.find('[data-testid="agendar-pronto"]');
-    expect(cita.attributes('disabled')).toBeDefined();
-    expect(cita.text()).toContain('próximamente');
+    const cita = w.find('[data-testid="agendar"]');
+    expect(cita.attributes('disabled')).toBeUndefined();
+    await cita.trigger('click');
+    expect(routerMock.push).toHaveBeenCalledWith(`/reservar/${T}/s1`);
   });
 
   it('un servicio solo de cita no tiene botón de cotizar', async () => {
@@ -442,7 +443,7 @@ describe('ServicioDetalle: «Cotizar» en lugar de «Agregar al carrito»', () =
     const w = montar(ServicioDetalle);
     await listo();
     expect(w.find('[data-testid="cotizar"]').exists()).toBe(false);
-    expect(w.find('[data-testid="agendar-pronto"]').exists()).toBe(true);
+    expect(w.find('[data-testid="agendar"]').exists()).toBe(true);
   });
 
   it('un servicio oculto no está disponible para los clientes, pero la dueña o dueño lo ve y no puede cotizarse a sí misma', async () => {

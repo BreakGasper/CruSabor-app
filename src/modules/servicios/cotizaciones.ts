@@ -6,6 +6,7 @@ import { numeroParaWhatsapp } from '@/utils/whatsappCliente';
 import { esFechaISO, ahoraEnZona, sumarDias } from './disponibilidad';
 import { estadoEfectivoCotizacion, puedeCambiarCotizacion, type Actor } from './estados';
 import { ofreceServicios } from './negocio';
+import { registrarActividadCliente } from './clientes';
 import { ErrorServicio, PRECIO_MAX } from './catalogo';
 import type { Cotizacion, EstadoCotizacion, EventoHistorial, RespuestaCotizacion } from './tipos';
 
@@ -99,25 +100,8 @@ export async function crearCotizacion(tiendaId: string, s: SolicitudCotizacion, 
     [`cotizaciones/${tiendaId}/${id}`]: doc,
     [`cotizacionesPorCliente/${s.cliente.id}/${id}`]: { tiendaId },
   });
-  await registrarClienteServicio(tiendaId, s.cliente, ahora);
+  await registrarActividadCliente(tiendaId, s.cliente, 'cotizacion', ahora);
   return id;
-}
-
-/** Resumen del cliente para la tienda (cuántas cotizaciones y cuándo fue lo último) */
-async function registrarClienteServicio(tiendaId: string, c: { id: string; nombre?: string; telefono?: string }, ahora: Date) {
-  try {
-    await runTransaction(dbRef(db, `clientesServicio/${tiendaId}/${c.id}`), (actual: any) => ({
-      ...(actual ?? {}),
-      clienteId: c.id,
-      nombre: c.nombre || actual?.nombre || 'Cliente',
-      telefono: c.telefono || actual?.telefono || '',
-      citas: Number(actual?.citas) || 0,
-      cotizaciones: (Number(actual?.cotizaciones) || 0) + 1,
-      ultimaActividad: ahora.toISOString(),
-    }));
-  } catch (e) {
-    console.warn('No se pudo actualizar el resumen del cliente:', e); // la cotización ya quedó guardada
-  }
 }
 
 /* ------------------------------ Cambios de estado (transacción) ------------------------------ */

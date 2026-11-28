@@ -340,20 +340,21 @@ describe('Menú de la tienda según lo que ofrece', () => {
     }
   });
 
-  it('servicios: sin pedidos, artículos, productos ni promociones; con aviso de lo que viene', () => {
+  it('servicios: sin pedidos, artículos, productos ni promociones; con su panel de servicios', () => {
     const w = montar({ esDueno: true, tipoNegocio: 'servicios', promocionesHabilitadas: true });
     const o = opciones(w).join('|');
     expect(o).toContain('Editar mi tienda');
     expect(o).toContain('Crear publicación');
     expect(o).toContain('Estudio de diseño');
+    for (const propia of ['Panel de servicios', 'Mis servicios', 'Citas', 'Cotizaciones', 'Clientes', 'Horarios y equipo']) expect(o, propia).toContain(propia);
     for (const fuera of ['Pedidos', 'Agregar artículo', 'Mis productos', 'Crear promoción']) expect(o, fuera).not.toContain(fuera);
-    expect(w.find('[data-testid="menu-servicios-pronto"]').exists()).toBe(true);
+    expect(w.find('[data-testid="menu-servicios-pronto"]').exists()).toBe(false);
   });
 
-  it('mixto: todo el menú de productos y el aviso de servicios', () => {
-    const w = montar({ esDueno: true, tipoNegocio: 'mixto' });
-    expect(opciones(w).join('|')).toMatch(/Pedidos.*Agregar artículo.*Mis productos/);
-    expect(w.find('[data-testid="menu-servicios-pronto"]').exists()).toBe(true);
+  it('mixto: todo el menú de productos y también el de servicios', () => {
+    const o = opciones(montar({ esDueno: true, tipoNegocio: 'mixto' })).join('|');
+    expect(o).toMatch(/Pedidos.*Agregar artículo.*Mis productos/);
+    expect(o).toMatch(/Panel de servicios.*Mis servicios.*Citas.*Cotizaciones/);
   });
 
   it('el visitante de una tienda de servicios no ve Productos ni Mi carrito; el de productos sí', () => {

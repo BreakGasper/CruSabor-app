@@ -44,6 +44,8 @@ export interface DatosServicio {
   duracionMin: number;
   modalidad: ModalidadAtencion;
   contratacion: Contratacion;
+  /** Profesionales que lo ofrecen (vacío = todos) */
+  profesionalIds: string[];
   activo: boolean;
 }
 
@@ -56,7 +58,8 @@ export const servicioVacio = (modalidad: ModalidadAtencion = 'local'): DatosServ
   precio: 0,
   duracionMin: 0,
   modalidad,
-  contratacion: 'cotizacion', // la agenda de citas llega en otro módulo: por ahora se contrata cotizando
+  contratacion: 'cotizacion',
+  profesionalIds: [],
   activo: true,
 });
 
@@ -98,6 +101,7 @@ export function normalizarServicio(d: DatosServicio): Record<string, unknown> {
     activo: d.activo !== false,
   };
   if (d.duracionMin > 0) limpio.duracionMin = d.duracionMin;
+  if (d.profesionalIds?.length) limpio.profesionalIds = [...new Set(d.profesionalIds)];
   return limpio;
 }
 
@@ -149,7 +153,7 @@ function aServicio(tiendaId: string, id: string, v: any): Servicio {
     duracionMin: Number(v?.duracionMin) || 0,
     modalidad: (MODALIDADES_ATENCION as readonly string[]).includes(v?.modalidad) ? v.modalidad : 'local',
     contratacion: (CONTRATACIONES as readonly string[]).includes(v?.contratacion) ? v.contratacion : 'cotizacion',
-    profesionalIds: Array.isArray(v?.profesionalIds) ? v.profesionalIds : [],
+    profesionalIds: Array.isArray(v?.profesionalIds) ? v.profesionalIds : Object.values(v?.profesionalIds ?? {}),
     activo: v?.activo !== false,
     orden: Number(v?.orden) || 0,
     creadoEn: v?.creadoEn || '',
@@ -205,7 +209,7 @@ export async function guardarServicio(tiendaId: string, id: string | null, datos
     const previo = await get(dbRef(db, `servicios/${tiendaId}/${id}/fotos`));
     const antes: string[] = previo.exists() ? Object.values(previo.val()) : [];
     // `set` solo de los campos editables: no se pierde `creadoEn` ni `orden`
-    await update(dbRef(db, `servicios/${tiendaId}/${id}`), { ...limpio, duracionMin: limpio.duracionMin ?? null });
+    await update(dbRef(db, `servicios/${tiendaId}/${id}`), { ...limpio, duracionMin: limpio.duracionMin ?? null, profesionalIds: limpio.profesionalIds ?? null });
     // Ya guardado: las fotos que se quitaron quedan sin uso
     void eliminarImagenes(antes.filter((f) => !datos.fotos.includes(f)));
     return id;
@@ -223,4 +227,10 @@ export async function eliminarServicio(tiendaId: string, id: string): Promise<vo
   const previo = await get(dbRef(db, `servicios/${tiendaId}/${id}/fotos`));
   await remove(dbRef(db, `servicios/${tiendaId}/${id}`));
   if (previo.exists()) void eliminarImagenes(Object.values(previo.val()));
+}
+
+/** Todos los servicios de todas las tiendas (para el directorio «Encontrar servicios») */
+export async function leerTodosLosServicios(): Promise<Servicio[]> {
+  const s = await get(dbRef(db, 'servicios'));
+  return ordenar(Object.entries(s.val() ?? {}).flatMap(([tiendaId, porId]) => Object.entries((porId as object) ?? {}).map(([id, v]) => aServicio(tiendaId, id, v))));
 }

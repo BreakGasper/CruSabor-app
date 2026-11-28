@@ -10,14 +10,14 @@ Los servicios NO son artículos: tienen su propio modelo, su propio flujo (agend
 | 1. Base: tipos, agenda (lógica pura), estados, reglas de la base | ✅ | `src/modules/servicios/`, `database.rules.json` |
 | 2. Tipo de negocio al registrar y editar la tienda | ✅ | `StoreRegister.vue`, `StoreEditModal.vue`, `MenuTienda.vue`, `StoreProfile.vue` |
 | 3. Catálogo de servicios, detalle con «Cotizar» y administración de servicios | ✅ | `catalogo.ts`, `CatalogoServicios.vue`, `ServicioDetalle.vue`, `MisServicios.vue` |
-| 4. Agenda: horarios, reservas y citas | ⏳ (la lógica de disponibilidad ya existe) | — |
+| 4. Agenda: horarios, reservas y citas | ✅ | `agenda.ts`, `ReservarCita.vue`, `MisCitas.vue`, `CitasTienda.vue`, `HorariosDisponibilidad.vue` |
 | 5. Cotizaciones (solicitud, respuesta, aceptar o rechazar) | ✅ | `cotizaciones.ts`, `SolicitarCotizacion.vue`, `CotizacionesTienda.vue`, `MisCotizaciones.vue` |
-| 6. Descubrimiento (portada, directorio) y panel de resumen | ⏳ | — |
+| 6. Descubrimiento (portada, directorio) y panel de resumen | ✅ | `descubrir.ts`, `ServiciosDirectorio.vue`, `SelectorModo.vue`, `PanelServicios.vue`, `ClientesServicio.vue` |
 
 ## Catálogo y cotizaciones (módulos 3 y 5)
 
 - **Catálogo:** la tienda publica sus servicios en `/store/servicios/:id` (nombre, categoría, descripción, hasta 6 fotos, precio fijo / desde / a cotizar, duración, modalidad, cómo se contrata). Los clientes lo ven en el perfil de la tienda («Catálogo de servicios»). Publicar exige membresía vigente, igual que los productos.
-- **Detalle** `/servicio/:tiendaId/:servicioId`: galería, precio, datos y el botón **«Cotizar»** (en un servicio nunca hay «agregar al carrito»). Si el servicio también se agenda, aparece «Agendar cita · próximamente» deshabilitado hasta el módulo 4.
+- **Detalle** `/servicio/:tiendaId/:servicioId`: galería, precio, datos y el botón **«Cotizar»** (en un servicio nunca hay «agregar al carrito»). Si el servicio también se agenda, aparece «Agendar cita».
 - **Solicitud** `/cotizar/:tiendaId/:servicioId` (requiere sesión de cliente): qué necesita, hasta 4 imágenes de referencia, fecha tentativa y si es a domicilio (con dirección). Máximo 5 solicitudes abiertas por cliente y tienda.
 - **Bandeja de la tienda** `/store/cotizaciones/:id`: filtros, imágenes, datos del cliente, WhatsApp, y las acciones que corresponden a cada estado (en revisión, responder con precio/descripción/condiciones/vigencia, rechazar, completar).
 - **Mis cotizaciones** `/mis-cotizaciones` (desde el perfil del cliente): estado, la respuesta de la tienda y aceptar o rechazar.
@@ -81,3 +81,14 @@ Las reglas no se pueden ejecutar en este entorno (el emulador necesita Java): la
 ## Imágenes
 
 Como en el resto de la app, las fotos (portafolio, adjuntos de cotizaciones) se suben a **Cloudinary** (`uploadImage`, gratis), no a Firebase Storage —que hoy exige el plan de pago—. Se reutiliza `eliminarImagenes` (solo borra las que ya nadie usa).
+
+
+## Agenda, descubrimiento y panel (módulos 4 y 6)
+
+- **Reservar** `/reservar/:tiendaId/:servicioId`: elige profesional (si hay varios), día y hora libres, deja sus datos y solicita. La cita nace *pendiente* y la tienda la confirma.
+- **Sin doble reserva:** el tiempo se divide en bloques de 15 min. Cita, índice del cliente y bloques se escriben en **una sola** operación atómica y la regla `!data.exists()` de `database.rules.json` rechaza un bloque ya ocupado: si dos personas reservan a la vez, solo una gana y la otra recibe «Ese horario acaba de ocuparse».
+- **Estados:** la tienda confirma, rechaza, cancela, completa (solo después de la hora) o reprograma; el cliente cancela solo antes de que empiece. Cancelar o rechazar libera el horario. Máximo 5 citas abiertas por cliente y tienda.
+- **Tienda:** `/store/panel/:id` (resumen), `/store/citas/:id` (calendario y filtros, WhatsApp), `/store/horarios/:id` (equipo, horario semanal, descansos, bloqueos, vacaciones), `/store/clientes/:id` (historial y notas privadas).
+- **Cliente:** `/mis-citas`.
+- **Descubrimiento:** `/servicios` (búsqueda, categorías, modalidad, vista por profesionales o por servicios) y selector «Productos | Servicios» en la portada.
+- **Reglas de la base:** publícalas a mano (consola o `npx firebase-tools deploy --only database --project <id>`), *fusionándolas* con las que ya tengas; el despliegue automático solo sube el hosting.

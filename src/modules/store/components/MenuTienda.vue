@@ -30,10 +30,6 @@
                 <span>{{ o.texto }}</span>
               </button>
 
-              <p v-if="ofreceServ" class="mt-nota" data-testid="menu-servicios-pronto">
-                🗓️ Próximamente: agenda y citas.
-              </p>
-
               <p class="mt-seccion">Mis tiendas</p>
               <button
                 v-for="t in cuenta"
@@ -113,8 +109,12 @@ export type AccionMenuTienda =
   | 'crear-publicacion'
   | 'estudio'
   | 'productos'
+  | 'panel'
   | 'servicios'
+  | 'citas'
   | 'cotizaciones'
+  | 'clientes'
+  | 'horarios'
   | 'carrito'
   | 'mapa'
   | 'llamar'
@@ -153,8 +153,12 @@ const opcionesDueno = computed(() => {
   }
   if (ofreceServ.value) {
     lista.push(
+      { accion: 'panel', icono: '📊', texto: 'Panel de servicios' },
       { accion: 'servicios', icono: '🗂️', texto: 'Mis servicios' },
+      { accion: 'citas', icono: '🗓️', texto: 'Citas' },
       { accion: 'cotizaciones', icono: '💬', texto: 'Cotizaciones' },
+      { accion: 'clientes', icono: '👥', texto: 'Clientes' },
+      { accion: 'horarios', icono: '⏰', texto: 'Horarios y equipo' },
     );
   }
   lista.push(

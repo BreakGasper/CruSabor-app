@@ -156,6 +156,9 @@ export interface EventoHistorial {
 export interface Cita {
   id: string;
   tiendaId: string;
+  /** Copias hechas al reservar, para que el cliente vea de quién es y pueda contactarla sin otra consulta */
+  tiendaNombre?: string;
+  tiendaTelefono?: string;
   servicioId: string;
   servicioNombre: string;
   profesionalId: string;
