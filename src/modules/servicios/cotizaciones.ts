@@ -1,12 +1,12 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
 import { db } from '@/firebase';
-import { ref as dbRef, get, update, push, onValue, query, orderByChild, equalTo, runTransaction, type Unsubscribe } from '@/services/baseDatos';
+import { ref as dbRef, get, update, push, onValue, runTransaction, type Unsubscribe } from '@/services/baseDatos';
 import { estadoEfectivo } from '@/composables/useMembresia';
 import { numeroParaWhatsapp } from '@/utils/whatsappCliente';
 import { esFechaISO, ahoraEnZona, sumarDias } from './disponibilidad';
 import { estadoEfectivoCotizacion, puedeCambiarCotizacion, type Actor } from './estados';
 import { ofreceServicios } from './negocio';
-import { registrarActividadCliente } from './clientes';
+import { registrarActividadCliente, documentosDelCliente } from './clientes';
 import { ErrorServicio, PRECIO_MAX } from './catalogo';
 import type { Cotizacion, EstadoCotizacion, EventoHistorial, RespuestaCotizacion } from './tipos';
 
@@ -72,8 +72,8 @@ export async function crearCotizacion(tiendaId: string, s: SolicitudCotizacion, 
   if (estadoEfectivo({ estatus: tienda.estatus, membresia: tienda.membresia }, ahora) !== 'activa') throw new ErrorServicio('Esta tienda no está disponible por el momento.');
 
   // Tope de solicitudes abiertas del mismo cliente en la misma tienda
-  const previas = await get(query(dbRef(db, `cotizaciones/${tiendaId}`), orderByChild('clienteId'), equalTo(s.cliente.id)));
-  const abiertas = Object.values(previas.val() ?? {}).filter((c: any) => ABIERTAS.includes(c?.estado) && estadoEfectivoCotizacion(c, ahoraEnZona(ahora).fecha) !== 'vencida').length;
+  const previas = await documentosDelCliente('cotizaciones', 'cotizacionesPorCliente', tiendaId, s.cliente.id);
+  const abiertas = previas.filter((c: any) => ABIERTAS.includes(c?.estado) && estadoEfectivoCotizacion(c, ahoraEnZona(ahora).fecha) !== 'vencida').length;
   if (abiertas >= MAX_COTIZACIONES_ABIERTAS) throw new ErrorServicio('Ya tienes varias cotizaciones abiertas con esta tienda. Espera su respuesta antes de pedir otra.');
 
   const id = push(dbRef(db, `cotizaciones/${tiendaId}`)).key!;
