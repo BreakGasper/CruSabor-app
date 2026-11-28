@@ -16,6 +16,8 @@ export interface OpcionesDibujo {
   precio: number | null;
   precioAntes: number | null;
   tienda: string;
+  /** La foto ya viene sin fondo (recortada): se dibuja flotando, sin marco */
+  recortada?: boolean;
 }
 
 /**
@@ -74,6 +76,150 @@ function rectRedondeado(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
 
 const FUENTE = `'Segoe UI', Roboto, Helvetica, Arial, sans-serif`;
 
+/** Producto sin fondo: círculo de color detrás, foto completa (sin recortar) y una sombra suave */
+function dibujarFotoRecortada(ctx: CanvasRenderingContext2D, foto: CanvasImageSource, x: number, y: number, w: number, h: number, acento: string, k: number) {
+  const fw = (foto as any).width || (foto as any).naturalWidth || w;
+  const fh = (foto as any).height || (foto as any).naturalHeight || h;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = acento;
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.min(w, h) * 0.52, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  const escala = Math.min((w * 0.92) / fw, (h * 0.92) / fh);
+  const dw = fw * escala;
+  const dh = fh * escala;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 40 * k;
+  ctx.shadowOffsetY = 18 * k;
+  ctx.drawImage(foto, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.restore();
+}
+
+/**
+ * Banner y formatos anchos: el texto a la izquierda (tienda, título, texto, precio) y la foto a la derecha.
+ * Todas las medidas se escalan con la altura (`k`), así sirve igual para 3:1 y 16:9.
+ */
+function dibujarHorizontal(ctx: CanvasRenderingContext2D, o: OpcionesDibujo, pl: ReturnType<typeof plantillaPorId>, W: number, H: number) {
+  const k = H / 600;
+  const m = 50 * k;
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, pl.fondo[0]);
+  g.addColorStop(1, pl.fondo[1]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Foto a la derecha
+  const colX = W * 0.56;
+  const fotoX = colX;
+  const fotoY = m;
+  const fotoW = W - colX - m;
+  const fotoH = H - m * 2;
+  if (o.foto && o.recortada) {
+    dibujarFotoRecortada(ctx, o.foto, fotoX, fotoY, fotoW, fotoH, pl.acento, k);
+  } else {
+    ctx.save();
+    rectRedondeado(ctx, fotoX, fotoY, fotoW, fotoH, 30 * k);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(fotoX, fotoY, fotoW, fotoH);
+    if (o.foto) {
+      const fw = o.fotoAncho || (o.foto as any).width || (o.foto as any).naturalWidth || fotoW;
+      const fh = o.fotoAlto || (o.foto as any).height || (o.foto as any).naturalHeight || fotoH;
+      const escala = Math.max(fotoW / fw, fotoH / fh);
+      ctx.drawImage(o.foto, fotoX + (fotoW - fw * escala) / 2, fotoY + (fotoH - fh * escala) / 2, fw * escala, fh * escala);
+    } else {
+      ctx.fillStyle = pl.texto;
+      ctx.globalAlpha = 0.5;
+      ctx.font = `600 ${34 * k}px ${FUENTE}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Agrega tu foto', fotoX + fotoW / 2, fotoY + fotoH / 2);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  // Etiqueta de descuento sobre la foto
+  const menos = porcentajeMenos(o.precio, o.precioAntes);
+  if (menos > 0) {
+    const bw = 190 * k;
+    const bh = 80 * k;
+    const bx = fotoX + fotoW - bw - 12 * k;
+    const by = fotoY + 12 * k;
+    ctx.fillStyle = pl.acento;
+    rectRedondeado(ctx, bx, by, bw, bh, bh / 2);
+    ctx.fill();
+    ctx.fillStyle = pl.sobreAcento;
+    ctx.font = `800 ${46 * k}px ${FUENTE}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`-${menos}%`, bx + bw / 2, by + bh / 2 + 2 * k);
+  }
+
+  // Texto a la izquierda
+  const anchoTexto = colX - m - 30 * k;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  if (o.tienda) {
+    ctx.fillStyle = pl.texto;
+    ctx.globalAlpha = 0.85;
+    ctx.font = `600 ${30 * k}px ${FUENTE}`;
+    const [linea] = partirLineas((t) => ctx.measureText(t).width, o.tienda, anchoTexto, 1);
+    ctx.fillText(linea, m, m + 26 * k);
+    ctx.globalAlpha = 1;
+  }
+  const lineasMax = H / W > 0.45 ? 3 : 2; // el 16:9 tiene más alto: caben tres renglones
+  const tam = (lineasMax === 3 ? 66 : 76) * k;
+  ctx.fillStyle = pl.texto;
+  ctx.font = `800 ${tam}px ${FUENTE}`;
+  let y = m + (o.tienda ? 120 : 84) * k;
+  for (const l of partirLineas((t) => ctx.measureText(t).width, o.titulo, anchoTexto, lineasMax)) {
+    ctx.fillText(l, m, y);
+    y += tam * 1.08;
+  }
+  if (o.texto?.trim()) {
+    ctx.font = `400 ${34 * k}px ${FUENTE}`;
+    ctx.globalAlpha = 0.9;
+    y += 4 * k;
+    for (const l of partirLineas((t) => ctx.measureText(t).width, o.texto, anchoTexto, 2)) {
+      ctx.fillText(l, m, y);
+      y += 34 * k * 1.3;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Precio abajo
+  if (o.precio) {
+    const ph = 100 * k;
+    const pieY = H - m;
+    ctx.font = `800 ${64 * k}px ${FUENTE}`;
+    const txt = formatoPesos(o.precio);
+    const pw = ctx.measureText(txt).width + 60 * k;
+    ctx.fillStyle = pl.acento;
+    rectRedondeado(ctx, m, pieY - ph, pw, ph, ph / 2);
+    ctx.fill();
+    ctx.fillStyle = pl.sobreAcento;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(txt, m + 30 * k, pieY - ph / 2 + 3 * k);
+    if (o.precioAntes && menos > 0) {
+      ctx.fillStyle = pl.texto;
+      ctx.globalAlpha = 0.75;
+      ctx.font = `500 ${36 * k}px ${FUENTE}`;
+      const antes = `antes ${formatoPesos(o.precioAntes)}`;
+      const ax = m + pw + 24 * k;
+      if (ax + ctx.measureText(antes).width <= colX - 10 * k) {
+        ctx.fillText(antes, ax, pieY - ph / 2 + 3 * k);
+        ctx.fillRect(ax, pieY - ph / 2 + 3 * k, ctx.measureText(antes).width, 4 * k); // tachado
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
 export function dibujarPublicacion(canvas: HTMLCanvasElement, o: OpcionesDibujo): void {
   const pl = plantillaPorId(o.plantilla);
   const fm = formatoPorId(o.formato);
@@ -83,6 +229,7 @@ export function dibujarPublicacion(canvas: HTMLCanvasElement, o: OpcionesDibujo)
   if (!ctx) return;
   const W = fm.ancho;
   const H = fm.alto;
+  if (W / H >= 1.5) return dibujarHorizontal(ctx, o, pl, W, H);
   const vertical = H > W;
   const margen = 60;
   const ancho = W - margen * 2;
@@ -94,30 +241,34 @@ export function dibujarPublicacion(canvas: HTMLCanvasElement, o: OpcionesDibujo)
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  // Foto (recortada para llenar el recuadro)
+  // Foto (recortada para llenar el recuadro, o sin fondo flotando sobre un círculo de color)
   const fotoY = vertical ? 110 : margen;
   const fotoH = vertical ? 1020 : 600;
-  ctx.save();
-  rectRedondeado(ctx, margen, fotoY, ancho, fotoH, 36);
-  ctx.clip();
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.fillRect(margen, fotoY, ancho, fotoH);
-  if (o.foto) {
-    const fw = o.fotoAncho || (o.foto as any).width || (o.foto as any).naturalWidth || ancho;
-    const fh = o.fotoAlto || (o.foto as any).height || (o.foto as any).naturalHeight || fotoH;
-    const escala = Math.max(ancho / fw, fotoH / fh);
-    const dw = fw * escala;
-    const dh = fh * escala;
-    ctx.drawImage(o.foto, margen + (ancho - dw) / 2, fotoY + (fotoH - dh) / 2, dw, dh);
+  if (o.foto && o.recortada) {
+    dibujarFotoRecortada(ctx, o.foto, margen, fotoY, ancho, fotoH, pl.acento, 1);
   } else {
-    ctx.fillStyle = pl.texto;
-    ctx.globalAlpha = 0.5;
-    ctx.font = `600 44px ${FUENTE}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('Agrega tu foto', W / 2, fotoY + fotoH / 2);
-    ctx.globalAlpha = 1;
+    ctx.save();
+    rectRedondeado(ctx, margen, fotoY, ancho, fotoH, 36);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(margen, fotoY, ancho, fotoH);
+    if (o.foto) {
+      const fw = o.fotoAncho || (o.foto as any).width || (o.foto as any).naturalWidth || ancho;
+      const fh = o.fotoAlto || (o.foto as any).height || (o.foto as any).naturalHeight || fotoH;
+      const escala = Math.max(ancho / fw, fotoH / fh);
+      const dw = fw * escala;
+      const dh = fh * escala;
+      ctx.drawImage(o.foto, margen + (ancho - dw) / 2, fotoY + (fotoH - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = pl.texto;
+      ctx.globalAlpha = 0.5;
+      ctx.font = `600 44px ${FUENTE}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Agrega tu foto', W / 2, fotoY + fotoH / 2);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
-  ctx.restore();
 
   // Etiqueta de descuento sobre la foto
   const menos = porcentajeMenos(o.precio, o.precioAntes);

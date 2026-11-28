@@ -35,16 +35,18 @@ export const PLANTILLAS: Plantilla[] = [
 ];
 
 export interface Formato {
-  id: 'cuadrado' | 'historia';
+  id: 'cuadrado' | 'historia' | 'banner' | 'horizontal';
   nombre: string;
   ancho: number;
   alto: number;
 }
 
-/** Cuadrado sirve para el chat y el muro; historia (vertical) para estados e Instagram */
+/** Cuadrado sirve para el chat y el muro; historia (vertical) para estados e Instagram; banner y horizontal para portadas y Facebook */
 export const FORMATOS: Formato[] = [
   { id: 'cuadrado', nombre: 'Cuadrado (publicación)', ancho: 1080, alto: 1080 },
   { id: 'historia', nombre: 'Vertical (estado / historia)', ancho: 1080, alto: 1920 },
+  { id: 'banner', nombre: 'Banner (3:1)', ancho: 1800, alto: 600 },
+  { id: 'horizontal', nombre: 'Horizontal (16:9)', ancho: 1920, alto: 1080 },
 ];
 
 export const MAX_TITULO = 60;

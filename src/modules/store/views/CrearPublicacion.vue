@@ -7,7 +7,7 @@
 
       <template v-else>
         <p class="hint">
-          Sube una foto, elige una plantilla y comparte la imagen en WhatsApp, Facebook, Instagram y más. Es gratis:
+          Sube una foto, elige una plantilla (cuadrada, vertical o banner) y comparte la imagen en WhatsApp, Facebook, Instagram y más. Es gratis:
           la imagen se crea aquí mismo.
         </p>
 
@@ -68,8 +68,17 @@
             <div class="campo">
               <span>4. Formato</span>
               <div class="chips">
-                <button v-for="f in FORMATOS" :key="f.id" type="button" class="chip" :class="{ activa: form.formato === f.id }" @click="form.formato = f.id">{{ f.nombre }}</button>
+                <button v-for="f in FORMATOS" :key="f.id" type="button" class="chip" :class="{ activa: form.formato === f.id }" :data-testid="`formato-${f.id}`" @click="form.formato = f.id">{{ f.nombre }}</button>
               </div>
+            </div>
+
+            <div class="campo">
+              <label class="casilla">
+                <input v-model="sinFondo" type="checkbox" data-testid="sin-fondo" />
+                <span>Quitar el fondo de la foto</span>
+              </label>
+              <small>Gratis y sin salir de tu teléfono. Funciona mejor con el producto sobre un fondo liso (blanco, pared, mesa de un color).</small>
+              <small v-if="avisoFondo" class="error-msg" role="alert" data-testid="aviso-fondo">{{ avisoFondo }}</small>
             </div>
           </div>
 
@@ -158,6 +167,7 @@ import {
   type Publicacion,
 } from '@/composables/usePublicaciones';
 import { canvasABlob, dibujarPublicacion } from '../utils/dibujarPublicacion';
+import { recortarFondo } from '../utils/quitarFondo';
 
 const route = useRoute();
 const tiendaId = computed(() => String(route.params.id || ''));
@@ -176,6 +186,9 @@ const aviso = ref('');
 const form = reactive({ titulo: '', precio: '', precioAntes: '', texto: '', plantilla: 'clasica', formato: 'cuadrado' });
 const articuloId = ref('');
 let foto: HTMLImageElement | null = null;
+let fotoRecorte: HTMLCanvasElement | null = null; // la misma foto sin fondo (se calcula al pedirlo)
+const sinFondo = ref(false);
+const avisoFondo = ref('');
 let urlFotoLocal = '';
 
 const { articulos, cargarArticulosPorTienda } = useArticulos({ incluirTiendasInactivas: true });
@@ -205,10 +218,22 @@ const textoSugerido = computed(() =>
 const textoDe = (p: Publicacion) =>
   armarTexto({ titulo: p.titulo, texto: p.texto, precio: p.precio, precioAntes: p.precioAntes, tienda: p.tiendaNombre || nombreTienda, enlace: urlTienda.value });
 
+/** Quita el fondo de la foto actual si hace falta; si no se puede, lo explica y se queda con la foto normal */
+function prepararRecorte() {
+  avisoFondo.value = '';
+  fotoRecorte = null;
+  if (!sinFondo.value || !foto) return;
+  const r = recortarFondo(foto);
+  if (r.canvas) fotoRecorte = r.canvas;
+  else avisoFondo.value = r.motivo || 'No se pudo quitar el fondo de esta foto.';
+}
+
 function redibujar() {
   if (!lienzo.value) return;
+  const recortada = sinFondo.value && !!fotoRecorte;
   dibujarPublicacion(lienzo.value, {
-    foto,
+    foto: recortada ? fotoRecorte : foto,
+    recortada,
     plantilla: form.plantilla,
     formato: form.formato,
     titulo: form.titulo || 'Título de tu publicación',
@@ -219,6 +244,10 @@ function redibujar() {
   });
 }
 watch(form, redibujar, { deep: true });
+watch(sinFondo, () => {
+  prepararRecorte();
+  redibujar();
+});
 
 function cargarImagen(url: string, conPermiso: boolean): Promise<HTMLImageElement> {
   return new Promise((ok, mal) => {
@@ -245,6 +274,7 @@ async function alElegirFoto(e: Event) {
     urlFotoLocal = URL.createObjectURL(f);
     foto = await cargarImagen(urlFotoLocal, false);
     articuloId.value = '';
+    prepararRecorte();
     redibujar();
   } catch (err: any) {
     error.value = err?.message || 'No se pudo abrir la foto.';
@@ -265,6 +295,7 @@ async function alElegirArticulo() {
     foto = null;
     error.value = 'No se pudo usar la foto de ese artículo. Sube una foto desde tu teléfono.';
   }
+  prepararRecorte();
   redibujar();
 }
 
@@ -402,6 +433,7 @@ const fecha = (iso: string) => {
 .pub-container { min-height: 100vh; background: var(--bg-page); }
 .pub-main { max-width: 1000px; margin: 0 auto; padding: 16px; }
 .hint, .aviso { color: var(--text-muted); font-size: 0.95rem; margin: 8px 0 14px; }
+.casilla { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 .pestanas { display: flex; gap: 8px; margin-bottom: 16px; }
 .pestanas button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; }
 .pestanas button.activa { background: var(--color-bg-blue-ligth); color: var(--on-primary, #fff); border-color: transparent; }
