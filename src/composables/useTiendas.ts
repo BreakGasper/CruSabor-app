@@ -6,6 +6,7 @@ import { ref as dbRef, push, set, get, onValue, update } from "@/services/baseDa
 import { uploadStoreLogo, uploadStoreGallery, uploadStoreBanner } from "@/composables/useStorage";
 import { ACTOR_PRUEBA, membresiaDePrueba, type ControlTienda } from "@/composables/useMembresia";
 import { tiendasDelTelefono } from "@/composables/cuentaTienda";
+import type { TipoNegocio, ModalidadAtencion } from "@/modules/servicios/tipos";
 
 export interface Tienda extends ControlTienda {
   tiendaId?: string;
@@ -16,6 +17,17 @@ export interface Tienda extends ControlTienda {
   nombreTienda: string;
   categoria: string;
   descripcion: string;
+  /**
+   * Qué hace el negocio. Sin este campo (tiendas anteriores) es una tienda de 'productos'.
+   * Ver src/modules/servicios/negocio.ts (tipoDeTienda, vendeProductos, ofreceServicios).
+   */
+  tipoNegocio?: TipoNegocio;
+  /** Dónde presta sus servicios (solo servicios y mixto) */
+  modalidadAtencion?: ModalidadAtencion;
+  /** Id de CATEGORIAS_SERVICIO (solo servicios y mixto) */
+  categoriaServicio?: string;
+  especialidades?: string[];
+  experiencia?: string;
   logoUrl?: string;
   calle: string;
   numero: string;

@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { db } from '@/firebase';
 import { ref as dbRef, get, onValue } from '@/services/baseDatos';
+import { vendeProductos } from '@/modules/servicios/negocio';
 
 /**
  * Autorización y membresía de tiendas.
@@ -43,6 +44,8 @@ export interface Membresia {
 export interface ControlTienda {
   /** Nombre actual de la tienda (fuente de verdad; artículos y carrito solo guardan una copia) */
   nombreTienda?: string;
+  /** 'productos' | 'servicios' | 'mixto' (sin valor = productos) */
+  tipoNegocio?: string;
   estatus?: EstadoTienda;
   motivoBloqueo?: string;
   membresia?: Membresia;
@@ -280,6 +283,7 @@ let suscrito = false;
 function extraerControl(t: any): ControlTienda {
   return {
     nombreTienda: t?.nombreTienda,
+    tipoNegocio: t?.tipoNegocio,
     estatus: t?.estatus,
     motivoBloqueo: t?.motivoBloqueo,
     membresia: t?.membresia,
@@ -332,11 +336,17 @@ export function useEstadoTiendas() {
     return ctrl ? estadoEfectivo(ctrl) : undefined;
   };
 
+  /** true cuando sabemos que la tienda es de solo servicios (sus artículos viejos no se muestran en el catálogo) */
+  const soloServicios = (tiendaId?: string | null): boolean => {
+    const ctrl = tiendaId ? controlPorTienda.value[tiendaId] : undefined;
+    return !!ctrl && !vendeProductos(ctrl);
+  };
+
   /** Nombre actual de la tienda (undefined si aún no cargó o no existe) */
   const nombreDe = (tiendaId?: string | null): string | undefined =>
     tiendaId ? controlPorTienda.value[tiendaId]?.nombreTienda || undefined : undefined;
 
-  return { controlPorTienda, cargado, puedeVender, noPuedeVender, estadoDe, nombreDe };
+  return { controlPorTienda, cargado, puedeVender, noPuedeVender, soloServicios, estadoDe, nombreDe };
 }
 
 /**

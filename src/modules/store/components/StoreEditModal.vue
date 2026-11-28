@@ -42,18 +42,41 @@
             </div>
           </div>
 
+          <!-- ¿Qué ofrece? Cambia las herramientas del menú y qué ven los clientes -->
+          <div class="se-campo" data-testid="editar-tipo-negocio">
+            <span>¿Qué ofreces?</span>
+            <div class="se-tipos" role="radiogroup" aria-label="Tipo de negocio">
+              <label v-for="t in INFO_TIPOS_NEGOCIO" :key="t.id" class="se-tipo" :class="{ on: form.tipoNegocio === t.id }">
+                <input v-model="form.tipoNegocio" type="radio" name="se-tipoNegocio" :value="t.id" :data-testid="'editar-tipo-' + t.id" />
+                <span aria-hidden="true">{{ t.icono }}</span> {{ t.titulo }}
+              </label>
+            </div>
+            <small v-if="form.tipoNegocio === 'servicios' && vendeProductos(tienda)" class="hint">
+              Si cambias a «Servicios», tus artículos dejan de mostrarse a los clientes (no se borran: vuelven si regresas a Productos o Mixto).
+            </small>
+          </div>
+
           <label class="se-campo">
-            <span>Nombre de la tienda *</span>
+            <span>{{ ofreceServ && !vendeProd ? 'Nombre del negocio o profesional *' : 'Nombre de la tienda *' }}</span>
             <input v-model="form.nombreTienda" type="text" maxlength="60" :class="{ err: errores.nombreTienda }" />
             <small v-if="errores.nombreTienda">{{ errores.nombreTienda }}</small>
           </label>
 
-          <label class="se-campo">
-            <span>Categoría</span>
+          <label v-if="vendeProd" class="se-campo">
+            <span>{{ ofreceServ ? 'Categoría de productos' : 'Categoría' }}</span>
             <select v-model="form.categoria">
               <option value="">Selecciona</option>
               <option v-for="c in categorias" :key="c.id" :value="c.nombre">{{ c.nombre }}</option>
             </select>
+          </label>
+
+          <label v-if="ofreceServ" class="se-campo">
+            <span>Categoría de servicios *</span>
+            <select v-model="form.categoriaServicio" :class="{ err: errores.categoriaServicio }" data-testid="editar-categoria-servicio">
+              <option value="">Selecciona</option>
+              <option v-for="c in CATEGORIAS_SERVICIO" :key="c.id" :value="c.id">{{ c.icono }} {{ c.nombre }}</option>
+            </select>
+            <small v-if="errores.categoriaServicio">{{ errores.categoriaServicio }}</small>
           </label>
 
           <label class="se-campo">
@@ -65,6 +88,17 @@
           <label class="se-campo">
             <span>Sobre la tienda / Blog</span>
             <textarea v-model="form.blog" rows="3" maxlength="600"></textarea>
+          </label>
+
+          <label v-if="ofreceServ" class="se-campo">
+            <span>Especialidades</span>
+            <input v-model="form.especialidadesTexto" type="text" maxlength="300" placeholder="Corte clásico, Barba, Degradado" data-testid="editar-especialidades" />
+            <small class="hint">Sepáralas con comas.</small>
+          </label>
+
+          <label v-if="ofreceServ" class="se-campo">
+            <span>Experiencia</span>
+            <textarea v-model="form.experiencia" rows="3" maxlength="500" data-testid="editar-experiencia"></textarea>
           </label>
         </section>
 
@@ -207,13 +241,23 @@
           </div>
           <small v-if="errores.metodosPago" class="se-error">{{ errores.metodosPago }}</small>
 
-          <label class="se-check">
+          <div v-if="ofreceServ" class="se-campo" data-testid="editar-modalidad">
+            <span>¿Dónde atiendes a tus clientes?</span>
+            <div class="se-chips">
+              <label v-for="m in MODALIDADES_ATENCION" :key="m" class="se-chip" :class="{ on: form.modalidadAtencion === m }">
+                <input v-model="form.modalidadAtencion" type="radio" name="se-modalidad" :value="m" :data-testid="'editar-modalidad-' + m" />
+                {{ ETIQUETA_MODALIDAD[m] }}
+              </label>
+            </div>
+          </div>
+
+          <label v-if="vendeProd" class="se-check">
             <input v-model="form.envioDomicilio" type="checkbox" />
             Hago envíos a domicilio
           </label>
 
-          <div v-if="form.envioDomicilio" class="se-campo">
-            <span>Zonas de entrega</span>
+          <div v-if="mostrarZonas" class="se-campo">
+            <span>{{ ofreceServ ? (vendeProd ? 'Zonas de entrega y cobertura' : 'Zonas de cobertura') : 'Zonas de entrega' }}</span>
             <div class="se-zonas">
               <span v-for="(z, i) in form.zonasEntrega" :key="i" class="se-zona">
                 {{ z }}
@@ -269,7 +313,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted, computed } from 'vue';
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { obtenerCategorias, type CategoriaData } from '@/composables/useCategorias';
 import { obtenerMunicipios, obtenerPueblosPorMunicipio, tieneAlcance, type MunicipioData } from '@/composables/useLugar';
@@ -280,6 +324,8 @@ import { eliminarImagenes } from '@/composables/useCloudinary';
 import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
 import { useHorarioRapido } from '@/composables/useHorarioRapido';
 import { tiendasDelTelefono, MAX_TIENDAS_POR_TELEFONO, MENSAJE_LIMITE_TIENDAS } from '@/composables/cuentaTienda';
+import { CATEGORIAS_SERVICIO, MODALIDADES_ATENCION, nombreCategoriaServicio, type TipoNegocio, type ModalidadAtencion } from '@/modules/servicios/tipos';
+import { INFO_TIPOS_NEGOCIO, ETIQUETA_MODALIDAD, tipoDeTienda, modalidadDe, vendeProductos, ofreceServicios, atiendeADomicilio, envioDomicilioDe, listaDeTexto } from '@/modules/servicios/negocio';
 
 /**
  * Edición de los datos de la tienda por su dueña o dueño.
@@ -291,13 +337,13 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'saved', cambios: Partial<Tie
 const { actualizarTienda } = useTiendas();
 
 type TabId = 'datos' | 'contacto' | 'ubicacion' | 'ventas' | 'horario';
-const TABS: { id: TabId; label: string }[] = [
+const TABS = computed<{ id: TabId; label: string }[]>(() => [
   { id: 'datos', label: 'Datos' },
   { id: 'contacto', label: 'Contacto' },
   { id: 'ubicacion', label: 'Ubicación' },
-  { id: 'ventas', label: 'Ventas' },
+  { id: 'ventas', label: ofreceServ.value && !vendeProd.value ? 'Atención' : 'Ventas' },
   { id: 'horario', label: 'Horario' },
-];
+]);
 const tab = ref<TabId>('datos');
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -395,6 +441,11 @@ const horarioVacio = () =>
 
 const form = reactive({
   nombreTienda: '',
+  tipoNegocio: 'productos' as TipoNegocio,
+  categoriaServicio: '',
+  modalidadAtencion: 'local' as ModalidadAtencion,
+  especialidadesTexto: '',
+  experiencia: '',
   categoria: '',
   descripcion: '',
   blog: '',
@@ -420,6 +471,13 @@ const form = reactive({
   horario: horarioVacio(),
 });
 
+/** Qué herramientas le tocan según lo que ofrece */
+const vendeProd = computed(() => vendeProductos(form));
+const ofreceServ = computed(() => ofreceServicios(form));
+const mostrarZonas = computed(
+  () => (vendeProd.value && form.envioDomicilio) || (ofreceServ.value && atiendeADomicilio(form.modalidadAtencion)),
+);
+
 // Casillas "mismo horario de lunes a viernes" / "sábado y domingo igual": se marcan
 // solas según el horario guardado, con el lunes como referencia (useHorarioRapido.ts)
 const { mismoEntreSemana, incluirFinDeSemana, alCambiarMismo, alCambiarFinDeSemana, diasVisibles, etiquetaDia } =
@@ -427,6 +485,11 @@ const { mismoEntreSemana, incluirFinDeSemana, alCambiarMismo, alCambiarFinDeSema
 
 function cargarDesde(t: Tienda) {
   form.nombreTienda = t.nombreTienda || '';
+  form.tipoNegocio = tipoDeTienda(t);
+  form.categoriaServicio = t.categoriaServicio || '';
+  form.modalidadAtencion = modalidadDe(t);
+  form.especialidadesTexto = (t.especialidades || []).join(', ');
+  form.experiencia = t.experiencia || '';
   form.categoria = t.categoria || '';
   form.descripcion = t.descripcion || '';
   form.blog = t.blog || '';
@@ -525,6 +588,7 @@ function validar(): TabId | null {
   if (!/^\d{5}$/.test(form.cp)) marca('cp', 'C.P. de 5 dígitos.', 'ubicacion');
 
   if (form.metodosPago.length === 0) marca('metodosPago', 'Selecciona al menos un método de pago.', 'ventas');
+  if (ofreceServ.value && !form.categoriaServicio) marca('categoriaServicio', 'Elige la categoría de tus servicios.', 'datos');
 
   for (const d of DIAS) {
     const { inicio, fin } = form.horario[d];
@@ -557,9 +621,21 @@ async function guardar() {
   guardando.value = true;
   try {
     const id = props.tienda.tiendaId!;
+    const envioDomicilio = envioDomicilioDe(form.tipoNegocio, form.modalidadAtencion, form.envioDomicilio);
     const cambios: Partial<Tienda> = {
       nombreTienda: form.nombreTienda.trim(),
-      categoria: form.categoria,
+      tipoNegocio: form.tipoNegocio,
+      // Una tienda de solo servicios usa la categoría de servicios como su categoría
+      categoria: vendeProd.value ? form.categoria : nombreCategoriaServicio(form.categoriaServicio),
+      // Datos propios de los servicios: solo si los ofrece (Firebase no admite undefined)
+      ...(ofreceServ.value
+        ? {
+            modalidadAtencion: form.modalidadAtencion,
+            categoriaServicio: form.categoriaServicio,
+            especialidades: listaDeTexto(form.especialidadesTexto),
+            experiencia: form.experiencia.trim(),
+          }
+        : {}),
       descripcion: form.descripcion.trim(),
       blog: form.blog.trim(),
       telefono: form.telefono,
@@ -577,8 +653,8 @@ async function guardar() {
       estado: form.estado.trim(),
       pais: form.pais.trim(),
       metodosPago: [...form.metodosPago],
-      envioDomicilio: form.envioDomicilio,
-      zonasEntrega: form.envioDomicilio ? [...form.zonasEntrega] : [],
+      envioDomicilio,
+      zonasEntrega: envioDomicilio ? [...form.zonasEntrega] : [],
       horario: JSON.parse(JSON.stringify(form.horario)),
     };
     // Se recuerda lo que había para borrarlo DESPUÉS de guardar lo nuevo
@@ -788,4 +864,21 @@ watch(
   height: 1rem;
   accent-color: var(--brand-blue-text);
 }
+
+.se-tipos { display: flex; flex-wrap: wrap; gap: 8px; }
+.se-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.se-tipo input { position: absolute; opacity: 0; pointer-events: none; }
+.se-tipo.on { border-color: var(--brand-blue-text); background: var(--brand-blue-soft); color: var(--brand-blue-text); }
+.se-tipo:has(input:focus-visible) { outline: 2px solid var(--brand-blue-text); outline-offset: 2px; }
 </style>

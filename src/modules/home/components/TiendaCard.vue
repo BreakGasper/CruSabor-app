@@ -19,6 +19,9 @@
         </button>
       </div>
       <p v-if="tienda.categoria" class="categoria">{{ tienda.categoria }}</p>
+      <p v-if="ofreceServicios(tienda)" class="etiqueta-servicios" data-testid="etiqueta-servicios">
+        {{ vendeProductos(tienda) ? '🧩 Productos y servicios' : '💈 Servicios' }}
+      </p>
       <!-- Solo lectura: se califica desde el perfil de la tienda -->
       <StarRating size="sm" :promedio="resumenDe(tienda.tiendaId).promedio" :total="resumenDe(tienda.tiendaId).total" />
 
@@ -34,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { vendeProductos, ofreceServicios } from '@/modules/servicios/negocio';
 /**
  * Tarjeta de tienda: banner a todo lo ancho con el logo encima, nombre en negritas con el
  * corazón de favoritos a la derecha, categoría y estrellas solo de lectura. Se usa en la
@@ -168,5 +172,12 @@ function onLogoError(e: Event) {
 .tag.wa {
   background: #e8f5e9;
   color: #2e7d32;
+}
+
+.etiqueta-servicios {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-blue-text);
 }
 </style>

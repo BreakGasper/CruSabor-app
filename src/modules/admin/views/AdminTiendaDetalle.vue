@@ -40,6 +40,8 @@
                 <dt>Motivo</dt>
                 <dd class="motivo">{{ tienda.motivoBloqueo }}</dd>
               </template>
+              <dt>Tipo de negocio</dt>
+              <dd data-testid="detalle-tipo-negocio">{{ etiquetaTipoNegocio(tipoDeTienda(tienda)) }}</dd>
               <dt>Plan</dt>
               <dd>{{ tienda.membresia?.plan === PLAN_PRUEBA ? 'Prueba gratis' : tienda.membresia?.plan ? PLAN_LABEL[tienda.membresia.plan as PlanMembresia] || tienda.membresia.plan : 'Sin plan' }}</dd>
               <dt>Vigencia</dt>
@@ -185,6 +187,7 @@ import { ref as dbRef, onValue } from '@/services/baseDatos';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import PagoMembresiaModal from '../components/PagoMembresiaModal.vue';
 import { leerPlanVaciado, vaciarArticulos, type PlanVaciado } from '@/composables/vaciarArticulos';
+import { etiquetaTipoNegocio, tipoDeTienda } from '@/modules/servicios/negocio';
 import type { Tienda } from '@/composables/useTiendas';
 import { estadoEfectivo, diasParaVencer, ESTADO_LABEL } from '@/composables/useMembresia';
 import {
