@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { crearRouterPagos } from "./pagos/router.ts";
 import { crearRouterRecuperacion } from "./recuperacion/router.ts";
 import { crearRouterImagenes } from "./imagenes/router.ts";
+import { crearRouterEscenas } from "./escenas/router.ts";
 import { crearRouterWhatsapp } from "./whatsapp/router.ts";
 
 console.log(">>> Iniciando main.ts");
@@ -16,10 +17,13 @@ console.log("SMTP_PASS:", process.env.SMTP_PASS ? "Cargada ✅" : "No cargada �
 console.log("BREVO_API_KEY:", process.env.BREVO_API_KEY ? "Cargada ✅ (correo por API HTTP)" : "No cargada (usa SMTP)");
 console.log("MP_ACCESS_TOKEN:", process.env.MP_ACCESS_TOKEN ? "Cargado ✅" : "No cargado ❌");
 console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "Cargada ✅ (se borran las imágenes reemplazadas)" : "No cargada (las imágenes viejas se quedan)");
+console.log("CLOUDFLARE_API_TOKEN:", process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID ? "Cargado ✅ (escenas con IA activas)" : "No cargado (las escenas con IA quedan apagadas)");
 console.log("MP_WEBHOOK_SECRET:", process.env.MP_WEBHOOK_SECRET ? "Cargado ✅" : "No cargado ❌");
 console.log("API_PUBLIC_URL:", process.env.API_PUBLIC_URL || "(vacía: Mercado Pago no podrá avisar los pagos)");
 
 const app = express();
+// Detrás del proxy de Render: así req.ip es la persona real (los topes por persona de las escenas lo necesitan)
+app.set("trust proxy", 1);
 // rawBody: Meta firma el cuerpo EXACTO del aviso de WhatsApp y hay que comprobar esa firma
 app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
@@ -37,6 +41,9 @@ app.use("/pagos", crearRouterPagos());
 
 // Borrar de Cloudinary la imagen que se reemplazó (la api_secret vive aquí, no en la app)
 app.use("/imagenes", crearRouterImagenes());
+
+// Escenas de fondo con IA para las publicaciones (Cloudflare Workers AI; se apaga solo si faltan las variables)
+app.use("/escenas", crearRouterEscenas());
 
 // Agente de WhatsApp (Meta Cloud API + Gemini gratuito); se apaga solo si faltan las variables
 app.use("/whatsapp", crearRouterWhatsapp());

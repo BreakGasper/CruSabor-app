@@ -80,6 +80,22 @@
               <small>Gratis y sin salir de tu teléfono. Funciona mejor con el producto sobre un fondo liso (blanco, pared, mesa de un color).</small>
               <small v-if="avisoFondo" class="error-msg" role="alert" data-testid="aviso-fondo">{{ avisoFondo }}</small>
             </div>
+
+            <!-- Escena inventada por la IA (solo aparece si el servidor la tiene conectada) -->
+            <div v-if="ia.activo" class="campo escena" data-testid="seccion-escena">
+              <span>5. Escena con IA (opcional)</span>
+              <small>La IA inventa solo el fondo; tu producto se pega encima tal cual es. Se le quita el fondo a tu foto automáticamente.</small>
+              <div class="chips">
+                <button v-for="e in ESTILOS_ESCENA" :key="e.id" type="button" class="chip" :class="{ activa: estiloEscena === e.id && !descripcionEscena.trim() }" :data-testid="`estilo-${e.id}`" @click="elegirEstilo(e.id)">{{ e.icono }} {{ e.nombre }}</button>
+              </div>
+              <input v-model="descripcionEscena" class="input" maxlength="200" placeholder="…o descríbela: «sobre una mesa de cocina con luz de mañana»" data-testid="descripcion-escena" />
+              <div class="acciones-escena">
+                <button type="button" class="btn-pri" :disabled="generandoEscena" data-testid="inventar-escena" @click="inventarEscena">{{ generandoEscena ? 'Inventando…' : '✨ Inventar escena' }}</button>
+                <button v-if="escena" type="button" class="btn-sec" data-testid="quitar-escena" @click="quitarEscena">Quitar escena</button>
+              </div>
+              <small v-if="ia.restantesHoy">Quedan {{ ia.restantesHoy }} escenas gratis hoy en total.</small>
+              <small v-if="avisoEscena" class="error-msg" role="alert" data-testid="aviso-escena">{{ avisoEscena }}</small>
+            </div>
           </div>
 
           <div class="vista">
@@ -168,6 +184,7 @@ import {
 } from '@/composables/usePublicaciones';
 import { canvasABlob, dibujarPublicacion } from '../utils/dibujarPublicacion';
 import { recortarFondo } from '../utils/quitarFondo';
+import { ESTILOS_ESCENA, ErrorEscena, estadoEscenas, generarEscena } from '../utils/escenas';
 
 const route = useRoute();
 const tiendaId = computed(() => String(route.params.id || ''));
@@ -188,6 +205,12 @@ const articuloId = ref('');
 let foto: HTMLImageElement | null = null;
 let fotoRecorte: HTMLCanvasElement | null = null; // la misma foto sin fondo (se calcula al pedirlo)
 const sinFondo = ref(false);
+let escena: HTMLImageElement | null = null; // fondo inventado por la IA
+const ia = reactive({ activo: false, restantesHoy: 0 });
+const estiloEscena = ref(ESTILOS_ESCENA[0].id);
+const descripcionEscena = ref('');
+const generandoEscena = ref(false);
+const avisoEscena = ref('');
 const avisoFondo = ref('');
 let urlFotoLocal = '';
 
@@ -200,6 +223,7 @@ onMounted(() => {
   if (!esDueno.value) return;
   cargarArticulosPorTienda(tiendaId.value);
   redibujar();
+  estadoEscenas().then((e) => Object.assign(ia, e));
 });
 onBeforeUnmount(() => {
   try {
@@ -234,6 +258,7 @@ function redibujar() {
   dibujarPublicacion(lienzo.value, {
     foto: recortada ? fotoRecorte : foto,
     recortada,
+    escena: recortada ? escena : null, // la escena solo se usa con el producto recortado
     plantilla: form.plantilla,
     formato: form.formato,
     titulo: form.titulo || 'Título de tu publicación',
@@ -248,6 +273,51 @@ watch(sinFondo, () => {
   prepararRecorte();
   redibujar();
 });
+
+function elegirEstilo(id: string) {
+  estiloEscena.value = id;
+  descripcionEscena.value = '';
+}
+
+function quitarEscena() {
+  escena = null;
+  avisoEscena.value = '';
+  redibujar();
+}
+
+/** Pide la escena al servidor y la deja de fondo; el producto se recorta primero (hace falta para pegarlo encima) */
+async function inventarEscena() {
+  avisoEscena.value = '';
+  if (!foto) {
+    avisoEscena.value = 'Sube primero la foto de tu producto.';
+    return;
+  }
+  if (!sinFondo.value || !fotoRecorte) {
+    sinFondo.value = true;
+    prepararRecorte();
+    if (!fotoRecorte) {
+      avisoEscena.value = avisoFondo.value || 'Para inventar una escena la foto necesita un fondo liso: así se recorta el producto y se pega sobre la escena.';
+      return;
+    }
+  }
+  const estilo = ESTILOS_ESCENA.find((e) => e.id === estiloEscena.value);
+  const texto = descripcionEscena.value.trim() || estilo?.descripcion || '';
+  if (texto.length < 3) {
+    avisoEscena.value = 'Elige un estilo o describe la escena.';
+    return;
+  }
+  generandoEscena.value = true;
+  try {
+    const r = await generarEscena(texto);
+    escena = r.imagen;
+    ia.restantesHoy = r.restantesHoy;
+    redibujar();
+  } catch (e: any) {
+    avisoEscena.value = e instanceof ErrorEscena ? e.message : 'No se pudo generar la escena.';
+  } finally {
+    generandoEscena.value = false;
+  }
+}
 
 function cargarImagen(url: string, conPermiso: boolean): Promise<HTMLImageElement> {
   return new Promise((ok, mal) => {
@@ -433,6 +503,7 @@ const fecha = (iso: string) => {
 .pub-container { min-height: 100vh; background: var(--bg-page); }
 .pub-main { max-width: 1000px; margin: 0 auto; padding: 16px; }
 .hint, .aviso { color: var(--text-muted); font-size: 0.95rem; margin: 8px 0 14px; }
+.acciones-escena { display: flex; gap: 8px; flex-wrap: wrap; }
 .casilla { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 .pestanas { display: flex; gap: 8px; margin-bottom: 16px; }
 .pestanas button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; }
