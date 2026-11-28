@@ -287,7 +287,7 @@ describe('pantalla del cliente', () => {
     await participarEnSorteo('s1', cli('c1', 'Ana Pérez'), 'LOLA-7K3Q');
     await sortearGanador('s1');
     const w = await montar();
-    expect(w.find('[data-testid="ganador"]').text()).toContain('Ana P.');
+    expect(w.find('[data-testid="ganador"] [data-testid="texto-descifrado"]').attributes('aria-label')).toBe('Ana P.'); // se descifra al aparecer
     expect(w.find('[data-testid="ganador"]').text()).toContain('¡Eres tú!');
     expect(w.find('[data-testid="codigo-sorteo"]').exists()).toBe(false);
     w.unmount();

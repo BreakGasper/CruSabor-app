@@ -37,7 +37,7 @@
       <!-- Ganador -->
       <div v-if="s.ganadores.length" class="ganador" data-testid="ganador">
         🎉 {{ s.ganadores.length > 1 ? 'Ganadores' : 'Ganador' }}:
-        <strong>{{ s.ganadores.map((g) => nombrePublico(g.nombre)).join(', ') }}</strong>
+        <strong><TextoDescifrado :texto="s.ganadores.map((g) => nombrePublico(g.nombre)).join(', ')" /></strong>
         <p v-if="yoGane(s)" class="soy-ganador">¡Eres tú! 🥳 La tienda o la plataforma se pondrá en contacto contigo.</p>
       </div>
 
@@ -82,10 +82,12 @@ import { computed, reactive, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import TextoDescifrado from '@/components/TextoDescifrado.vue';
 import { sessionUser } from '@/utils/sessionUser';
 import {
   useSorteos,
   estadoSorteo,
+  sorteosVisibles,
   patrocinadores,
   participarEnSorteo,
   yaParticipa,
@@ -99,18 +101,10 @@ const router = useRouter();
 const { sorteos } = useSorteos();
 const usuario = computed(() => sessionUser.value);
 
-const DIAS_VISIBLE_SORTEADO = 30;
 const estadoDe = (s: Sorteo) => estadoSorteo(s);
 
 /** Sorteos que se muestran: todos menos los pausados; los ya sorteados solo un mes */
-const visibles = computed(() =>
-  sorteos.value.filter((s) => {
-    const e = estadoDe(s);
-    if (e === 'pausado') return false;
-    if (e === 'sorteado') return !!s.cerradoEn && Date.now() - new Date(s.cerradoEn).getTime() < DIAS_VISIBLE_SORTEADO * 86_400_000;
-    return true;
-  }),
-);
+const visibles = computed(() => sorteosVisibles(sorteos.value));
 
 const patrocinadoresDe = (s: Sorteo) => patrocinadores(s);
 const codigos = reactive<Record<string, string>>({});

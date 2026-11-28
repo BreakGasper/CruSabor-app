@@ -1,5 +1,7 @@
 <template>
   <div class="store-detail-container" v-if="store">
+    <!-- Botón flotante del sorteo (solo si esta tienda lo patrocina) -->
+    <BotonSorteoTienda v-if="store.tiendaId" :tienda-id="store.tiendaId" />
     <div class="store-card">
       <!-- Banner / Galería principal -->
       <div class="store-banner">
@@ -447,6 +449,7 @@ import type { Producto } from '@/types/Producto';
 import StarRating from '@/components/StarRating.vue';
 import { useCalificaciones } from '@/composables/useCalificaciones';
 import CampanaTienda from '@/modules/store/components/CampanaTienda.vue';
+import BotonSorteoTienda from '@/modules/home/components/BotonSorteoTienda.vue';
 import BotonCompartir from '@/components/BotonCompartir.vue';
 import { urlPerfilTienda, textoCompartirTienda } from '@/composables/useCompartir';
 import { volverOInicio } from '@/utils/navegacion';

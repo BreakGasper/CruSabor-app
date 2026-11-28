@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue';
 import { db } from '@/firebase';
 import { ref as dbRef, get, set, push, update, remove, onValue, runTransaction, type Unsubscribe } from '@/services/baseDatos';
+import { eliminarImagenes } from '@/composables/useCloudinary';
 
 /**
  * Sorteos patrocinados por tiendas.
@@ -9,7 +10,7 @@ import { ref as dbRef, get, set, push, update, remove, onValue, runTransaction, 
  * patrocinadora: así se sabe qué tienda lo trajo, pero el premio y el sorteo son uno solo. Cada cliente participa una
  * vez por sorteo (su id es la llave de su participación).
  *
- *   sorteos/{id}                      { titulo, descripcion, premio, activo, fechaInicio, fechaFin, creadoEn, cerradoEn? }
+ *   sorteos/{id}                      { titulo, descripcion, premio, imagenUrl?, activo, fechaInicio, fechaFin, creadoEn, cerradoEn? }
  *   sorteos/{id}/codigos/{CODIGO}     { tiendaId, nombreTienda, logoUrl, activo, usos, limite, creadoEn }
  *   sorteos/{id}/ganadores/{pushId}   { clienteId, nombre, telefono, tiendaId, nombreTienda, codigo, fecha, por }
  *   sorteoParticipantes/{id}/{clienteId}  { nombre, telefono, codigo, tiendaId, nombreTienda, fecha }
@@ -46,6 +47,8 @@ export interface Sorteo {
   titulo: string;
   descripcion: string;
   premio: string;
+  /** Imagen del banner con la que sale en el carrusel de la pantalla principal (opcional) */
+  imagenUrl?: string;
   activo: boolean;
   fechaInicio?: string; // YYYY-MM-DD
   fechaFin?: string; // YYYY-MM-DD
@@ -133,6 +136,24 @@ export function patrocinadores(s: Pick<Sorteo, 'codigos'>): { tiendaId: string; 
   return [...vistos.values()];
 }
 
+/** Días que un sorteo ya sorteado sigue a la vista (para que todos vean quién ganó) */
+export const DIAS_VISIBLE_SORTEADO = 30;
+
+/** Sorteos que se muestran a los clientes: todos menos los pausados; los ya sorteados solo durante un mes */
+export function sorteosVisibles(lista: Sorteo[], ahora: Date = new Date()): Sorteo[] {
+  const hoy = hoyISO(ahora);
+  return lista.filter((s) => {
+    const e = estadoSorteo(s, hoy);
+    if (e === 'pausado') return false;
+    if (e === 'sorteado') return !!s.cerradoEn && ahora.getTime() - new Date(s.cerradoEn).getTime() < DIAS_VISIBLE_SORTEADO * 86_400_000;
+    return true;
+  });
+}
+
+/** ¿Esta tienda patrocina el sorteo? (tiene un código activo) */
+export const patrocinaTienda = (s: Pick<Sorteo, 'codigos'>, tiendaId: string) =>
+  !!tiendaId && s.codigos.some((c) => c.activo && c.tiendaId === tiendaId);
+
 export interface ResumenTienda {
   tiendaId: string;
   nombreTienda: string;
@@ -193,6 +214,7 @@ function aSorteo(id: string, s: any): Sorteo {
     titulo: String(s?.titulo ?? ''),
     descripcion: String(s?.descripcion ?? ''),
     premio: String(s?.premio ?? ''),
+    imagenUrl: s?.imagenUrl || '',
     activo: s?.activo !== false,
     fechaInicio: s?.fechaInicio || '',
     fechaFin: s?.fechaFin || '',
@@ -327,6 +349,7 @@ export interface DatosSorteo {
   titulo: string;
   descripcion?: string;
   premio?: string;
+  imagenUrl?: string;
   activo?: boolean;
   fechaInicio?: string;
   fechaFin?: string;
@@ -341,6 +364,7 @@ const limpiar = (d: DatosSorteo) => ({
   titulo: d.titulo.trim(),
   descripcion: (d.descripcion ?? '').trim(),
   premio: (d.premio ?? '').trim(),
+  imagenUrl: d.imagenUrl || '',
   activo: d.activo !== false,
   fechaInicio: d.fechaInicio || '',
   fechaFin: d.fechaFin || '',
@@ -360,7 +384,10 @@ export async function actualizarSorteo(id: string, d: DatosSorteo): Promise<void
 
 /** Borra el sorteo con sus códigos, ganadores y participantes */
 export async function eliminarSorteo(id: string): Promise<void> {
+  const previo = await get(dbRef(db, `sorteos/${id}/imagenUrl`));
   await update(dbRef(db), { [`sorteos/${id}`]: null, [`sorteoParticipantes/${id}`]: null });
+  // Ya borrado el sorteo, su imagen queda sin uso (el servidor solo la quita si nada más la usa)
+  if (previo.exists()) void eliminarImagenes([previo.val()]);
 }
 
 export async function alternarSorteo(id: string, activo: boolean): Promise<void> {

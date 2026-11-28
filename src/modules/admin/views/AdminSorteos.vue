@@ -17,6 +17,16 @@
             <input id="s-titulo" v-model="form.titulo" class="form-input" maxlength="80" placeholder="Ej. Sorteo de aniversario" data-testid="titulo" />
           </div>
           <div class="campo campo-ancho">
+            <label>Banner del sorteo (opcional)</label>
+            <div class="dropzone" data-testid="banner-sorteo" @click="fileInput?.click()">
+              <img v-if="form.imagenUrl" :src="form.imagenUrl" alt="Vista previa del banner" class="preview" />
+              <span v-else class="dropzone-texto">{{ subiendo ? 'Subiendo...' : 'Toca para elegir la imagen del banner' }}</span>
+            </div>
+            <input ref="fileInput" type="file" accept="image/*" hidden data-testid="archivo-banner" @change="onArchivo" />
+            <small class="pista">Se publica en el carrusel de la pantalla principal, con los logos de las tiendas participantes abajo. Sin imagen sale con un fondo de colores.</small>
+            <button v-if="form.imagenUrl" type="button" class="btn btn-mini quitar-img" @click="form.imagenUrl = ''">Quitar imagen</button>
+          </div>
+          <div class="campo campo-ancho">
             <label for="s-premio">Premio</label>
             <input id="s-premio" v-model="form.premio" class="form-input" maxlength="120" placeholder="Ej. Pantalla de 43 pulgadas" data-testid="premio" />
           </div>
@@ -130,6 +140,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import { uploadImage, eliminarImagenReemplazada } from '@/composables/useCloudinary';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import { useTiendas } from '@/composables/useTiendas';
 import {
@@ -161,14 +172,33 @@ watch(seleccionado, () => observar());
 const sorteoActual = computed(() => sorteos.value.find((s) => s.id === seleccionado.value) || null);
 const resumen = computed(() => participantesPorTienda(participantes.value, sorteoActual.value?.codigos ?? []));
 
-const formVacio = () => ({ titulo: '', premio: '', descripcion: '', fechaInicio: '', fechaFin: '', activo: true });
+const formVacio = () => ({ titulo: '', imagenUrl: '', premio: '', descripcion: '', fechaInicio: '', fechaFin: '', activo: true });
 const form = reactive(formVacio());
 const editandoId = ref<string | null>(null);
 const guardando = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const subiendo = ref(false);
+/** Imagen con la que se abrió la edición: si se cambia o se quita, la vieja se borra */
+const imagenAlEditar = ref('');
+
+async function onArchivo(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  subiendo.value = true;
+  try {
+    form.imagenUrl = await uploadImage(file);
+  } catch {
+    await Swal.fire({ icon: 'error', title: 'No se pudo subir la imagen' });
+  } finally {
+    subiendo.value = false;
+    if (fileInput.value) fileInput.value.value = '';
+  }
+}
 
 function reset() {
   Object.assign(form, formVacio());
   editandoId.value = null;
+  imagenAlEditar.value = '';
 }
 
 const aviso = (icon: 'success' | 'error' | 'warning', title: string, text = '') =>
@@ -178,8 +208,11 @@ const textoError = (e: any) => (e instanceof ErrorSorteo ? e.message : e?.messag
 async function guardar() {
   guardando.value = true;
   try {
-    if (editandoId.value) await actualizarSorteo(editandoId.value, { ...form });
-    else seleccionado.value = await crearSorteo({ ...form });
+    if (editandoId.value) {
+      await actualizarSorteo(editandoId.value, { ...form });
+      // Ya guardada la nueva (o ninguna): la anterior queda sin uso
+      void eliminarImagenReemplazada(imagenAlEditar.value, form.imagenUrl);
+    } else seleccionado.value = await crearSorteo({ ...form });
     Swal.fire({ toast: true, position: 'bottom', timer: 1500, showConfirmButton: false, icon: 'success', title: editandoId.value ? 'Sorteo actualizado' : 'Sorteo creado' });
     reset();
   } catch (e: any) {
@@ -191,7 +224,8 @@ async function guardar() {
 
 function editar(s: Sorteo) {
   editandoId.value = s.id;
-  Object.assign(form, { titulo: s.titulo, premio: s.premio, descripcion: s.descripcion, fechaInicio: s.fechaInicio || '', fechaFin: s.fechaFin || '', activo: s.activo });
+  imagenAlEditar.value = s.imagenUrl || '';
+  Object.assign(form, { imagenUrl: s.imagenUrl || '', titulo: s.titulo, premio: s.premio, descripcion: s.descripcion, fechaInicio: s.fechaInicio || '', fechaFin: s.fechaFin || '', activo: s.activo });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -306,6 +340,11 @@ function onImgError(e: Event) {
 .campo-ancho { grid-column: 1 / -1; }
 .campo label { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .form-input { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 16px; min-width: 0; }
+.dropzone { border: 1.5px dashed var(--border); border-radius: 12px; min-height: 110px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: var(--surface-2); }
+.dropzone-texto { color: var(--text-muted); font-size: 0.9rem; padding: 0 12px; text-align: center; }
+.preview { width: 100%; max-height: 190px; object-fit: cover; }
+.quitar-img { align-self: flex-start; margin-top: 6px; }
+.pista { color: var(--text-muted); font-size: 0.78rem; }
 .switch { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text); cursor: pointer; }
 .acciones-form { display: flex; gap: 10px; margin-top: 14px; }
 .btn { padding: 8px 16px; border-radius: 10px; border: 1px solid transparent; font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
