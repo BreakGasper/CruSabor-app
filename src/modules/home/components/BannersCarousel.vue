@@ -1,7 +1,51 @@
 <template>
-  <!-- No ocupa espacio si no hay banners activos -->
-  <section v-if="banners.length" class="banners" aria-label="Promociones">
+  <!-- No ocupa espacio si no hay banners activos ni sorteos -->
+  <section v-if="total" class="banners" aria-label="Promociones">
     <div ref="scroll" class="banners-scroll" @scroll="onScroll">
+      <!-- Sorteos: el banner del sorteo, con los logos de las tiendas participantes abajo -->
+      <div
+        v-for="(s, i) in sorteos"
+        :key="'sorteo-' + s.id"
+        class="banner sorteo clickeable"
+        role="button"
+        tabindex="0"
+        :data-sorteo="s.id"
+        :aria-label="`Sorteo: ${s.titulo}`"
+        @click="abrirSorteo(s)"
+        @keydown.enter="abrirSorteo(s)"
+      >
+        <img v-if="s.imagenUrl" :src="s.imagenUrl" :alt="s.titulo" class="banner-img sorteo-img" loading="lazy" />
+        <div v-else class="banner-img sorteo-fondo" aria-hidden="true"><span>🎁</span></div>
+
+        <div class="banner-texto sorteo-texto">
+          <span class="etiqueta">🎁 Sorteo</span>
+          <strong>{{ s.titulo }}</strong>
+          <span v-if="s.premio" class="premio">🏆 {{ s.premio }}</span>
+          <span v-if="s.ganadores.length" class="ganador" data-testid="ganador-carrusel">
+            🎉 Ganador:
+            <b><TextoDescifrado :texto="s.ganadores.map((g) => nombrePublico(g.nombre)).join(', ')" :activo="activo === i" /></b>
+          </span>
+          <span v-else-if="estadoSorteo(s) === 'abierto'" class="cta">Toca para participar con tu código ›</span>
+          <span v-else-if="estadoSorteo(s) === 'proximo'" class="cta">Empieza el {{ s.fechaInicio }}</span>
+
+          <div v-if="logosDe(s).length" class="sorteo-logos" data-testid="logos-sorteo">
+            <img
+              v-for="t in logosDe(s).slice(0, MAX_LOGOS)"
+              :key="t.tiendaId"
+              :src="t.logoUrl || placeholderLogo"
+              :alt="t.nombreTienda"
+              :title="t.nombreTienda"
+              class="mini-logo"
+              :data-testid="'mini-logo-' + t.tiendaId"
+              loading="lazy"
+              @error="onImgError"
+            />
+            <span v-if="logosDe(s).length > MAX_LOGOS" class="mas">+{{ logosDe(s).length - MAX_LOGOS }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banners normales del administrador -->
       <button
         v-for="b in banners"
         :key="b.id"
@@ -18,27 +62,38 @@
       </button>
     </div>
 
-    <div v-if="banners.length > 1" class="dots">
+    <div v-if="total > 1" class="dots">
       <button
-        v-for="(b, i) in banners"
-        :key="b.id"
+        v-for="n in total"
+        :key="n"
         type="button"
         class="dot"
-        :class="{ on: i === activo }"
-        :aria-label="`Ir al banner ${i + 1}`"
-        @click="irA(i)"
+        :class="{ on: n - 1 === activo }"
+        :aria-label="`Ir a la promoción ${n}`"
+        @click="irA(n - 1)"
       />
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import TextoDescifrado from '@/components/TextoDescifrado.vue';
+import { abrirDialogoSorteo } from '@/composables/dialogoSorteo';
 import { useBannersActivos, type Banner } from '@/composables/useBanners';
+import { useSorteos, sorteosVisibles, estadoSorteo, patrocinadores, nombrePublico, type Sorteo } from '@/composables/useSorteos';
+
+const MAX_LOGOS = 8;
 
 const router = useRouter();
 const { banners } = useBannersActivos();
+const { sorteos: todosLosSorteos } = useSorteos();
+/** Los sorteos van primero en el carrusel */
+const sorteos = computed(() => sorteosVisibles(todosLosSorteos.value));
+const logosDe = (s: Sorteo) => patrocinadores(s);
+const total = computed(() => sorteos.value.length + banners.value.length);
 
 const scroll = ref<HTMLDivElement | null>(null);
 const activo = ref(0);
@@ -48,6 +103,15 @@ function abrir(b: Banner) {
   if (!b.enlace) return;
   if (/^https?:\/\//i.test(b.enlace)) window.open(b.enlace, '_blank', 'noopener');
   else router.push(b.enlace);
+}
+
+/** Al tocar el sorteo se abre el diálogo para escribir el código */
+function abrirSorteo(s: Sorteo) {
+  void abrirDialogoSorteo(s, { irALogin: () => router.push({ path: '/login', query: { redirect: '/' } }) });
+}
+
+function onImgError(e: Event) {
+  (e.target as HTMLImageElement).src = placeholderLogo;
 }
 
 function irA(i: number) {
@@ -64,21 +128,21 @@ function onScroll() {
 }
 
 function avanzar() {
-  if (banners.value.length < 2) return;
-  irA((activo.value + 1) % banners.value.length);
+  if (total.value < 2) return;
+  irA((activo.value + 1) % total.value);
 }
 
 function iniciarAuto() {
   detenerAuto();
-  if (banners.value.length > 1) timer = setInterval(avanzar, 5000);
+  if (total.value > 1) timer = setInterval(avanzar, 5000);
 }
 function detenerAuto() {
   if (timer) clearInterval(timer);
   timer = null;
 }
 
-// Reinicia el auto-avance cuando cambia la cantidad de banners
-watch(() => banners.value.length, iniciarAuto);
+// Reinicia el auto-avance cuando cambia la cantidad de diapositivas
+watch(total, iniciarAuto);
 onMounted(iniciarAuto);
 onUnmounted(detenerAuto);
 </script>
@@ -89,6 +153,7 @@ onUnmounted(detenerAuto);
 }
 .banners-scroll {
   display: flex;
+  align-items: flex-start;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   gap: 0;
@@ -138,6 +203,71 @@ onUnmounted(detenerAuto);
   font-size: 0.85rem;
   opacity: 0.95;
 }
+
+/* ---- Diapositiva del sorteo ---- */
+.banner.sorteo .banner-img {
+  height: 190px;
+}
+.sorteo-fondo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 22px;
+  background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
+}
+.sorteo-fondo span {
+  font-size: 4.2rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+}
+.sorteo-texto {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.25) 70%, rgba(0, 0, 0, 0));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 26px;
+}
+.sorteo-texto .etiqueta {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.sorteo-texto .premio {
+  font-weight: 700;
+}
+.sorteo-texto .cta {
+  font-weight: 700;
+  color: #fde68a;
+}
+.sorteo-texto .ganador b {
+  color: #fde68a;
+}
+.sorteo-logos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.mini-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+  border: 2px solid #fff;
+  flex: none;
+}
+.sorteo-logos .mas {
+  font-size: 0.78rem;
+  font-weight: 700;
+  opacity: 1;
+}
+
 .dots {
   display: flex;
   justify-content: center;
@@ -161,6 +291,9 @@ onUnmounted(detenerAuto);
 @media (min-width: 900px) {
   .banner-img {
     height: 240px;
+  }
+  .banner.sorteo .banner-img {
+    height: 260px;
   }
 }
 </style>

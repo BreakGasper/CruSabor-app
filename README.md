@@ -667,4 +667,7 @@ Todos los clientes registrados participan en el **mismo sorteo**. Cada tienda pa
 
 - Admin › **Sorteos** (`/admin/sorteos`): crear el sorteo (nombre, premio, fechas, activo), crear códigos por tienda (generados o propios, con límite de usos opcional), ver cuántos participantes trajo cada tienda y **sortear** (al azar, con `crypto`, sin repetir ganador; cierra la participación).
 - Cliente (perfil): carrusel con los **logos de las tiendas patrocinadoras**, campo del código y estado ("Ya estás participando"). El ganador se muestra con nombre recortado ("María G.").
+- **Pantalla principal:** el sorteo sale en el carrusel de banners (primero), con su imagen (opcional, se sube en Admin › Sorteos) y los **logos de las tiendas participantes abajo**. Al tocarlo se abre un **diálogo para escribir el código**.
+- **Tiendas participantes:** su perfil muestra un **botón flotante 🎁 Sorteo** que abre el mismo diálogo (solo mientras el sorteo está abierto o por empezar y la tienda tenga un código activo).
+- **Ganador:** se muestra con el efecto *Text Scramble* (símbolos al azar que se acomodan hasta formar el nombre; `src/utils/textScramble.ts` y `TextoDescifrado.vue`; respeta «reducir movimiento»).
 - Datos: `sorteos/{id}` (con `codigos/` y `ganadores/`) y `sorteoParticipantes/{id}/{clienteId}` (aparte, para no cargar a todos los clientes). Lógica en `src/composables/useSorteos.ts`.
