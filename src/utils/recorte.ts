@@ -17,6 +17,7 @@ export const ASPECTOS: Aspecto[] = [
   { id: '4:3', nombre: 'Horizontal 4:3', valor: 4 / 3 },
   { id: '3:4', nombre: 'Vertical 3:4', valor: 3 / 4 },
   { id: '16:9', nombre: 'Panorámica 16:9', valor: 16 / 9 },
+  { id: '3:1', nombre: 'Banner 3:1', valor: 3 },
 ];
 
 export const ZOOM_MIN = 1;

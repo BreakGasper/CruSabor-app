@@ -166,6 +166,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import PageHeader from '@/components/PageHeader.vue';
 import { uploadImage } from '@/composables/useCloudinary';
+import { recortarFotos } from '@/utils/recortarFoto';
 import { useTiendas } from '@/composables/useTiendas';
 import { CATEGORIAS_SERVICIO, type Servicio, type TipoPrecio, type Contratacion } from '../tipos';
 import { modalidadDe } from '../negocio';
@@ -247,8 +248,12 @@ function reiniciar() {
 
 async function alElegirFotos(e: Event) {
   const input = e.target as HTMLInputElement;
-  const archivos = Array.from(input.files ?? []).slice(0, MAX_FOTOS_SERVICIO - form.fotos.length);
-  if (!archivos.length) return;
+  const elegidos = Array.from(input.files ?? []).slice(0, MAX_FOTOS_SERVICIO - form.fotos.length);
+  const archivos = await recortarFotos(elegidos, '4:3'); // recorte básico de cada foto
+  if (!archivos.length) {
+    input.value = '';
+    return;
+  }
   subiendo.value = true;
   try {
     for (const a of archivos) form.fotos.push(await uploadImage(a));

@@ -16,6 +16,9 @@
 
   <VolverAdmin />
 
+  <!-- Recorte de fotos al elegirlas (utils/recortarFoto.ts) -->
+  <RecortadorGlobal />
+
   <!-- Versión nueva publicada y hay un formulario a medias: se avisa en vez de recargar sola -->
   <AvisoActualizacion v-if="hayVersionNueva" @actualizar="actualizarAhora" @cerrar="hayVersionNueva = false" />
 
@@ -40,6 +43,7 @@ import { useConfiguracion, enMantenimientoPara } from "@/composables/useConfigur
 import MantenimientoAviso from "@/components/MantenimientoAviso.vue";
 import CargandoCrustore from "@/components/CargandoCrustore.vue";
 import VolverAdmin from "@/components/VolverAdmin.vue";
+import RecortadorGlobal from "@/components/RecortadorGlobal.vue";
 import { aplicarPaleta } from "@/composables/usePaleta";
 import { tematicaEnCurso, pantallaDeRuta, cargarIconosDe, hoyISO } from "@/composables/useTematicas";
 import TematicaDecoracion from "@/components/TematicaDecoracion.vue";

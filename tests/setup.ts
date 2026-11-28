@@ -8,6 +8,17 @@ import '@/plugins/fontawesome'; // registra los iconos usados por los componente
 vi.mock('firebase/database', async () => await import('./mocks/firebaseDb'));
 vi.mock('@/firebase', () => ({ db: { __mock: true }, auth: {} }));
 
+// Recorte de fotos al elegirlas: en las pruebas no hay editor, así que por defecto la foto pasa tal cual.
+// Cada prueba puede cambiar el comportamiento (por ejemplo, devolver null para simular «Cancelar»).
+export const recorteMock = {
+  recortarFoto: vi.fn(async (f: File, _aspecto?: string) => f as File | null),
+  recortarFotos: vi.fn(async (fs: File[], _aspecto?: string) => fs),
+};
+vi.mock('@/utils/recortarFoto', async () => {
+  const real = await vi.importActual<typeof import('@/utils/recortarFoto')>('@/utils/recortarFoto');
+  return { ...real, recortarFoto: (f: File, a?: string) => recorteMock.recortarFoto(f, a), recortarFotos: (fs: File[], a?: string) => recorteMock.recortarFotos(fs, a) };
+});
+
 // vue-router: las composables solo usan push/replace
 export const routerMock = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 export const routeMock: { params: Record<string, any>; query: Record<string, any> } = { params: {}, query: {} };

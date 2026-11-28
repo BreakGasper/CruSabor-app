@@ -100,6 +100,7 @@ import { ref, reactive } from 'vue';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
 import { uploadImage, eliminarImagenReemplazada } from '@/composables/useCloudinary';
+import { recortarFoto } from '@/utils/recortarFoto';
 import {
   useBannersAdmin,
   crearBanner,
@@ -137,8 +138,13 @@ function reset() {
 }
 
 async function onArchivo(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
+  const elegida = (e.target as HTMLInputElement).files?.[0];
+  if (!elegida) return;
+  const file = await recortarFoto(elegida, '3:1'); // recorte básico del banner
+  if (!file) {
+    if (fileInput.value) fileInput.value.value = '';
+    return;
+  }
   subiendo.value = true;
   try {
     form.imagenUrl = await uploadImage(file);

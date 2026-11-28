@@ -324,6 +324,7 @@ import { eliminarImagenes } from '@/composables/useCloudinary';
 import { esEnlaceValido, normalizarEnlace } from '@/utils/enlaces';
 import { useHorarioRapido } from '@/composables/useHorarioRapido';
 import { tiendasDelTelefono, MAX_TIENDAS_POR_TELEFONO, MENSAJE_LIMITE_TIENDAS } from '@/composables/cuentaTienda';
+import { recortarFoto } from '@/utils/recortarFoto';
 import { CATEGORIAS_SERVICIO, MODALIDADES_ATENCION, nombreCategoriaServicio, type TipoNegocio, type ModalidadAtencion } from '@/modules/servicios/tipos';
 import { INFO_TIPOS_NEGOCIO, ETIQUETA_MODALIDAD, tipoDeTienda, modalidadDe, vendeProductos, ofreceServicios, atiendeADomicilio, envioDomicilioDe, listaDeTexto } from '@/modules/servicios/negocio';
 
@@ -534,13 +535,19 @@ const bannerFile = ref<File | null>(null);
 const logoPreview = ref('');
 const bannerPreview = ref('');
 
-function tomarImagen(e: Event, destino: 'logo' | 'banner') {
+async function tomarImagen(e: Event, destino: 'logo' | 'banner') {
   const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) return (errorGeneral.value = 'El archivo debe ser una imagen.');
-  if (file.size > 5 * 1024 * 1024) return (errorGeneral.value = 'La imagen no debe pesar más de 5 MB.');
+  const elegida = input.files?.[0];
+  if (!elegida) return;
+  if (!elegida.type.startsWith('image/')) return (errorGeneral.value = 'El archivo debe ser una imagen.');
+  if (elegida.size > 5 * 1024 * 1024) return (errorGeneral.value = 'La imagen no debe pesar más de 5 MB.');
   errorGeneral.value = '';
+  // Recorte básico: el logo es cuadrado y el banner panorámico
+  const file = await recortarFoto(elegida, destino === 'logo' ? '1:1' : '3:1');
+  if (!file) {
+    input.value = '';
+    return;
+  }
   const url = URL.createObjectURL(file);
   if (destino === 'logo') { logoFile.value = file; logoPreview.value = url; }
   else { bannerFile.value = file; bannerPreview.value = url; }

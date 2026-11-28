@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { __reset, __getAt } from './mocks/firebaseDb';
-import { routeMock, routerMock, swalMock } from './setup';
+import { routeMock, routerMock, swalMock, recorteMock } from './setup';
 import { guardarSesion, cerrarSesion } from '@/utils/sessionUser';
 
 const subirImagen = vi.fn(async (_f: File) => 'https://img/nueva.jpg');
@@ -953,5 +953,42 @@ describe('MisServicios: diálogo para agregar y editar', () => {
     await w.find('[data-servicio="s1"] [data-testid="editar-servicio"]').trigger('click');
     expect(w.find('[data-testid="dialogo-servicio"]').text()).toContain('Editar servicio');
     expect((w.find('[data-testid="servicio-nombre"]').element as HTMLInputElement).value).toBe('Corte clásico');
+  });
+});
+
+describe('Fotos: recorte básico al elegirlas', () => {
+  const elegir = async (w: any, archivos: File[]) => {
+    const input = w.find('[data-testid="archivo-fotos"]');
+    Object.defineProperty(input.element, 'files', { value: archivos, configurable: true });
+    await input.trigger('change');
+    await listo();
+  };
+  const jpg = (n: string) => new File(['x'], n, { type: 'image/jpeg' });
+  beforeEach(() => {
+    recorteMock.recortarFotos.mockClear();
+    recorteMock.recortarFotos.mockImplementation(async (fs: File[]) => fs);
+  });
+
+  it('cada foto pasa por el recorte (4:3) antes de subirse, y se sube la recortada', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    const recortada = jpg('recortada.jpg');
+    recorteMock.recortarFotos.mockImplementation(async () => [recortada]);
+    await elegir(w, [jpg('a.jpg'), jpg('b.jpg')]);
+    expect(recorteMock.recortarFotos).toHaveBeenCalledWith(expect.any(Array), '4:3');
+    expect(subirImagen).toHaveBeenCalledTimes(1);
+    expect(subirImagen).toHaveBeenCalledWith(recortada);
+  });
+
+  it('si se cancela el recorte no se sube nada', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    recorteMock.recortarFotos.mockImplementation(async () => []);
+    await elegir(w, [jpg('a.jpg')]);
+    expect(subirImagen).not.toHaveBeenCalled();
   });
 });
