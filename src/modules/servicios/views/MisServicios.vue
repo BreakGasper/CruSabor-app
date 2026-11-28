@@ -317,8 +317,9 @@ async function eliminar(s: Servicio) {
 .pantalla { min-height: 100vh; background: var(--bg-page); }
 .contenido { max-width: 760px; margin: 0 auto; padding: 14px 16px 40px; text-align: left; }
 .aviso, .ayuda { color: var(--text-muted); font-size: 0.9rem; line-height: 1.45; margin: 6px 0 14px; }
-.cab-lista { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.btn-agregar { border-radius: 999px; padding: 10px 16px; }
+.cab-lista { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.cab-lista .titulo-lista { flex: 1 1 auto; min-width: 0; }
+.btn-agregar { flex: none; width: auto; height: auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; line-height: 1.2; border-radius: 999px; padding: 10px 18px; }
 .dialog-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, 0.5); }
 @media (min-width: 640px) { .dialog-overlay { align-items: center; padding: 16px; } }
 .tarjeta.dialogo { width: 100%; max-width: 560px; max-height: 92vh; margin: 0; overflow-y: auto; overscroll-behavior: contain; border-radius: 22px 22px 0 0; padding: 0 18px 18px; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3); }
