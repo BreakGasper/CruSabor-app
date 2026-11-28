@@ -336,7 +336,7 @@ describe('Menú de la tienda según lo que ofrece', () => {
   it('productos (o sin tipo): el menú de siempre', () => {
     for (const tipoNegocio of [undefined, 'productos']) {
       const o = opciones(montar({ esDueno: true, tipoNegocio, promocionesHabilitadas: true }));
-      expect(o.join('|')).toMatch(/Crear publicación.*Estudio de diseño.*Mis artículos.*Agregar artículo.*Pedidos.*Crear promoción/);
+      expect(o.join('|')).toMatch(/Crear publicación.*Mis artículos.*Agregar artículo.*Pedidos.*Crear promoción/);
     }
   });
 
@@ -345,7 +345,7 @@ describe('Menú de la tienda según lo que ofrece', () => {
     const o = opciones(w).join('|');
     expect(o).toContain('Editar mi tienda');
     expect(o).toContain('Crear publicación');
-    expect(o).toContain('Estudio de diseño');
+    expect(o).not.toContain('Estudio de diseño'); // oculto del menú
     for (const propia of ['Resumen', 'Mis servicios', 'Citas', 'Cotizaciones', 'Clientes', 'Horarios y equipo']) expect(o, propia).toContain(propia);
     for (const fuera of ['Pedidos', 'Agregar artículo', 'Mis artículos', 'Crear promoción']) expect(o, fuera).not.toContain(fuera);
     expect(w.find('[data-testid="menu-servicios-pronto"]').exists()).toBe(false);

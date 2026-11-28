@@ -578,6 +578,7 @@ describe('MisServicios', () => {
     duenio();
     const w = montar(MisServicios);
     await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
     await w.find('[data-testid="servicio-nombre"]').setValue('Manicura en gel');
     await w.find('[data-testid="servicio-categoria"]').setValue('unas');
     await w.find('[data-testid="servicio-descripcion"]').setValue('Con diseño incluido');
@@ -600,6 +601,7 @@ describe('MisServicios', () => {
     duenio();
     const w = montar(MisServicios);
     await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
     await w.find('[data-testid="guardar-servicio"]').trigger('click');
     await listo();
     expect(w.text()).toContain('Escribe el nombre del servicio');
@@ -632,6 +634,7 @@ describe('MisServicios', () => {
     __reset({ tiendas: { [T]: tienda({ membresia: { plan: 'mensual', vigenteHasta: '2020-01-01' } }) }, servicios: {} });
     const w = montar(MisServicios);
     await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
     await w.find('[data-testid="servicio-nombre"]').setValue('Peinado');
     await w.find('[data-testid="servicio-categoria"]').setValue('peinados');
     await w.find('[data-testid="guardar-servicio"]').trigger('click');
@@ -883,5 +886,72 @@ describe('MisCotizaciones', () => {
     expect(swalMock.fire.mock.calls.at(-1)![0]).toMatchObject({ icon: 'warning', title: 'No se pudo actualizar' });
     expect(__getAt(`cotizaciones/${T}/k2/estado`)).toBe('rechazada');
     expect(w.find('[data-cotizacion="k2"] [data-testid="insignia-estado"]').text()).toBe('Rechazada');
+  });
+});
+
+describe('MisServicios: diálogo para agregar y editar', () => {
+  it('muestra primero la lista con el botón «＋ Agregar servicio»; el formulario no ocupa la pantalla', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    expect(w.find('[data-testid="agregar-servicio"]').text()).toContain('Agregar servicio');
+    expect(w.findAll('.fila').length).toBeGreaterThan(0);
+    expect(w.find('[data-testid="dialogo-servicio"]').exists()).toBe(false);
+    expect(w.find('[data-testid="form-servicio"]').exists()).toBe(false);
+  });
+
+  it('el botón abre el diálogo vacío; Cancelar, ✕ y tocar fuera lo cierran sin guardar', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    const dlg = () => w.find('[data-testid="dialogo-servicio"]');
+    expect(dlg().exists()).toBe(true);
+    expect(dlg().text()).toContain('Nuevo servicio');
+    expect(w.find('[aria-modal="true"]').exists()).toBe(true); // activa el bloqueo del scroll de fondo
+    await w.find('[data-testid="servicio-nombre"]').setValue('Borrador');
+    await w.find('[data-testid="cancelar-servicio"]').trigger('click');
+    expect(dlg().exists()).toBe(false);
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    expect((w.find('[data-testid="servicio-nombre"]').element as HTMLInputElement).value).toBe(''); // no conserva el borrador
+    await w.find('[data-testid="cerrar-dialogo"]').trigger('click');
+    expect(dlg().exists()).toBe(false);
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    await dlg().trigger('click'); // el fondo
+    expect(dlg().exists()).toBe(false);
+  });
+
+  it('al guardar un servicio nuevo el diálogo se cierra y queda en la lista', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    await w.find('[data-testid="servicio-nombre"]').setValue('Tinte completo');
+    await w.find('[data-testid="servicio-categoria"]').setValue('unas');
+    await w.find('[data-testid="precio-cotizar"]').setValue(true);
+    await w.find('[data-testid="guardar-servicio"]').trigger('click');
+    await listo();
+    expect(w.find('[data-testid="dialogo-servicio"]').exists()).toBe(false);
+    expect(w.findAll('.fila').map((f) => f.text()).join('|')).toContain('Tinte completo');
+  });
+
+  it('un servicio incompleto no cierra el diálogo y marca los campos', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-testid="agregar-servicio"]').trigger('click');
+    await w.find('[data-testid="guardar-servicio"]').trigger('click');
+    await listo();
+    expect(w.find('[data-testid="dialogo-servicio"]').exists()).toBe(true);
+    expect(w.findAll('.error').length).toBeGreaterThan(0);
+  });
+
+  it('«Editar» abre el mismo diálogo con los datos del servicio', async () => {
+    duenio();
+    const w = montar(MisServicios);
+    await listo();
+    await w.find('[data-servicio="s1"] [data-testid="editar-servicio"]').trigger('click');
+    expect(w.find('[data-testid="dialogo-servicio"]').text()).toContain('Editar servicio');
+    expect((w.find('[data-testid="servicio-nombre"]').element as HTMLInputElement).value).toBe('Corte clásico');
   });
 });

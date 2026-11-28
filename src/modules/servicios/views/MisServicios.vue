@@ -8,11 +8,39 @@
     </main>
 
     <main v-else class="contenido" data-sin-recarga>
-      <p class="ayuda">Este es el catálogo de tu trabajo: lo que ven tus clientes en tu perfil. Cada servicio se contrata con una cotización (o una cita, cuando esté disponible).</p>
+      <p class="ayuda">Este es el catálogo de tu trabajo: lo que ven tus clientes en tu perfil. Cada servicio se contrata con una cotización o con una cita.</p>
 
-      <!-- Formulario -->
-      <section class="tarjeta" data-testid="form-servicio">
-        <h2>{{ editandoId ? 'Editar servicio' : 'Nuevo servicio' }}</h2>
+      <!-- Lista -->
+      <div class="cab-lista">
+        <h2 class="titulo-lista">Mis servicios ({{ servicios.length }})</h2>
+        <button type="button" class="btn-pri btn-agregar" data-testid="agregar-servicio" @click="abrirNuevo">＋ Agregar servicio</button>
+      </div>
+      <p v-if="cargando" class="ayuda">Cargando…</p>
+      <p v-else-if="!servicios.length" class="ayuda">Todavía no tienes servicios publicados.</p>
+      <ul v-else class="lista">
+        <li v-for="s in servicios" :key="s.id" class="fila" :class="{ oculto: !s.activo }" :data-servicio="s.id">
+          <img v-if="s.fotos[0]" :src="s.fotos[0]" alt="" class="miniatura" />
+          <span v-else class="miniatura vacia" aria-hidden="true">{{ icono(s.categoria) }}</span>
+          <div class="info">
+            <strong>{{ s.nombre }}</strong>
+            <span class="meta">{{ etiquetaPrecio(s) }}<template v-if="s.duracionMin"> · {{ etiquetaDuracion(s.duracionMin) }}</template> · {{ ETIQUETA_CONTRATACION[s.contratacion] }}<template v-if="!s.activo"> · Oculto</template></span>
+          </div>
+          <div class="botones">
+            <button type="button" class="mini" data-testid="ver-servicio" @click="router.push(`/servicio/${tiendaId}/${s.id}`)">Ver</button>
+            <button type="button" class="mini" data-testid="editar-servicio" @click="editar(s)">Editar</button>
+            <button type="button" class="mini" data-testid="alternar-servicio" @click="alternar(s)">{{ s.activo ? 'Ocultar' : 'Mostrar' }}</button>
+            <button type="button" class="mini peligro" data-testid="eliminar-servicio" @click="eliminar(s)">Eliminar</button>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Diálogo para agregar o editar -->
+      <div v-if="dialogo" class="dialog-overlay" data-testid="dialogo-servicio" @click.self="cerrarDialogo" @keydown.escape="cerrarDialogo">
+      <section class="tarjeta dialogo" role="dialog" aria-modal="true" aria-label="Servicio" data-testid="form-servicio">
+        <header class="dialogo-cab">
+          <h2>{{ editandoId ? 'Editar servicio' : 'Nuevo servicio' }}</h2>
+          <button type="button" class="cerrar" aria-label="Cerrar" data-testid="cerrar-dialogo" @click="cerrarDialogo">✕</button>
+        </header>
 
         <label class="campo">
           <span>Nombre del servicio *</span>
@@ -123,30 +151,11 @@
           <button type="button" class="btn-pri" :disabled="guardando || subiendo" data-testid="guardar-servicio" @click="guardar">
             {{ guardando ? 'Guardando…' : editandoId ? 'Guardar cambios' : 'Publicar servicio' }}
           </button>
-          <button v-if="editandoId" type="button" class="btn-sec" @click="reiniciar">Cancelar</button>
+          <button type="button" class="btn-sec" data-testid="cancelar-servicio" @click="cerrarDialogo">Cancelar</button>
         </div>
       </section>
+      </div>
 
-      <!-- Lista -->
-      <h2 class="titulo-lista">Mis servicios ({{ servicios.length }})</h2>
-      <p v-if="cargando" class="ayuda">Cargando…</p>
-      <p v-else-if="!servicios.length" class="ayuda">Todavía no tienes servicios publicados.</p>
-      <ul v-else class="lista">
-        <li v-for="s in servicios" :key="s.id" class="fila" :class="{ oculto: !s.activo }" :data-servicio="s.id">
-          <img v-if="s.fotos[0]" :src="s.fotos[0]" alt="" class="miniatura" />
-          <span v-else class="miniatura vacia" aria-hidden="true">{{ icono(s.categoria) }}</span>
-          <div class="info">
-            <strong>{{ s.nombre }}</strong>
-            <span class="meta">{{ etiquetaPrecio(s) }}<template v-if="s.duracionMin"> · {{ etiquetaDuracion(s.duracionMin) }}</template> · {{ ETIQUETA_CONTRATACION[s.contratacion] }}<template v-if="!s.activo"> · Oculto</template></span>
-          </div>
-          <div class="botones">
-            <button type="button" class="mini" data-testid="ver-servicio" @click="router.push(`/servicio/${tiendaId}/${s.id}`)">Ver</button>
-            <button type="button" class="mini" data-testid="editar-servicio" @click="editar(s)">Editar</button>
-            <button type="button" class="mini" data-testid="alternar-servicio" @click="alternar(s)">{{ s.activo ? 'Ocultar' : 'Mostrar' }}</button>
-            <button type="button" class="mini peligro" data-testid="eliminar-servicio" @click="eliminar(s)">Eliminar</button>
-          </div>
-        </li>
-      </ul>
     </main>
   </div>
 </template>
@@ -206,6 +215,7 @@ const permitidas = computed(() => modalidadesPermitidas(modalidadTienda.value));
 const form = reactive<DatosServicio>(servicioVacio());
 const errores = ref<Record<string, string>>({});
 const editandoId = ref<string | null>(null);
+const dialogo = ref(false);
 const guardando = ref(false);
 const subiendo = ref(false);
 const entrada = ref<HTMLInputElement | null>(null);
@@ -218,6 +228,16 @@ onMounted(async () => {
 });
 
 const icono = (cat: string) => CATEGORIAS_SERVICIO.find((c) => c.id === cat)?.icono ?? '✨';
+
+function abrirNuevo() {
+  reiniciar();
+  dialogo.value = true;
+}
+function cerrarDialogo() {
+  if (guardando.value) return;
+  dialogo.value = false;
+  reiniciar();
+}
 
 function reiniciar() {
   Object.assign(form, servicioVacio(permitidas.value.includes('local') ? 'local' : permitidas.value[0]));
@@ -247,6 +267,7 @@ async function guardar() {
   try {
     await guardarServicio(tiendaId.value, editandoId.value, { ...form, fotos: [...form.fotos], profesionalIds: [...form.profesionalIds] }, modalidadTienda.value);
     Swal.fire({ toast: true, position: 'bottom', timer: 1600, showConfirmButton: false, icon: 'success', title: editandoId.value ? 'Servicio actualizado' : 'Servicio publicado' });
+    dialogo.value = false;
     reiniciar();
   } catch (e: any) {
     await Swal.fire({ icon: 'warning', title: 'No se pudo guardar', text: mensajeError(e) });
@@ -271,7 +292,7 @@ function editar(s: Servicio) {
     profesionalIds: [...s.profesionalIds],
     activo: s.activo,
   });
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  dialogo.value = true;
 }
 
 const alternar = (s: Servicio) => alternarServicio(tiendaId.value, s.id, !s.activo);
@@ -288,7 +309,7 @@ async function eliminar(s: Servicio) {
   });
   if (!r.isConfirmed) return;
   await eliminarServicio(tiendaId.value, s.id);
-  if (editandoId.value === s.id) reiniciar();
+  if (editandoId.value === s.id) cerrarDialogo();
 }
 </script>
 
@@ -296,6 +317,14 @@ async function eliminar(s: Servicio) {
 .pantalla { min-height: 100vh; background: var(--bg-page); }
 .contenido { max-width: 760px; margin: 0 auto; padding: 14px 16px 40px; text-align: left; }
 .aviso, .ayuda { color: var(--text-muted); font-size: 0.9rem; line-height: 1.45; margin: 6px 0 14px; }
+.cab-lista { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.btn-agregar { border-radius: 999px; padding: 10px 16px; }
+.dialog-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, 0.5); }
+@media (min-width: 640px) { .dialog-overlay { align-items: center; padding: 16px; } }
+.tarjeta.dialogo { width: 100%; max-width: 560px; max-height: 92vh; margin: 0; overflow-y: auto; overscroll-behavior: contain; border-radius: 22px 22px 0 0; padding: 0 18px 18px; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3); }
+@media (min-width: 640px) { .tarjeta.dialogo { border-radius: 22px; } }
+.dialogo-cab { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 0 10px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.cerrar { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); font-size: 1rem; cursor: pointer; padding: 0; }
 .tarjeta { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 22px; display: flex; flex-direction: column; gap: 14px; color: var(--text); }
 .tarjeta h2, .titulo-lista { margin: 0; font-size: 1.05rem; color: var(--text); }
 .campo { display: flex; flex-direction: column; gap: 5px; font-size: 0.88rem; font-weight: 600; color: var(--text); }
