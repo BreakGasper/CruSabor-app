@@ -96,12 +96,9 @@ describe('menú de la tienda: "Crear publicación"', () => {
     const w = mount(MenuTienda, { props: { abierto: true, esDueno, nombreTienda: 'Dulce', cuenta: [], actualId: 't1' } as any, global: { stubs: { Teleport: true, Transition: false } } });
     return w;
   }
-  it('la dueña la ve y, al tocarla, avisa la acción', async () => {
+  it('está oculta del menú por ahora (la pantalla sigue existiendo)', async () => {
     const w = await montar(true);
-    const op = w.findAll('.mt-opcion').find((b) => b.text().includes('Crear publicación'));
-    expect(op).toBeTruthy();
-    await op!.trigger('click');
-    expect(w.emitted('accion')?.[0]).toEqual(['crear-publicacion']);
+    expect(w.findAll('.mt-opcion').some((b) => b.text().includes('Crear publicación'))).toBe(false);
   });
   it('un visitante no la ve', async () => {
     const w = await montar(false);
