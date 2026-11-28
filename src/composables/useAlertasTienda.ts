@@ -4,11 +4,16 @@ import { ref as dbRef, onValue, type Unsubscribe } from '@/services/baseDatos';
 import { suscribirPedidosProveedor, estatusDeTienda, tiendasDelPedido, type Pedido } from '@/composables/usePedidos';
 import { resumenStock, type ResumenStock } from '@/composables/useArticulos';
 import type { Producto } from '@/types/Producto';
+import { useCotizacionesTienda } from '@/modules/servicios/cotizaciones';
+import { useCitasTienda } from '@/modules/servicios/agenda';
+import { ahoraEnZona } from '@/modules/servicios/disponibilidad';
+import type { Cita, Cotizacion } from '@/modules/servicios/tipos';
 
 /**
  * Avisos para la dueña o dueño de la tienda (campana de notificaciones):
  *  - pedidos nuevos sin atender (su parte sigue en Preparacion),
- *  - artículos agotados o por agotarse (stock ≤ UMBRAL_STOCK_BAJO en alguna variante).
+ *  - artículos agotados o por agotarse (stock ≤ UMBRAL_STOCK_BAJO en alguna variante),
+ *  - cotizaciones de servicios sin responder y citas por confirmar.
  *
  * Todo en vivo desde Firebase; sin escrituras. Desde la campana la tienda puede
  * pausar la venta o dar de baja un artículo mientras resurte (ver useArticulos).
@@ -33,6 +38,13 @@ export function pedidosSinAtenderDe(pedidos: Pedido[], tiendaId: string): Pedido
   return pedidos.filter((p) => tiendasDelPedido(p).includes(tiendaId) && estatusDeTienda(p, tiendaId) === 'Preparacion');
 }
 
+/** Regla pura: solicitudes de cotización que la tienda aún no atiende */
+export const cotizacionesSinResponder = <T extends Pick<Cotizacion, 'estado'>>(l: T[]): T[] => l.filter((c) => c.estado === 'pendiente');
+
+/** Regla pura: citas que esperan la confirmación de la tienda (las que ya pasaron no cuentan) */
+export const citasSinConfirmar = <T extends Pick<Cita, 'estado' | 'fecha'>>(l: T[], hoy: string = ahoraEnZona().fecha): T[] =>
+  l.filter((c) => c.estado === 'pendiente' && c.fecha >= hoy);
+
 export function useAlertasTienda(tiendaId: string) {
   const pedidos = ref<Pedido[]>([]);
   const articulos = ref<Producto[]>([]);
@@ -54,11 +66,16 @@ export function useAlertasTienda(tiendaId: string) {
     offArticulos?.();
   });
 
+  const { cotizaciones } = useCotizacionesTienda(() => tiendaId);
+  const { citas } = useCitasTienda(() => tiendaId);
+  const cotizacionesPendientes = computed(() => cotizacionesSinResponder(cotizaciones.value));
+  const citasPendientes = computed(() => citasSinConfirmar(citas.value));
+
   const pedidosSinAtender = computed(() => pedidosSinAtenderDe(pedidos.value, tiendaId));
   const alertasStock = computed(() => alertasDeStock(articulos.value));
   const agotados = computed(() => alertasStock.value.filter((a) => a.stock.estado === 'agotado'));
   const porAgotarse = computed(() => alertasStock.value.filter((a) => a.stock.estado === 'bajo'));
-  const total = computed(() => pedidosSinAtender.value.length + alertasStock.value.length);
+  const total = computed(() => pedidosSinAtender.value.length + alertasStock.value.length + cotizacionesPendientes.value.length + citasPendientes.value.length);
 
-  return { pedidos, articulos, pedidosSinAtender, alertasStock, agotados, porAgotarse, total };
+  return { pedidos, articulos, pedidosSinAtender, alertasStock, agotados, porAgotarse, cotizacionesPendientes, citasPendientes, total };
 }

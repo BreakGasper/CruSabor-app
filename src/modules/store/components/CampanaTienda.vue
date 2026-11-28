@@ -29,7 +29,7 @@
 
             <div class="panel-cuerpo">
               <p v-if="total === 0" class="vacio">
-                No tienes pedidos sin atender ni artículos con poco stock. 🎉
+                No tienes pedidos, cotizaciones ni citas pendientes, ni artículos con poco stock. 🎉
               </p>
 
               <!-- Pedidos por atender -->
@@ -46,6 +46,40 @@
                       <span class="tarjeta-detalle">{{ itemsDe(p) }} {{ itemsDe(p) === 1 ? 'artículo' : 'artículos' }} · {{ hace(p) }}</span>
                     </div>
                     <span v-if="restante(p)" class="restante" :class="{ urgente: esUrgente(p) }">{{ restante(p) }}</span>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- Cotizaciones de servicios por responder -->
+              <section v-if="cotizacionesPendientes.length" class="bloque" data-testid="aviso-cotizaciones">
+                <div class="bloque-head">
+                  <h3>💬 Cotizaciones por responder <span class="conteo">{{ cotizacionesPendientes.length }}</span></h3>
+                  <button type="button" class="link" @click="ir(`/store/cotizaciones/${tiendaId}`)">Ver todas ›</button>
+                </div>
+                <p class="bloque-ayuda">Un cliente espera tu precio. Responde pronto para no perder la venta.</p>
+                <ul>
+                  <li v-for="c in cotizacionesPendientes.slice(0, 5)" :key="c.id" class="tarjeta pedido" @click="ir(`/store/cotizaciones/${tiendaId}`)">
+                    <div class="tarjeta-texto">
+                      <span class="tarjeta-titulo">{{ c.servicioNombre }}</span>
+                      <span class="tarjeta-detalle">{{ c.clienteNombre || 'Cliente' }} · {{ haceDesde(c.creadaEn) }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- Citas por confirmar -->
+              <section v-if="citasPendientes.length" class="bloque" data-testid="aviso-citas">
+                <div class="bloque-head">
+                  <h3>🗓️ Citas por confirmar <span class="conteo">{{ citasPendientes.length }}</span></h3>
+                  <button type="button" class="link" @click="ir(`/store/citas/${tiendaId}`)">Ver todas ›</button>
+                </div>
+                <p class="bloque-ayuda">Confirma o reprograma para que el cliente sepa si lo esperas.</p>
+                <ul>
+                  <li v-for="c in citasPendientes.slice(0, 5)" :key="c.id" class="tarjeta pedido" @click="ir(`/store/citas/${tiendaId}`)">
+                    <div class="tarjeta-texto">
+                      <span class="tarjeta-titulo">{{ c.servicioNombre }}</span>
+                      <span class="tarjeta-detalle">{{ c.clienteNombre || 'Cliente' }} · {{ fechaCorta(c.fecha) }} {{ c.inicio }}</span>
+                    </div>
                   </li>
                 </ul>
               </section>
@@ -129,13 +163,14 @@ import { fechaPedido, tiempoRestanteAtencion, formatoTiempoRestante, type Pedido
 import { imagenUrl } from '@/constants/firebase_util';
 import defaultImg from '@/assets/icons/default_articulo.png';
 import type { Producto } from '@/types/Producto';
+import { fechaCorta } from '@/modules/servicios/formato';
 
 const props = defineProps<{ tiendaId: string }>();
 const router = useRouter();
 const abierta = ref(false);
 const ocupado = ref<string | null>(null);
 
-const { pedidosSinAtender, alertasStock, agotados, porAgotarse, total } = useAlertasTienda(props.tiendaId);
+const { pedidosSinAtender, alertasStock, agotados, porAgotarse, cotizacionesPendientes, citasPendientes, total } = useAlertasTienda(props.tiendaId);
 
 const itemsDe = (p: Pedido) => p.items.filter((i) => String(i.proveedor) === String(props.tiendaId)).reduce((s, i) => s + i.cantidad, 0);
 
@@ -158,6 +193,17 @@ function esUrgente(p: Pedido): boolean {
 /** Cerrar el aviso de notificaciones. Lo usan la ✕, el fondo y cada acción. */
 function cerrarAvisos() {
   abierta.value = false;
+}
+
+function ir(ruta: string) {
+  cerrarAvisos();
+  router.push(ruta);
+}
+function haceDesde(iso: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} d`;
 }
 
 function irAPedidos() {
