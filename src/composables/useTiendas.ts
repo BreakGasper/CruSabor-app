@@ -109,8 +109,13 @@ export function useTiendas() {
 
 
 
-  async function crearTienda(tienda: Tienda & { logoFile?: File; galleryFiles?: File[] ; bannerFile?: File }) {
+  async function crearTienda(entrada: Tienda & { logoFile?: File; galleryFiles?: File[] ; bannerFile?: File }) {
     try {
+      // Campos del formulario que NUNCA se guardan en la base: la confirmación de la contraseña (en texto plano)
+      // y los archivos crudos (las imágenes se suben aparte y se guarda solo su URL).
+      const { confirmPassword: _confirmacion, logo: _logo, gallery: _gallery, banner: _banner, logoFile, galleryFiles, bannerFile, ...tienda } = entrada as any as Tienda & {
+        logoFile?: File; galleryFiles?: File[]; bannerFile?: File; confirmPassword?: string; logo?: unknown; gallery?: unknown; banner?: unknown;
+      };
       // Se revisa antes de crear el nodo, si no la tienda nueva se contaría a sí misma
       const esPrimeraDelCelular = (await tiendasDelTelefono(tienda.telefono)).length === 0;
       const ahora = new Date();
@@ -140,19 +145,19 @@ export function useTiendas() {
 
       // 2️⃣ Subir logo si existe
       let logoUrl = "";
-      if (tienda.logoFile) {
-        logoUrl = await uploadStoreLogo(tienda.logoFile, tiendaId);
+      if (logoFile) {
+        logoUrl = await uploadStoreLogo(logoFile, tiendaId);
       }
 
        let bannerUrl = "";
-      if (tienda.bannerFile) {
-        bannerUrl = await uploadStoreBanner(tienda.bannerFile, tiendaId);
+      if (bannerFile) {
+        bannerUrl = await uploadStoreBanner(bannerFile, tiendaId);
       }
 
       // 3️⃣ Subir galería si existe
       let galleryUrls: string[] = [];
-      if (tienda.galleryFiles?.length) {
-        galleryUrls = await uploadStoreGallery(tienda.galleryFiles, tiendaId);
+      if (galleryFiles?.length) {
+        galleryUrls = await uploadStoreGallery(galleryFiles, tiendaId);
       }
 
       // 4️⃣ Actualizar la tienda con las URLs finales

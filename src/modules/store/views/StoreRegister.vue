@@ -112,8 +112,15 @@
             errors.descripcion
           }}</span>
         </div>
+        <!-- Al agregar otra tienda desde una tienda con sesión, la contraseña es la de la cuenta: no se vuelve a pedir -->
+        <div v-if="agregandoACuenta" class="form-group nota-cuenta" data-testid="nota-cuenta">
+          <p>
+            🔒 Esta tienda se agrega a tu cuenta con el número <strong>{{ form.telefono }}</strong>. Usa la misma contraseña
+            que tus otras tiendas, no necesitas escribirla.
+          </p>
+        </div>
         <!-- CONTRASEÑA -->
-        <div class="form-group">
+        <div v-if="!agregandoACuenta" class="form-group">
           <label>Contraseña</label>
           <div class="input-with-icon password-input">
             <img
@@ -146,7 +153,7 @@
           }}</span>
         </div>
 
-        <div class="form-group">
+        <div v-if="!agregandoACuenta" class="form-group">
           <label>Confirmar contraseña</label>
           <div class="input-with-icon password-input">
             <img
@@ -461,6 +468,8 @@
               v-model="form.telefono"
               type="tel"
               class="form-input"
+              :readonly="agregandoACuenta"
+              data-testid="telefono"
               maxlength="10"
               minlength="10"
               pattern="[0-9]{10}"
@@ -845,10 +854,13 @@ import { CATEGORIAS_SERVICIO, MODALIDADES_ATENCION, nombreCategoriaServicio, typ
 import { INFO_TIPOS_NEGOCIO, ETIQUETA_MODALIDAD, vendeProductos, ofreceServicios, atiendeADomicilio, envioDomicilioDe, listaDeTexto } from "@/modules/servicios/negocio";
 import {
   revisarTelefonoNuevaTienda,
+  revisarAgregarACuenta,
+  hashDeCuenta,
   leerSesionTienda,
   guardarSesionTienda,
   MENSAJE_LIMITE_TIENDAS,
   MENSAJE_PASSWORD_CUENTA,
+  MENSAJE_SIN_CUENTA,
 } from "@/composables/cuentaTienda";
 const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
@@ -1153,6 +1165,8 @@ const { crearTienda } = useTiendas();
  * correo vienen llenos: la tienda nueva queda en la misma cuenta.
  */
 const sesionCuenta = leerSesionTienda();
+/** true = llegó desde "Agregar otra tienda": ya está identificada y la tienda nueva usa la contraseña de su cuenta */
+const agregandoACuenta = !!sesionCuenta;
 if (sesionCuenta) {
   form.value.telefono = String(sesionCuenta.telefono || "").replace(/\D/g, "").slice(0, 10);
   form.value.email = sesionCuenta.email || "";
@@ -1163,6 +1177,13 @@ const emailInicial = form.value.email;
 
 /** El error de teléfono para una tienda nueva, o "" si se puede registrar */
 async function errorTelefonoCuenta(): Promise<string> {
+  if (agregandoACuenta) {
+    // Sin contraseña que revisar: solo que haya lugar (el número viene de su sesión y no se puede cambiar)
+    const r = await revisarAgregarACuenta(form.value.telefono);
+    if (r === "limite") return MENSAJE_LIMITE_TIENDAS;
+    if (r === "sin-cuenta") return MENSAJE_SIN_CUENTA;
+    return "";
+  }
   const revision = await revisarTelefonoNuevaTienda(form.value.telefono, form.value.password);
   if (revision === "limite") return MENSAJE_LIMITE_TIENDAS;
   if (revision === "password") return MENSAJE_PASSWORD_CUENTA;
@@ -1201,17 +1222,19 @@ async function validateStep() {
 
     if (!form.value.logo) errors.value.logo = "Debe subir un logotipo";
 
-    if (!form.value.password)
-      errors.value.password = "La contraseña es obligatoria";
-    else {
-      const err = errorLongitudPassword(form.value.password);
-      if (err) errors.value.password = err;
-    }
+    if (!agregandoACuenta) {
+      if (!form.value.password)
+        errors.value.password = "La contraseña es obligatoria";
+      else {
+        const err = errorLongitudPassword(form.value.password);
+        if (err) errors.value.password = err;
+      }
 
-    if (!form.value.confirmPassword)
-      errors.value.confirmPassword = "Confirme su contraseña";
-    else if (form.value.password !== form.value.confirmPassword)
-      errors.value.confirmPassword = "Las contraseñas no coinciden";
+      if (!form.value.confirmPassword)
+        errors.value.confirmPassword = "Confirme su contraseña";
+      else if (form.value.password !== form.value.confirmPassword)
+        errors.value.confirmPassword = "Las contraseñas no coinciden";
+    }
   }
   if (step.value === 2) {
     // Validaciones existentes
@@ -1407,7 +1430,14 @@ async function submitStore() {
       return;
     }
 
-    const hashedPassword = await hashPassword(form.value.password);
+    // Al agregar otra tienda a su cuenta se reutiliza la contraseña (hash) que ya tienen sus otras tiendas
+    const hashedPassword = agregandoACuenta ? await hashDeCuenta(form.value.telefono) : await hashPassword(form.value.password);
+    if (!hashedPassword) {
+      errors.value.telefono = MENSAJE_SIN_CUENTA;
+      avisar(MENSAJE_SIN_CUENTA, "error");
+      enviando.value = false;
+      return;
+    }
 
     // Buscar el nombre de la categoría seleccionada
     const categoriaObj = categorias.value.find(
@@ -1416,7 +1446,8 @@ async function submitStore() {
 
     // Los enlaces se guardan ya normalizados (https, sin esquemas raros) y las
     // casillas no se guardan: son del formulario, no de la tienda.
-    const { conEnlaceFacebook, conEnlaceInstagram, especialidadesTexto, modalidadAtencion, categoriaServicio, experiencia, ...datos } = form.value;
+    // La confirmación de la contraseña es solo del formulario: nunca viaja a la base
+    const { conEnlaceFacebook, conEnlaceInstagram, especialidadesTexto, modalidadAtencion, categoriaServicio, experiencia, confirmPassword: _confirmacion, ...datos } = form.value;
     const tipo = form.value.tipoNegocio;
     const conServicios = ofreceServicios(form.value);
     const envioDomicilio = envioDomicilioDe(tipo, modalidadAtencion, form.value.envioDomicilio);
@@ -2274,4 +2305,7 @@ select:focus {
   .tipo-card { flex-direction: row; flex-wrap: wrap; align-items: center; }
   .tipo-card small { flex-basis: 100%; }
 }
+
+.nota-cuenta p { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.88rem; line-height: 1.45; text-align: left; }
+.nota-cuenta strong { color: var(--brand-blue-text); }
 </style>
