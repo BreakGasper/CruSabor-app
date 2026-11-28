@@ -124,3 +124,36 @@ describe('pantalla Crear publicación', () => {
     localStorage.clear();
   });
 });
+
+describe('quitar el fondo con IA (toca el producto)', () => {
+  it('la confianza del modelo se vuelve opacidad con una transición corta', async () => {
+    const { alfaDesdeConfianza } = await import('@/modules/store/utils/recortarConIA');
+    expect(alfaDesdeConfianza(0)).toBe(0);
+    expect(alfaDesdeConfianza(0.35)).toBe(0);
+    expect(alfaDesdeConfianza(0.5)).toBe(128);
+    expect(alfaDesdeConfianza(0.65)).toBe(255);
+    expect(alfaDesdeConfianza(1)).toBe(255);
+  });
+
+  it('una foto que no se pudo leer da un mensaje claro en lugar de fallar', async () => {
+    const { quitarFondoConIA, ErrorRecorteIA } = await import('@/modules/store/utils/recortarConIA');
+    const img = document.createElement('img'); // sin cargar: ancho 0
+    await expect(quitarFondoConIA(img, { x: 0.5, y: 0.5 })).rejects.toBeInstanceOf(ErrorRecorteIA);
+  });
+
+  it('en la pantalla, la opción de IA aparece solo cuando hay una foto', async () => {
+    const { mount, flushPromises } = await import('@vue/test-utils');
+    const { default: CrearPublicacion } = await import('@/modules/store/views/CrearPublicacion.vue');
+    const { __reset } = await import('./mocks/firebaseDb');
+    const { routeMock } = await import('./setup');
+    __reset({});
+    routeMock.params = { id: 'T1' };
+    localStorage.setItem('tiendas', JSON.stringify({ id: 'T1', nombreTienda: 'Crustore' }));
+    const w = mount(CrearPublicacion, { global: { stubs: { PageHeader: true } } });
+    await flushPromises();
+    expect(w.find('[data-testid="quitar-fondo-ia"]').exists()).toBe(false);
+    expect(w.find('[data-testid="dialogo-toque"]').exists()).toBe(false);
+    w.unmount();
+    localStorage.clear();
+  });
+});
