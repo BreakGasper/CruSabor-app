@@ -28,6 +28,21 @@ export class ErrorServicio extends Error {
   }
 }
 
+/**
+ * Texto para mostrar cuando algo falla. Los errores propios ya traen su mensaje; los de la base de datos se
+ * explican (sin permiso, sin conexión) y el resto muestra la causa para poder reportarla, además de quedar en la consola.
+ */
+export function mensajeError(e: unknown): string {
+  if (e instanceof ErrorServicio) return e.message;
+  console.error('[servicios]', e);
+  const err = e as { code?: string; message?: string } | null;
+  const texto = `${err?.code ?? ''} ${err?.message ?? ''}`;
+  if (/permission[_ -]?denied/i.test(texto)) return 'La base de datos no permite guardar esto todavía (faltan permisos para este módulo en las reglas de Firebase). Avisa al administrador.';
+  if (/network|offline|unavailable|disconnected|failed to fetch/i.test(texto)) return 'No hay conexión. Revisa tu internet e intenta de nuevo.';
+  const detalle = (err?.message ?? '').trim().slice(0, 140);
+  return detalle ? `Algo salió mal: ${detalle}` : 'Intenta de nuevo en unos minutos.';
+}
+
 export const MAX_FOTOS_SERVICIO = 6;
 export const PRECIO_MAX = 10_000_000;
 

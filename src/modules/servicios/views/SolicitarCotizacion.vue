@@ -85,7 +85,7 @@ import { sessionUser } from '@/utils/sessionUser';
 import type { Servicio } from '../tipos';
 import { atiendeADomicilio } from '../negocio';
 import { ahoraEnZona } from '../disponibilidad';
-import { ErrorServicio, etiquetaPrecio, obtenerServicio, puedeCotizar } from '../catalogo';
+import { ErrorServicio, mensajeError, etiquetaPrecio, obtenerServicio, puedeCotizar } from '../catalogo';
 import { MAX_IMAGENES_COTIZACION, crearCotizacion, validarSolicitud } from '../cotizaciones';
 import { clienteActual } from '../sesion';
 
@@ -163,7 +163,7 @@ async function enviar() {
     router.replace('/mis-cotizaciones');
   } catch (e: any) {
     enviando.value = false; // se puede corregir y reintentar
-    await Swal.fire({ icon: 'warning', title: 'No se pudo enviar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo enviar', text: mensajeError(e) });
   }
 }
 </script>

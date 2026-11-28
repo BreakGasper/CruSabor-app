@@ -58,7 +58,7 @@ import ReprogramarCitaModal from '../components/ReprogramarCitaModal.vue';
 import { ahoraEnZona } from '../disponibilidad';
 import { ETIQUETA_CITA, TONO_CITA, accionesDeCita, citaOcupaHorario } from '../estados';
 import { esDuenoDeTienda } from '../sesion';
-import { ErrorServicio } from '../catalogo';
+import { ErrorServicio, mensajeError } from '../catalogo';
 import { cambiarEstadoCita, citaYaEmpezo, citasPorConfirmar, citasProximas, enlaceWhatsappCita, useCitasTienda } from '../agenda';
 import { fechaDia } from '../formato';
 import type { Cita, EstadoCita } from '../tipos';
@@ -102,7 +102,7 @@ async function seguro(accion: () => Promise<void>) {
   try {
     await accion();
   } catch (e: any) {
-    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: mensajeError(e) });
   }
 }
 

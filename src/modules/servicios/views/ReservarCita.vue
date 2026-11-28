@@ -91,7 +91,7 @@ import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { estadoEfectivo } from '@/composables/useMembresia';
 import { sessionUser } from '@/utils/sessionUser';
 import { atiendeADomicilio, ofreceServicios } from '../negocio';
-import { ErrorServicio, etiquetaDuracion, etiquetaPrecio, obtenerServicio, sePuedeAgendar } from '../catalogo';
+import { ErrorServicio, mensajeError, etiquetaDuracion, etiquetaPrecio, obtenerServicio, sePuedeAgendar } from '../catalogo';
 import { leerDisponibilidad, leerOcupacion, listarProfesionales, reservarCita, validarSolicitudCita } from '../agenda';
 import { horaFin } from '../disponibilidad';
 import { fechaDia } from '../formato';
@@ -175,7 +175,7 @@ async function enviar() {
     router.replace('/mis-citas');
   } catch (e: any) {
     enviando.value = false;
-    await Swal.fire({ icon: 'warning', title: 'No se pudo agendar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo agendar', text: mensajeError(e) });
     await cargarAgenda(); // alguien pudo ocupar el horario: se muestra lo que sigue libre
   }
 }

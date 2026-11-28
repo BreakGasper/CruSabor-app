@@ -59,7 +59,7 @@ import { sessionUser } from '@/utils/sessionUser';
 import InsigniaEstado from '../components/InsigniaEstado.vue';
 import { ahoraEnZona } from '../disponibilidad';
 import { ETIQUETA_COTIZACION, TONO_COTIZACION, estadoEfectivoCotizacion } from '../estados';
-import { ErrorServicio } from '../catalogo';
+import { ErrorServicio, mensajeError } from '../catalogo';
 import { aceptarCotizacion, enlaceWhatsappCotizacion, rechazarComoCliente, useCotizacionesCliente } from '../cotizaciones';
 import { dinero, fechaCorta, fechaHoraCorta } from '../formato';
 import { clienteActual } from '../sesion';
@@ -76,7 +76,7 @@ async function seguro(accion: () => Promise<void>) {
   try {
     await accion();
   } catch (e: any) {
-    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo actualizar', text: mensajeError(e) });
   } finally {
     await recargar();
   }

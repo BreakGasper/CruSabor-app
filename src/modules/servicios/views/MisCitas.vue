@@ -50,7 +50,7 @@ import { sessionUser } from '@/utils/sessionUser';
 import InsigniaEstado from '../components/InsigniaEstado.vue';
 import { ahoraEnZona } from '../disponibilidad';
 import { ETIQUETA_CITA, TONO_CITA, puedeCambiarCita } from '../estados';
-import { ErrorServicio } from '../catalogo';
+import { ErrorServicio, mensajeError } from '../catalogo';
 import { cambiarEstadoCita, citaYaEmpezo, enlaceWhatsappCita, useCitasCliente } from '../agenda';
 import { fechaDia } from '../formato';
 import { clienteActual } from '../sesion';
@@ -87,7 +87,7 @@ async function cancelar(c: Cita) {
   try {
     await cambiarEstadoCita(c.tiendaId, c.id, 'cancelada', 'cliente');
   } catch (e: any) {
-    await Swal.fire({ icon: 'warning', title: 'No se pudo cancelar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo cancelar', text: mensajeError(e) });
   } finally {
     await recargar();
   }

@@ -163,7 +163,7 @@ import { modalidadDe } from '../negocio';
 import { esDuenoDeTienda } from '../sesion';
 import { useProfesionales } from '../agenda';
 import {
-  ErrorServicio,
+  ErrorServicio, mensajeError,
   MAX_FOTOS_SERVICIO,
   ETIQUETA_CONTRATACION,
   alternarServicio,
@@ -249,7 +249,7 @@ async function guardar() {
     Swal.fire({ toast: true, position: 'bottom', timer: 1600, showConfirmButton: false, icon: 'success', title: editandoId.value ? 'Servicio actualizado' : 'Servicio publicado' });
     reiniciar();
   } catch (e: any) {
-    await Swal.fire({ icon: 'warning', title: 'No se pudo guardar', text: e instanceof ErrorServicio ? e.message : 'Intenta de nuevo en unos minutos.' });
+    await Swal.fire({ icon: 'warning', title: 'No se pudo guardar', text: mensajeError(e) });
   } finally {
     guardando.value = false;
   }
