@@ -93,12 +93,13 @@
                 <button type="button" class="btn-pri" :disabled="generandoEscena" data-testid="inventar-escena" @click="inventarEscena">{{ generandoEscena ? 'Inventando…' : '✨ Inventar escena' }}</button>
                 <button v-if="escena" type="button" class="btn-sec" data-testid="quitar-escena" @click="quitarEscena">Quitar escena</button>
               </div>
+              <small v-if="generandoEscena" class="ok-msg" role="status" data-testid="generando-escena">Creando tu escena… puede tardar unos segundos.</small>
               <small v-if="ia.restantesHoy">Quedan {{ ia.restantesHoy }} escenas gratis hoy en total.</small>
               <small v-if="avisoEscena" class="error-msg" role="alert" data-testid="aviso-escena">{{ avisoEscena }}</small>
             </div>
           </div>
 
-          <div class="vista">
+          <div ref="vistaRef" class="vista">
             <p class="vista-titulo">Vista previa</p>
             <canvas ref="lienzo" class="lienzo" :class="{ vertical: form.formato === 'historia' }" aria-label="Vista previa de la publicación"></canvas>
 
@@ -159,7 +160,7 @@
  * plantilla), la guarda en "Mis publicaciones" y la comparte por WhatsApp, Facebook y demás.
  * No cuesta nada: la imagen se dibuja en el navegador y se comparte con el menú de compartir del teléfono.
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Swal from 'sweetalert2';
 import PageHeader from '@/components/PageHeader.vue';
@@ -196,6 +197,7 @@ const urlTienda = computed(() => `${window.location.origin}/store/profile/${tien
 
 const pestana = ref<'crear' | 'lista'>('crear');
 const lienzo = ref<HTMLCanvasElement | null>(null);
+const vistaRef = ref<HTMLElement | null>(null);
 const archivo = ref<HTMLInputElement | null>(null);
 const guardando = ref(false);
 const error = ref('');
@@ -313,8 +315,14 @@ async function inventarEscena() {
     escena = r.imagen;
     ia.restantesHoy = r.restantesHoy;
     redibujar();
+    // En el teléfono la vista previa queda debajo de todo el formulario: se lleva allá para que se vea el resultado
+    avisoEscena.value = '';
+    await nextTick();
+    vistaRef.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    Swal.fire({ toast: true, position: 'bottom', timer: 2200, showConfirmButton: false, icon: 'success', title: 'Escena lista: mírala en la vista previa' });
   } catch (e: any) {
     avisoEscena.value = e instanceof ErrorEscena ? e.message : 'No se pudo generar la escena.';
+    Swal.fire({ icon: 'warning', title: 'No se pudo inventar la escena', text: avisoEscena.value });
   } finally {
     generandoEscena.value = false;
   }
