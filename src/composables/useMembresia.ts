@@ -92,6 +92,21 @@ export function membresiaDePrueba(hoy: Date = new Date()): Membresia {
 
 const esPrueba = (tienda: ControlTienda | null | undefined) => tienda?.membresia?.plan === PLAN_PRUEBA;
 
+/**
+ * Promoción de bienvenida: quien paga su PRIMERA membresía mientras su prueba gratis sigue vigente recibe
+ * estos meses extra, sin costo, sumados al periodo que paga. Pasada la prueba, ya no aplica.
+ * (El mismo valor se aplica en el servidor: src/services/pagos/logicaPago.ts.)
+ */
+export const MESES_BONO_PRIMER_PAGO = 1;
+
+const TEXTO_BONO = MESES_BONO_PRIMER_PAGO === 1 ? '1 mes gratis' : `${MESES_BONO_PRIMER_PAGO} meses gratis`;
+
+/** ¿Puede esta tienda ganar el mes gratis? Prueba aún vigente y sin ningún pago previo */
+export function bonoPrimerPagoDisponible(tienda: ControlTienda | null | undefined, hoy: Date = new Date()): boolean {
+  if (!esPrueba(tienda) || tienda?.membresia?.ultimoPago) return false;
+  return estadoEfectivo(tienda, hoy) === 'activa' && finDeDia(tienda?.membresia?.vigenteHasta) !== null;
+}
+
 /** Convierte 'YYYY-MM-DD' al final de ese día en hora local. null si no es válida. */
 function finDeDia(fecha?: string): Date | null {
   if (!fecha) return null;
@@ -233,13 +248,13 @@ export function avisoEstadoTienda(tienda: ControlTienda | null | undefined, hoy:
           return {
             tipo: 'warning',
             titulo: dias === 0 ? 'Tu prueba gratis termina hoy' : `Tu prueba gratis termina en ${dias} día${dias === 1 ? '' : 's'}`,
-            detalle: `Vigente hasta el ${hasta}. Al terminar deberás pagar tu membresía para que tu tienda siga visible.`,
+            detalle: `Vigente hasta el ${hasta}. Paga tu primera membresía antes de que termine y te regalamos ${TEXTO_BONO}. Después deberás pagar para que tu tienda siga visible.`,
           };
         }
         return {
           tipo: 'info',
           titulo: `Prueba gratis: te quedan ${dias} días`,
-          detalle: `Tienes uso premium sin costo hasta el ${hasta}. Al terminar deberás pagar tu membresía para seguir vendiendo.`,
+          detalle: `Tienes uso premium sin costo hasta el ${hasta}. Paga tu primera membresía durante la prueba y te regalamos ${TEXTO_BONO}.`,
         };
       }
       if (dias <= 7) {

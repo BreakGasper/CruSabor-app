@@ -45,9 +45,18 @@ export function sumarMeses(fecha: string, meses: number): string {
 }
 
 /** Nueva vigencia: desde hoy, o desde la vigencia actual si aún no venció */
-export function calcularVigencia(vigenteActual: unknown, plan: Plan, hoyYMD: string) {
+export function calcularVigencia(vigenteActual: unknown, plan: Plan, hoyYMD: string, mesesExtra = 0) {
   const desde = esYMD(vigenteActual) && vigenteActual >= hoyYMD ? vigenteActual : hoyYMD;
-  return { desde, hasta: sumarMeses(desde, plan === 'anual' ? 12 : 1) };
+  return { desde, hasta: sumarMeses(desde, (plan === 'anual' ? 12 : 1) + Math.max(0, mesesExtra)) };
+}
+
+/** Meses gratis por pagar la primera membresía con la prueba aún vigente (igual que useMembresia.ts en la app) */
+export const MESES_BONO_PRIMER_PAGO = 1;
+export function mesesBonoPrimerPago(tienda: any, hoyYMD: string): number {
+  const m = tienda?.membresia;
+  if (m?.plan !== 'prueba' || m?.ultimoPago) return 0;
+  if ((tienda?.estatus ?? 'activa') !== 'activa') return 0;
+  return esYMD(m?.vigenteHasta) && m.vigenteHasta >= hoyYMD ? MESES_BONO_PRIMER_PAGO : 0;
 }
 
 /** Precio configurado para un plan (0 si no hay) */
@@ -131,7 +140,8 @@ export function cambiosParaPagoAprobado(d: {
   const ahoraISO = ahora.toISOString();
   const hoy = aYMD(ahora);
   const plan = intento.plan;
-  const { desde, hasta } = calcularVigencia(tienda?.membresia?.vigenteHasta, plan, hoy);
+  const bono = mesesBonoPrimerPago(tienda, hoy);
+  const { desde, hasta } = calcularVigencia(tienda?.membresia?.vigenteHasta, plan, hoy, bono);
   const monto = Number(mpPago.transaction_amount ?? intento.monto) || 0;
   const referencia = String(mpPago.id);
 
@@ -144,6 +154,7 @@ export function cambiosParaPagoAprobado(d: {
     vigenteDesde: desde,
     vigenteHasta: hasta,
     registradoPor: ACTOR_MP,
+    ...(bono > 0 ? { mesesGratis: bono } : {}),
   };
 
   const cambios: Record<string, any> = {

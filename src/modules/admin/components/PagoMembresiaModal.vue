@@ -65,6 +65,10 @@
         <small v-if="errores.vigenteHasta" class="error-text">{{ errores.vigenteHasta }}</small>
       </div>
 
+      <p v-if="mesesGratis > 0" class="hint" data-testid="bono-primer-pago">
+        🎁 Primer pago durante la prueba: se suma {{ mesesGratis === 1 ? '1 mes gratis' : `${mesesGratis} meses gratis` }} a la vigencia.
+      </p>
+
       <p v-if="errores.general" class="error-banner">{{ errores.general }}</p>
 
       <div class="actions">
@@ -82,6 +86,7 @@ import { reactive, ref, computed, watch } from 'vue';
 import {
   registrarPago,
   calcularVigencia,
+  mesesBonoDe,
   METODOS_PAGO_MEMBRESIA,
   type TiendaControl,
   type PlanMembresia,
@@ -109,7 +114,8 @@ const form = reactive({
 const errores = reactive<{ monto?: string; vigenteHasta?: string; general?: string }>({});
 const guardando = ref(false);
 
-const calculo = computed(() => calcularVigencia(props.tienda?.membresia?.vigenteHasta, form.plan));
+const mesesGratis = computed(() => mesesBonoDe(props.tienda));
+const calculo = computed(() => calcularVigencia(props.tienda?.membresia?.vigenteHasta, form.plan, new Date(), mesesGratis.value));
 const { configuracion } = useConfiguracion();
 const precioSugerido = computed(() => precioPlan(configuracion.value, form.plan));
 

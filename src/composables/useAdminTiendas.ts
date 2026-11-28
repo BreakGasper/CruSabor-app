@@ -4,6 +4,8 @@ import { ref as dbRef, update, push, onValue } from '@/services/baseDatos';
 import { sessionAdmin } from '@/utils/sessionAdmin';
 import {
   estadoEfectivo,
+  bonoPrimerPagoDisponible,
+  MESES_BONO_PRIMER_PAGO,
   type ControlTienda,
   type EstadoTienda,
   type EstadoEfectivo,
@@ -37,6 +39,8 @@ export interface PagoRegistrado extends PagoMembresia {
   plan: PlanMembresia;
   vigenteDesde: string; // YYYY-MM-DD
   vigenteHasta: string; // YYYY-MM-DD
+  /** Meses regalados por pagar la primera membresía durante la prueba gratis */
+  mesesGratis?: number;
 }
 
 export interface TiendaControl extends ControlTienda {
@@ -69,11 +73,17 @@ export function calcularVigencia(
   vigenteActual: string | undefined,
   plan: PlanMembresia,
   hoy: Date = new Date(),
+  /** Meses regalados que se suman al periodo pagado (promoción del primer pago durante la prueba) */
+  mesesExtra = 0,
 ): { desde: string; hasta: string } {
   const hoyYMD = aYMD(hoy);
   const desde = vigenteActual && vigenteActual >= hoyYMD ? vigenteActual : hoyYMD;
-  return { desde, hasta: sumarMeses(desde, plan === 'anual' ? 12 : 1) };
+  return { desde, hasta: sumarMeses(desde, (plan === 'anual' ? 12 : 1) + Math.max(0, mesesExtra)) };
 }
+
+/** Meses gratis que ganaría esta tienda con el pago que se registra hoy (0 si no aplica) */
+export const mesesBonoDe = (tienda: TiendaControl | null | undefined, hoy: Date = new Date()) =>
+  bonoPrimerPagoDisponible(tienda, hoy) ? MESES_BONO_PRIMER_PAGO : 0;
 
 function entradaHistorial(tienda: TiendaControl, a: EstadoTienda, motivo?: string): HistorialEstatus {
   const de: HistorialEstatus['de'] = tienda.estatus ? estadoEfectivo(tienda) : 'sin-estatus';
@@ -134,7 +144,8 @@ export async function registrarPago(tienda: TiendaControl, datos: DatosPago): Pr
   if (!(datos.monto > 0)) throw new Error('El monto debe ser mayor a cero');
   if (!datos.metodo) throw new Error('Indica el método de pago');
 
-  const calc = calcularVigencia(tienda.membresia?.vigenteHasta, datos.plan);
+  const bono = mesesBonoDe(tienda);
+  const calc = calcularVigencia(tienda.membresia?.vigenteHasta, datos.plan, new Date(), bono);
   const hasta = datos.vigenteHasta || calc.hasta;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta)) throw new Error('Fecha de vigencia inválida');
 
@@ -148,6 +159,7 @@ export async function registrarPago(tienda: TiendaControl, datos: DatosPago): Pr
     registradoPor: quienActua(),
   };
   if (datos.referencia?.trim()) pago.referencia = datos.referencia.trim();
+  if (bono > 0) pago.mesesGratis = bono;
 
   const pid = push(dbRef(db, `tiendas/${id}/pagosMembresia`)).key!;
   const cambios: Record<string, any> = {
