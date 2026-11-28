@@ -22,7 +22,10 @@ function volver() {
 <style scoped>
 .volver-admin {
   position: fixed;
-  left: 12px;
+  /* Abajo y al centro: a los lados están el menú de la tienda, el botón de subir y el del sorteo */
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
   bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 900; /* debajo de las cabeceras fijas (1000) y de los diálogos */
   padding: 10px 14px;

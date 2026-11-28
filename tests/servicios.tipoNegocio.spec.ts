@@ -336,7 +336,7 @@ describe('Menú de la tienda según lo que ofrece', () => {
   it('productos (o sin tipo): el menú de siempre', () => {
     for (const tipoNegocio of [undefined, 'productos']) {
       const o = opciones(montar({ esDueno: true, tipoNegocio, promocionesHabilitadas: true }));
-      expect(o.join('|')).toMatch(/Pedidos.*Agregar artículo.*Crear publicación.*Estudio de diseño.*Mis productos.*Crear promoción/);
+      expect(o.join('|')).toMatch(/Crear publicación.*Estudio de diseño.*Mis artículos.*Agregar artículo.*Pedidos.*Crear promoción/);
     }
   });
 
@@ -346,15 +346,22 @@ describe('Menú de la tienda según lo que ofrece', () => {
     expect(o).toContain('Editar mi tienda');
     expect(o).toContain('Crear publicación');
     expect(o).toContain('Estudio de diseño');
-    for (const propia of ['Panel de servicios', 'Mis servicios', 'Citas', 'Cotizaciones', 'Clientes', 'Horarios y equipo']) expect(o, propia).toContain(propia);
-    for (const fuera of ['Pedidos', 'Agregar artículo', 'Mis productos', 'Crear promoción']) expect(o, fuera).not.toContain(fuera);
+    for (const propia of ['Resumen', 'Mis servicios', 'Citas', 'Cotizaciones', 'Clientes', 'Horarios y equipo']) expect(o, propia).toContain(propia);
+    for (const fuera of ['Pedidos', 'Agregar artículo', 'Mis artículos', 'Crear promoción']) expect(o, fuera).not.toContain(fuera);
     expect(w.find('[data-testid="menu-servicios-pronto"]').exists()).toBe(false);
+  });
+
+  it('el menú se divide en paneles: Mi tienda, Panel de artículos y Panel de servicios', () => {
+    const titulos = (w: any) => w.findAll('[data-seccion]').map((x: any) => x.text());
+    expect(titulos(montar({ esDueno: true, tipoNegocio: 'productos' }))).toEqual(['Mi tienda', 'Panel de artículos']);
+    expect(titulos(montar({ esDueno: true, tipoNegocio: 'servicios' }))).toEqual(['Mi tienda', 'Panel de servicios']);
+    expect(titulos(montar({ esDueno: true, tipoNegocio: 'mixto' }))).toEqual(['Mi tienda', 'Panel de artículos', 'Panel de servicios']);
   });
 
   it('mixto: todo el menú de productos y también el de servicios', () => {
     const o = opciones(montar({ esDueno: true, tipoNegocio: 'mixto' })).join('|');
-    expect(o).toMatch(/Pedidos.*Agregar artículo.*Mis productos/);
-    expect(o).toMatch(/Panel de servicios.*Mis servicios.*Citas.*Cotizaciones/);
+    expect(o).toMatch(/Mis artículos.*Agregar artículo.*Pedidos/);
+    expect(o).toMatch(/Resumen.*Mis servicios.*Citas.*Cotizaciones/);
   });
 
   it('el visitante de una tienda de servicios no ve Productos ni Mi carrito; el de productos sí', () => {

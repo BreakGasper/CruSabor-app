@@ -70,3 +70,13 @@ export function filtrarServicios(tiendas: Tienda[], porTienda: Record<string, Se
 export function categoriasConProfesionales(tiendas: Tienda[]): Array<{ id: string; nombre: string; icono: string; total: number }> {
   return CATEGORIAS_SERVICIO.map((c) => ({ ...c, total: tiendas.filter((t) => t.categoriaServicio === c.id).length })).filter((c) => c.total > 0);
 }
+
+/** Los servicios publicados más nuevos de tiendas disponibles (para la portada) */
+export function serviciosRecientes(tiendas: Tienda[], servicios: Servicio[], limite = 8): Array<{ servicio: Servicio; tienda: Tienda }> {
+  const porId = new Map(tiendas.map((t) => [t.tiendaId ?? '', t]));
+  return servicios
+    .filter((s) => s.activo && porId.has(s.tiendaId))
+    .sort((a, b) => String(b.creadoEn ?? '').localeCompare(String(a.creadoEn ?? '')))
+    .slice(0, limite)
+    .map((servicio) => ({ servicio, tienda: porId.get(servicio.tiendaId)! }));
+}

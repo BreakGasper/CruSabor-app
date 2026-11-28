@@ -5,6 +5,7 @@ import homeRoutes from "../modules/home";
 import aboutRoutes from "../modules/about";
 import studioRoutes from '@/modules/studio/studioRoutes'
 import serviciosRoutes from '@/modules/servicios/serviciosRoutes'
+import { guardSesion } from './guardSesion'
 
 const routes = [...homeRoutes, ...aboutRoutes, ...storeRoutes, ...studioRoutes, ...serviciosRoutes, ...adminRoutes];
 
@@ -18,5 +19,7 @@ router.beforeEach((to) => {
   const destino = guardAdmin(to);
   return destino === true ? true : destino;
 });
+
+router.beforeEach(guardSesion);
 
 export default router;
