@@ -420,7 +420,7 @@
     />
 
     <!-- Menú: botón ☰ y panel lateral (MenuTienda.vue) -->
-    <button type="button" class="menu-toggle" aria-label="Abrir menú" :aria-expanded="menuOpen" @click="toggleMenu">
+    <button type="button" class="menu-toggle" :class="{ 'bajo-volver': !esDuenoTienda }" aria-label="Abrir menú" :aria-expanded="menuOpen" @click="toggleMenu">
       ☰
       <span v-if="!esDuenoTienda && totalEnCarrito > 0" class="cart-badge">{{ totalEnCarrito }}</span>
     </button>
@@ -1416,37 +1416,32 @@ body {
 }
 /* (la regla de .back-btn vive arriba, junto al banner: botón fijo de regresar) */
 
-/* Botón ☰ del menú (el panel vive en MenuTienda.vue) */
+/* Botón ☰ del menú (el panel vive en MenuTienda.vue): arriba a la izquierda, en el extremo opuesto a la campana,
+   y fijo para que siga a la mano al bajar por el perfil. Blanco con borde del azul del tema. */
 .menu-toggle {
   position: fixed;
   left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: max(12px, env(safe-area-inset-top));
   z-index: 999;
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: none;
-  background: var(--color-bg-blue-dark);
-  color: #fff;
-  font-size: 1.3rem;
-  box-shadow: 0 4px 10px var(--color-shadow);
+  border: 2.5px solid var(--color-bg-blue-ligth);
+  background: #fff;
+  color: #1c1f1a; /* el círculo es blanco en ambos temas: las rayas van oscuras */
+  font-size: 1.25rem;
+  line-height: 1;
+  box-shadow: 0 4px 12px var(--color-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
 }
-
-/* En tema oscuro el azul marino de marca se pierde contra el fondo de la
-   pantalla (son casi el mismo color): el botón ☰ pasa al azul claro. */
-@media (prefers-color-scheme: dark) {
-  .menu-toggle {
-    background: var(--color-bg-blue-ligth);
-  color: var(--on-primary);
-  }
+/* Quien visita ya tiene el botón de regresar en esa esquina: el menú va justo debajo */
+.menu-toggle.bajo-volver {
+  top: calc(max(12px, env(safe-area-inset-top)) + 52px);
 }
-
 
 /* Tienda sin envío a domicilio */
 .aviso-envio {
@@ -1806,11 +1801,6 @@ body {
   .card-section {
     margin: 12px 10px;
     padding: 16px;
-  }
-  .menu-toggle {
-    top: auto;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    transform: none;
   }
 }
 
