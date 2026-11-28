@@ -95,7 +95,7 @@ export function configDesdeEntorno(env: NodeJS.ProcessEnv = process.env): Config
 /* ---------------- Solo se borran las que ya nadie usa ---------------- */
 
 /** Las colecciones que guardan imágenes y de dónde salen */
-export const COLECCIONES_CON_IMAGEN = ['articulos', 'tiendas', 'categorias', 'banners', 'sorteos'] as const;
+export const COLECCIONES_CON_IMAGEN = ['articulos', 'tiendas', 'categorias', 'banners', 'sorteos', 'servicios'] as const;
 
 /**
  * Recorre un valor cualquiera y junta las URLs de Cloudinary que encuentre.

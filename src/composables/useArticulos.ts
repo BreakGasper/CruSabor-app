@@ -185,7 +185,7 @@ export interface UseArticulosOpciones {
 export function useArticulos(opciones: UseArticulosOpciones = {}) {
   const crudos: Ref<Producto[]> = vueRef([]);
   const loading: Ref<boolean> = vueRef(true);
-  const { noPuedeVender, nombreDe } = useEstadoTiendas();
+  const { noPuedeVender, soloServicios, nombreDe } = useEstadoTiendas();
   // Cuando se cargan los artículos de una sola tienda (panel de la tienda) no se filtra
   const filtrarPorTienda = vueRef(!opciones.incluirTiendasInactivas);
 
@@ -198,7 +198,7 @@ export function useArticulos(opciones: UseArticulosOpciones = {}) {
   // Catálogo público: fuera tiendas que no pueden vender y artículos dados de baja.
   // La tienda (cargarArticulosPorTienda) ve todo, incluidos los de baja, para reactivarlos.
   const articulos = computed<Producto[]>(() =>
-    (filtrarPorTienda.value ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId) && a.baja !== true) : crudos.value).map(
+    (filtrarPorTienda.value ? crudos.value.filter((a) => !noPuedeVender(a.tiendaId) && !soloServicios(a.tiendaId) && a.baja !== true) : crudos.value).map(
       conNombreVivo,
     ),
   );

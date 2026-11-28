@@ -65,10 +65,10 @@
 
             <!-- Visitante -->
             <template v-else>
-              <button type="button" class="mt-opcion" @click="$emit('accion', 'productos')">
+              <button v-if="vendeProd" type="button" class="mt-opcion" @click="$emit('accion', 'productos')">
                 <span class="mt-icono" aria-hidden="true">📋</span><span>Productos</span>
               </button>
-              <button type="button" class="mt-opcion" @click="$emit('accion', 'carrito')">
+              <button v-if="vendeProd" type="button" class="mt-opcion" @click="$emit('accion', 'carrito')">
                 <span class="mt-icono" aria-hidden="true">🛒</span><span>Mi carrito</span>
                 <span v-if="totalEnCarrito > 0" class="mt-contador">{{ totalEnCarrito }}</span>
               </button>
@@ -99,6 +99,7 @@ import { computed, ref } from 'vue';
 import VersionApp from '@/components/VersionApp.vue';
 import { useRouter } from 'vue-router';
 import { cambiarTiendaActiva, MAX_TIENDAS_POR_TELEFONO, type TiendaEnCuenta } from '@/composables/cuentaTienda';
+import { vendeProductos, ofreceServicios } from '@/modules/servicios/negocio';
 
 export type AccionMenuTienda =
   | 'editar'
@@ -108,6 +109,12 @@ export type AccionMenuTienda =
   | 'crear-publicacion'
   | 'estudio'
   | 'productos'
+  | 'panel'
+  | 'servicios'
+  | 'citas'
+  | 'cotizaciones'
+  | 'clientes'
+  | 'horarios'
   | 'carrito'
   | 'mapa'
   | 'llamar'
@@ -119,6 +126,8 @@ const props = defineProps<{
   nombreTienda?: string;
   logoUrl?: string;
   promocionesHabilitadas?: boolean;
+  /** 'productos' | 'servicios' | 'mixto' (sin valor = productos): define qué opciones se muestran */
+  tipoNegocio?: string;
   totalEnCarrito?: number;
   /** Tiendas del mismo celular (sesión) */
   cuenta?: TiendaEnCuenta[];
@@ -130,16 +139,36 @@ const router = useRouter();
 const cuenta = computed(() => props.cuenta ?? []);
 const totalEnCarrito = computed(() => props.totalEnCarrito ?? 0);
 
+/** Una tienda de solo servicios no tiene artículos, pedidos ni carrito */
+const vendeProd = computed(() => vendeProductos({ tipoNegocio: props.tipoNegocio }));
+const ofreceServ = computed(() => ofreceServicios({ tipoNegocio: props.tipoNegocio }));
+
 const opcionesDueno = computed(() => {
-  const lista: Array<{ accion: AccionMenuTienda; icono: string; texto: string }> = [
-    { accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' },
-    { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
-    { accion: 'agregar-articulo', icono: '➕', texto: 'Agregar artículo' },
+  const lista: Array<{ accion: AccionMenuTienda; icono: string; texto: string }> = [{ accion: 'editar', icono: '✏️', texto: 'Editar mi tienda' }];
+  if (vendeProd.value) {
+    lista.push(
+      { accion: 'pedidos', icono: '🚚', texto: 'Pedidos' },
+      { accion: 'agregar-articulo', icono: '➕', texto: 'Agregar artículo' },
+    );
+  }
+  if (ofreceServ.value) {
+    lista.push(
+      { accion: 'panel', icono: '📊', texto: 'Panel de servicios' },
+      { accion: 'servicios', icono: '🗂️', texto: 'Mis servicios' },
+      { accion: 'citas', icono: '🗓️', texto: 'Citas' },
+      { accion: 'cotizaciones', icono: '💬', texto: 'Cotizaciones' },
+      { accion: 'clientes', icono: '👥', texto: 'Clientes' },
+      { accion: 'horarios', icono: '⏰', texto: 'Horarios y equipo' },
+    );
+  }
+  lista.push(
     { accion: 'crear-publicacion', icono: '📣', texto: 'Crear publicación' },
     { accion: 'estudio', icono: '🎨', texto: 'Estudio de diseño' },
-    { accion: 'productos', icono: '📋', texto: 'Mis productos' },
-  ];
-  if (props.promocionesHabilitadas) lista.splice(5, 0, { accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
+  );
+  if (vendeProd.value) {
+    lista.push({ accion: 'productos', icono: '📋', texto: 'Mis productos' });
+    if (props.promocionesHabilitadas) lista.push({ accion: 'promociones', icono: '🏷️', texto: 'Crear promoción' });
+  }
   return lista;
 });
 

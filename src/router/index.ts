@@ -4,8 +4,9 @@ import adminRoutes, { guardAdmin } from '@/modules/admin/adminRoutes'
 import homeRoutes from "../modules/home";
 import aboutRoutes from "../modules/about";
 import studioRoutes from '@/modules/studio/studioRoutes'
+import serviciosRoutes from '@/modules/servicios/serviciosRoutes'
 
-const routes = [...homeRoutes, ...aboutRoutes, ...storeRoutes, ...studioRoutes, ...adminRoutes];
+const routes = [...homeRoutes, ...aboutRoutes, ...storeRoutes, ...studioRoutes, ...serviciosRoutes, ...adminRoutes];
 
 const router = createRouter({
   history: createWebHistory(),

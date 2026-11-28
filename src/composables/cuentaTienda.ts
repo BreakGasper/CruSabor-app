@@ -71,9 +71,30 @@ export async function revisarTelefonoNuevaTienda(telefono: string, password: str
   return 'password';
 }
 
+/**
+ * "Agregar otra tienda" desde una tienda con sesión: la persona ya está identificada, así que no vuelve a escribir
+ * la contraseña (la tienda nueva usa la de su cuenta). Solo se revisa que haya lugar y que la cuenta exista.
+ *  - 'agregar':    hay lugar
+ *  - 'limite':     ya tiene el máximo de tiendas
+ *  - 'sin-cuenta': el número ya no tiene ninguna tienda con contraseña (pide volver a entrar)
+ */
+export async function revisarAgregarACuenta(telefono: string): Promise<'agregar' | 'limite' | 'sin-cuenta'> {
+  const tiendas = await tiendasDelTelefono(telefono);
+  if (tiendas.length >= MAX_TIENDAS_POR_TELEFONO) return 'limite';
+  return tiendas.some((t) => !!t.password) ? 'agregar' : 'sin-cuenta';
+}
+
+/** Contraseña (hash) de la cuenta de un celular: la de su primera tienda con contraseña. null si no hay. */
+export async function hashDeCuenta(telefono: string): Promise<string | null> {
+  const t = (await tiendasDelTelefono(telefono)).find((x) => !!x.password);
+  return t?.password ?? null;
+}
+
+export const MENSAJE_SIN_CUENTA = 'No pudimos validar tu cuenta. Vuelve a entrar a tu tienda e inténtalo otra vez.';
+
 export const MENSAJE_LIMITE_TIENDAS = `Este número ya tiene ${MAX_TIENDAS_POR_TELEFONO} tiendas, el máximo permitido.`;
 export const MENSAJE_PASSWORD_CUENTA =
-  'Este número ya tiene una tienda. Para agregar otra usa la misma contraseña (paso 1), así las administras juntas.';
+  'Este número ya tiene una tienda. Para agregar otra, entra a tu tienda y usa «Agregar otra tienda» en el menú, o escribe la misma contraseña (paso 1) con la que la registraste.';
 
 /* ---------------- Sesión de tienda (localStorage "tiendas") ---------------- */
 

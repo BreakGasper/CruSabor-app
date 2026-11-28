@@ -59,7 +59,7 @@
       <p v-else-if="!sorteos.length" class="ayuda">Aún no hay sorteos.</p>
 
       <ul v-else class="lista">
-        <li v-for="s in sorteos" :key="s.id" class="sorteo" :class="{ abierto: seleccionado === s.id }" :data-sorteo="s.id">
+        <li v-for="s in sorteos" :key="s.id" class="sorteo" :data-sorteo="s.id">
           <div class="fila">
             <div class="info">
               <strong>{{ s.titulo }}</strong>
@@ -70,92 +70,37 @@
               </span>
             </div>
             <div class="botones">
-              <button type="button" class="btn btn-mini" data-testid="administrar" @click="abrir(s.id)">{{ seleccionado === s.id ? 'Cerrar' : 'Administrar' }}</button>
+              <button type="button" class="btn btn-mini" data-testid="administrar" @click="seleccionado = s.id">Administrar</button>
               <button type="button" class="btn btn-mini" @click="editar(s)">Editar</button>
               <button v-if="!s.cerradoEn" type="button" class="btn btn-mini" @click="alternarSorteo(s.id, !s.activo)">{{ s.activo ? 'Pausar' : 'Activar' }}</button>
               <button type="button" class="btn btn-mini btn-borrar" @click="borrar(s)">Eliminar</button>
             </div>
           </div>
 
-          <!-- Panel del sorteo seleccionado -->
-          <div v-if="seleccionado === s.id" class="panel">
-            <h3>Códigos de las tiendas patrocinadoras</h3>
-            <div class="form-codigo">
-              <select v-model="nuevo.tiendaId" class="form-input" data-testid="tienda-codigo">
-                <option value="">Elige una tienda…</option>
-                <option v-for="t in tiendas" :key="t.tiendaId" :value="t.tiendaId">{{ t.nombreTienda }}</option>
-              </select>
-              <input v-model="nuevo.codigo" class="form-input" maxlength="24" placeholder="Código (vacío = se genera uno)" data-testid="codigo-propio" />
-              <input v-model.number="nuevo.limite" type="number" min="0" class="form-input corto" placeholder="Límite" title="Veces que se puede usar (0 = sin límite)" />
-              <button type="button" class="btn btn-primary" :disabled="agregando" data-testid="agregar-codigo" @click="agregar(s)">Agregar</button>
-            </div>
-            <p class="pista">Límite de usos: cuántas personas pueden entrar con ese código (0 = sin límite).</p>
-
-            <p v-if="!s.codigos.length" class="ayuda">Aún no hay códigos. Crea uno por cada tienda patrocinadora.</p>
-            <ul v-else class="codigos">
-              <li v-for="c in s.codigos" :key="c.codigo" class="codigo" :class="{ inactivo: !c.activo }">
-                <img :src="c.logoUrl || placeholderLogo" alt="" class="logo" @error="onImgError" />
-                <div class="info">
-                  <strong class="cod" :data-codigo="c.codigo">{{ c.codigo }}</strong>
-                  <span class="meta">{{ c.nombreTienda }} · {{ c.usos }}{{ c.limite ? ` / ${c.limite}` : '' }} uso(s){{ c.activo ? '' : ' · desactivado' }}</span>
-                </div>
-                <div class="botones">
-                  <button type="button" class="btn btn-mini" @click="copiar(c.codigo)">Copiar</button>
-                  <button type="button" class="btn btn-mini" @click="alternarCodigo(s.id, c.codigo, !c.activo)">{{ c.activo ? 'Desactivar' : 'Activar' }}</button>
-                  <button type="button" class="btn btn-mini btn-borrar" @click="quitarCodigo(s, c.codigo)">Quitar</button>
-                </div>
-              </li>
-            </ul>
-
-            <h3>Participantes: {{ participantes.length }}</h3>
-            <p v-if="cargandoParticipantes" class="ayuda">Cargando...</p>
-            <p v-else-if="!participantes.length" class="ayuda">Todavía no participa nadie.</p>
-            <ul v-else class="resumen" data-testid="resumen-tiendas">
-              <li v-for="r in resumen" :key="r.tiendaId">
-                <span>{{ r.nombreTienda }}</span><strong>{{ r.participantes }}</strong>
-              </li>
-            </ul>
-
-            <h3>Ganador</h3>
-            <ul v-if="s.ganadores.length" class="ganadores" data-testid="ganadores">
-              <li v-for="g in s.ganadores" :key="g.id">
-                🎉 <strong>{{ g.nombre }}</strong>
-                <span v-if="g.telefono"> · 📞 {{ g.telefono }}</span>
-                <span v-if="g.nombreTienda"> · vino por {{ g.nombreTienda }} ({{ g.codigo }})</span>
-              </li>
-            </ul>
-            <button type="button" class="btn btn-primary" :disabled="sorteando || !participantes.length" data-testid="sortear" @click="sortear(s)">
-              {{ sorteando ? 'Sorteando…' : s.ganadores.length ? 'Sortear otro ganador' : '🎲 Sortear ganador' }}
-            </button>
-            <p class="pista">Al sortear se cierra la participación. El ganador se elige al azar entre todos los participantes que no hayan ganado ya.</p>
-          </div>
         </li>
       </ul>
     </main>
+
+    <!-- Detalle del sorteo: tiendas participantes, clientes registrados, códigos y sorteo -->
+    <SorteoDetalleModal :sorteo="sorteoActual" :tiendas="tiendas" @close="seleccionado = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import Swal from 'sweetalert2';
 import AdminTopbar from '../components/AdminTopbar.vue';
-import placeholderLogo from '@/assets/icons/user_back_profile.png';
+import SorteoDetalleModal from '../components/SorteoDetalleModal.vue';
 import { uploadImage, eliminarImagenReemplazada } from '@/composables/useCloudinary';
-import { sessionAdmin } from '@/utils/sessionAdmin';
 import { useTiendas } from '@/composables/useTiendas';
 import {
   useSorteos,
-  useParticipantes,
   crearSorteo,
   actualizarSorteo,
   eliminarSorteo,
   alternarSorteo,
-  agregarCodigo,
   alternarCodigo,
-  eliminarCodigo,
-  sortearGanador,
   estadoSorteo,
-  participantesPorTienda,
   ESTADO_SORTEO_LABEL,
   ErrorSorteo,
   type Sorteo,
@@ -167,10 +112,7 @@ onMounted(cargarTiendas);
 const tiendas = computed(() => [...todasTiendas.value].sort((a, b) => a.nombreTienda.localeCompare(b.nombreTienda)));
 
 const seleccionado = ref<string | null>(null);
-const { participantes, cargando: cargandoParticipantes, observar } = useParticipantes(() => seleccionado.value);
-watch(seleccionado, () => observar());
 const sorteoActual = computed(() => sorteos.value.find((s) => s.id === seleccionado.value) || null);
-const resumen = computed(() => participantesPorTienda(participantes.value, sorteoActual.value?.codigos ?? []));
 
 const formVacio = () => ({ titulo: '', imagenUrl: '', premio: '', descripcion: '', fechaInicio: '', fechaFin: '', activo: true });
 const form = reactive(formVacio());
@@ -229,10 +171,6 @@ function editar(s: Sorteo) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function abrir(id: string) {
-  seleccionado.value = seleccionado.value === id ? null : id;
-}
-
 async function borrar(s: Sorteo) {
   const r = await Swal.fire({
     icon: 'warning',
@@ -249,84 +187,6 @@ async function borrar(s: Sorteo) {
   if (editandoId.value === s.id) reset();
 }
 
-/* ---------- Códigos ---------- */
-const nuevo = reactive({ tiendaId: '', codigo: '', limite: 0 });
-const agregando = ref(false);
-
-async function agregar(s: Sorteo) {
-  const t = tiendas.value.find((x) => x.tiendaId === nuevo.tiendaId);
-  if (!t) {
-    await aviso('warning', 'Elige una tienda');
-    return;
-  }
-  agregando.value = true;
-  try {
-    const codigo = await agregarCodigo(s.id, { tiendaId: t.tiendaId!, nombreTienda: t.nombreTienda, logoUrl: t.logoUrl }, { codigo: nuevo.codigo, limite: nuevo.limite });
-    Object.assign(nuevo, { tiendaId: '', codigo: '', limite: 0 });
-    await Swal.fire({ icon: 'success', title: 'Código creado', html: `Entrégaselo a <b>${t.nombreTienda.replace(/[<>&]/g, '')}</b>:<br><b style="font-size:1.4rem;letter-spacing:.08em">${codigo}</b>`, confirmButtonColor: 'var(--color-bg-blue-ligth)' });
-  } catch (e: any) {
-    await aviso('warning', 'No se pudo crear el código', textoError(e));
-  } finally {
-    agregando.value = false;
-  }
-}
-
-async function copiar(codigo: string) {
-  try {
-    await navigator.clipboard.writeText(codigo);
-    Swal.fire({ toast: true, position: 'bottom', timer: 1200, showConfirmButton: false, icon: 'success', title: 'Código copiado' });
-  } catch {
-    await aviso('success', codigo, 'Copia el código manualmente.');
-  }
-}
-
-async function quitarCodigo(s: Sorteo, codigo: string) {
-  const r = await Swal.fire({
-    icon: 'warning',
-    title: `¿Quitar el código ${codigo}?`,
-    text: 'Nadie más podrá entrar con él. Quienes ya participan con ese código siguen participando.',
-    showCancelButton: true,
-    confirmButtonText: 'Quitar',
-    cancelButtonText: 'Cancelar',
-    confirmButtonColor: '#d9534f',
-  });
-  if (r.isConfirmed) await eliminarCodigo(s.id, codigo);
-}
-
-/* ---------- Sorteo ---------- */
-const sorteando = ref(false);
-
-async function sortear(s: Sorteo) {
-  const r = await Swal.fire({
-    icon: 'question',
-    title: s.ganadores.length ? '¿Sortear otro ganador?' : '¿Sortear ahora?',
-    text: `Se elegirá al azar entre ${participantes.value.length} participante(s) y se cerrará la participación.`,
-    showCancelButton: true,
-    confirmButtonText: 'Sortear',
-    cancelButtonText: 'Cancelar',
-    confirmButtonColor: 'var(--color-bg-blue-ligth)',
-  });
-  if (!r.isConfirmed) return;
-  sorteando.value = true;
-  try {
-    const g = await sortearGanador(s.id, sessionAdmin.value?.nombre || 'admin');
-    const esc = (t: string) => String(t).replace(/[<>&]/g, '');
-    await Swal.fire({
-      icon: 'success',
-      title: '🎉 ¡Tenemos ganador!',
-      html: `<b style="font-size:1.2rem">${esc(g.nombre)}</b>${g.telefono ? `<br>📞 ${esc(g.telefono)}` : ''}${g.nombreTienda ? `<br>Vino por <b>${esc(g.nombreTienda)}</b> (${esc(g.codigo || '')})` : ''}`,
-      confirmButtonColor: 'var(--color-bg-blue-ligth)',
-    });
-  } catch (e: any) {
-    await aviso('warning', 'No se pudo sortear', textoError(e));
-  } finally {
-    sorteando.value = false;
-  }
-}
-
-function onImgError(e: Event) {
-  (e.target as HTMLImageElement).src = placeholderLogo;
-}
 </script>
 
 <style scoped>
@@ -352,35 +212,21 @@ function onImgError(e: Event) {
 .btn-primary { background: #059669; color: #fff; }
 .btn-secundario { background: var(--surface); color: var(--text); border-color: var(--border); }
 .btn-mini { padding: 6px 10px; font-size: 0.78rem; background: var(--surface-2); color: var(--text); border-color: var(--border); }
-.btn-borrar { color: #b91c1c; border-color: #fca5a5; }
+.btn-borrar { background: var(--peligro-fondo); color: var(--peligro-texto); border-color: transparent; }
 .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .sorteo { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
-.sorteo.abierto { border-color: #059669; }
 .fila { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .info strong { color: var(--text); font-size: 0.95rem; }
 .meta { color: var(--text-muted); font-size: 0.8rem; word-break: break-word; }
 .est { font-weight: 700; }
-.est-abierto { color: #059669; }
-.est-pausado, .est-terminado { color: #b91c1c; }
-.est-proximo { color: #1d4ed8; }
-.est-sorteado { color: #b45309; }
+.est-abierto { color: var(--ok-texto); }
+.est-pausado, .est-terminado { color: var(--peligro-texto); }
+.est-proximo { color: var(--brand-blue-text); }
+.est-sorteado { color: var(--aviso-texto); }
 .botones { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.panel { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
-.panel h3 { font-size: 0.95rem; margin: 14px 0 8px; color: var(--text); }
-.form-codigo { display: grid; grid-template-columns: 1.4fr 1.2fr 90px auto; gap: 8px; }
-.corto { width: 100%; }
 .pista { color: var(--text-muted); font-size: 0.78rem; margin: 6px 0; }
-.codigos, .resumen, .ganadores { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.codigo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px; border-radius: 10px; background: var(--surface-2); }
-.codigo.inactivo { opacity: 0.6; }
-.logo { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface); }
-.cod { letter-spacing: 0.08em; font-size: 1rem; }
-.resumen li { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-size: 0.88rem; color: var(--text); }
-.ganadores li { padding: 8px 10px; border-radius: 8px; background: #fef3c7; color: #78350f; font-size: 0.9rem; }
 @media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; }
-  .form-codigo { grid-template-columns: 1fr 1fr; }
-  .form-codigo .btn { grid-column: 1 / -1; }
 }
 </style>

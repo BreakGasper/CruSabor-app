@@ -671,3 +671,7 @@ Todos los clientes registrados participan en el **mismo sorteo**. Cada tienda pa
 - **Tiendas participantes:** su perfil muestra un **botón flotante 🎁 Sorteo** que abre el mismo diálogo (solo mientras el sorteo está abierto o por empezar y la tienda tenga un código activo).
 - **Ganador:** se muestra con el efecto *Text Scramble* (símbolos al azar que se acomodan hasta formar el nombre; `src/utils/textScramble.ts` y `TextoDescifrado.vue`; respeta «reducir movimiento»).
 - Datos: `sorteos/{id}` (con `codigos/` y `ganadores/`) y `sorteoParticipantes/{id}/{clienteId}` (aparte, para no cargar a todos los clientes). Lógica en `src/composables/useSorteos.ts`.
+
+## Servicios profesionales (citas y cotizaciones)
+
+Una tienda elige al registrarse qué ofrece: **Productos**, **Servicios** o **Mixto**. Los servicios no son artículos: tienen su propio modelo, su agenda anti reservas dobles y su flujo de citas y cotizaciones (sin carrito). Arquitectura, modelo de datos, reglas de la base y avance por módulos en [`docs/servicios.md`](docs/servicios.md). Código en `src/modules/servicios/`.

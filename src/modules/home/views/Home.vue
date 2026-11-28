@@ -96,6 +96,12 @@
             Tiendas
           </a>
         </li>
+        <li>
+          <a @click.prevent="$router.push('/servicios')" href="#" data-testid="menu-servicios">
+            <Scissors class="icon" />
+            Servicios
+          </a>
+        </li>
       </ul>
 
       <ul class="sidebar-footer">
@@ -125,6 +131,9 @@
 
     <!-- Overlay -->
     <div class="overlay" v-if="menuAbierto" @click="menuAbierto = false"></div>
+
+    <!-- ¿Qué buscas? Comprar productos o encontrar servicios -->
+    <SelectorModo modo="productos" class="selector-modo" />
 
     <!-- Categorías: icono + nombre en scroll horizontal -->
     <CategoriasScroll />
@@ -178,6 +187,7 @@ import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import HorizontalCarousel from "../components/HorizontalCarousel.vue";
 import BannersCarousel from "../components/BannersCarousel.vue";
+import SelectorModo from "@/modules/servicios/components/SelectorModo.vue";
 import MarcaCrustore from "@/components/MarcaCrustore.vue";
 import LogoCrustore from "@/components/LogoCrustore.vue";
 import CategoriasScroll from "../components/CategoriasScroll.vue";
@@ -217,6 +227,7 @@ import {
   ShoppingCart,
   LogIn,
   Store,
+  Scissors,
 } from "lucide-vue-next";
 import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
 import ConfirmModal from "@/components/ConfirmModal.vue";
@@ -643,4 +654,6 @@ onBeforeUnmount(() => {
     gap: 1.5rem;
   }
 }
+
+.selector-modo { margin: 10px 16px 4px; }
 </style>

@@ -332,3 +332,15 @@ select {
 body {
   overscroll-behavior: contain;
 }
+
+/* Con un diálogo abierto solo se mueve el diálogo: la pantalla de atrás se queda quieta.
+   (En esta app el que se desplaza es el <body>; basta con detectar cualquier capa de diálogo abierta.) */
+html:has(.se-overlay, .sd-overlay, .modal-overlay, .mt-overlay, .rec-overlay, .vp-overlay, .dialog-overlay, .notif-overlay, .overlay, [aria-modal="true"]),
+body:has(.se-overlay, .sd-overlay, .modal-overlay, .mt-overlay, .rec-overlay, .vp-overlay, .dialog-overlay, .notif-overlay, .overlay, [aria-modal="true"]) {
+  overflow: hidden;
+}
+/* Y lo que se desplaza dentro del diálogo no "contagia" el movimiento a la pantalla de atrás al llegar al borde */
+.se-overlay, .sd-overlay, .modal-overlay, .mt-overlay, .rec-overlay, .vp-overlay, .dialog-overlay, .notif-overlay, .overlay,
+.se-modal, .se-body, .sd-modal, .sd-cuerpo, .modal, .mt-panel, .mt-cuerpo, .dialog-card {
+  overscroll-behavior: contain;
+}

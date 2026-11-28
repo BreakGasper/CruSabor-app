@@ -14,12 +14,16 @@
         @click="abrirSorteo(s)"
         @keydown.enter="abrirSorteo(s)"
       >
-        <img v-if="s.imagenUrl" :src="s.imagenUrl" :alt="s.titulo" class="banner-img sorteo-img" loading="lazy" />
-        <div v-else class="banner-img sorteo-fondo" aria-hidden="true"><span>🎁</span></div>
+        <!-- La imagen va completa, sin texto encima (el banner suele traer su propio texto): el nombre, el premio y
+             los logos van en un panel aparte debajo, siempre legible -->
+        <div class="sorteo-media">
+          <img v-if="s.imagenUrl" :src="s.imagenUrl" :alt="s.titulo" class="banner-img sorteo-img" loading="lazy" />
+          <div v-else class="banner-img sorteo-fondo" aria-hidden="true"><span>🎁</span></div>
+        </div>
 
-        <div class="banner-texto sorteo-texto">
+        <div class="sorteo-panel">
           <span class="etiqueta">🎁 Sorteo</span>
-          <strong>{{ s.titulo }}</strong>
+          <strong class="sorteo-titulo">{{ s.titulo }}</strong>
           <span v-if="s.premio" class="premio">🏆 {{ s.premio }}</span>
           <span v-if="s.ganadores.length" class="ganador" data-testid="ganador-carrusel">
             🎉 Ganador:
@@ -204,53 +208,76 @@ onUnmounted(detenerAuto);
   opacity: 0.95;
 }
 
-/* ---- Diapositiva del sorteo ---- */
+/* ---- Diapositiva del sorteo: imagen completa arriba, panel con el texto abajo ---- */
+.banner.sorteo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
 .banner.sorteo .banner-img {
-  height: 190px;
+  height: 170px;
+  border-radius: 0;
 }
 .sorteo-fondo {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-right: 22px;
+  justify-content: center;
   background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
 }
 .sorteo-fondo span {
   font-size: 4.2rem;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
 }
-.sorteo-texto {
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.25) 70%, rgba(0, 0, 0, 0));
+.sorteo-panel {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-top: 26px;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 14px 12px;
 }
-.sorteo-texto .etiqueta {
-  align-self: flex-start;
+.sorteo-panel .etiqueta {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.22);
   padding: 2px 8px;
   border-radius: 999px;
+  background: var(--brand-blue-soft);
+  color: var(--brand-blue-text);
 }
-.sorteo-texto .premio {
+.sorteo-titulo {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+.sorteo-panel .premio {
+  font-size: 0.88rem;
   font-weight: 700;
+  color: var(--text);
 }
-.sorteo-texto .cta {
+.sorteo-panel .cta {
+  font-size: 0.85rem;
   font-weight: 700;
-  color: #fde68a;
+  color: var(--brand-blue-text);
 }
-.sorteo-texto .ganador b {
-  color: #fde68a;
+.sorteo-panel .ganador {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.sorteo-panel .ganador b {
+  color: var(--brand-blue-text);
 }
 .sorteo-logos {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
+  max-width: 100%;
   overflow: hidden;
 }
 .mini-logo {
@@ -259,13 +286,13 @@ onUnmounted(detenerAuto);
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
-  border: 2px solid #fff;
+  border: 1.5px solid var(--border);
   flex: none;
 }
 .sorteo-logos .mas {
   font-size: 0.78rem;
   font-weight: 700;
-  opacity: 1;
+  color: var(--text-muted);
 }
 
 .dots {
@@ -293,7 +320,7 @@ onUnmounted(detenerAuto);
     height: 240px;
   }
   .banner.sorteo .banner-img {
-    height: 260px;
+    height: 230px;
   }
 }
 </style>

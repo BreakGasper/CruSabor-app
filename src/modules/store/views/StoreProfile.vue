@@ -285,8 +285,27 @@
         </div>
       </div>
 
-      <!-- Sección: Productos de la tienda -->
-      <div class="card-section productos-section">
+      <!-- Servicios: lo que ya se sabe del perfil profesional (portafolio, citas y cotizaciones llegan después) -->
+      <div v-if="ofreceServicios(store)" class="card-section servicios-info" data-testid="info-servicios">
+        <h2>Servicios</h2>
+        <p class="servicios-linea">
+          <strong v-if="store.categoriaServicio">{{ nombreCategoriaServicio(store.categoriaServicio) }}</strong>
+          <span>{{ ETIQUETA_MODALIDAD[modalidadDe(store)] }}</span>
+        </p>
+        <ul v-if="store.especialidades?.length" class="servicios-chips" aria-label="Especialidades">
+          <li v-for="e in store.especialidades" :key="e">{{ e }}</li>
+        </ul>
+        <p v-if="store.experiencia" class="servicios-experiencia">{{ store.experiencia }}</p>
+      </div>
+
+      <!-- Catálogo del trabajo: servicios con fotos, precio y botón para cotizar -->
+      <div v-if="ofreceServicios(store) && store.tiendaId" class="card-section servicios-catalogo">
+        <h2>Catálogo de servicios</h2>
+        <CatalogoServicios :tienda-id="store.tiendaId" :es-dueno="esDuenoTienda" />
+      </div>
+
+      <!-- Sección: Productos de la tienda (una tienda de solo servicios no tiene) -->
+      <div v-if="vendeProductos(store)" class="card-section productos-section">
         <div class="productos-head">
           <h2>Productos</h2>
           <button
@@ -411,6 +430,7 @@
       :nombre-tienda="store?.nombreTienda"
       :logo-url="store?.logoUrl"
       :promociones-habilitadas="promocionesHabilitadas"
+      :tipo-negocio="store?.tipoNegocio"
       :total-en-carrito="totalEnCarrito"
       :cuenta="cuentaTiendas"
       :actual-id="store?.tiendaId || ''"
@@ -454,6 +474,9 @@ import BotonCompartir from '@/components/BotonCompartir.vue';
 import { urlPerfilTienda, textoCompartirTienda } from '@/composables/useCompartir';
 import { volverOInicio } from '@/utils/navegacion';
 import { normalizarEnlace } from '@/utils/enlaces';
+import { nombreCategoriaServicio } from '@/modules/servicios/tipos';
+import CatalogoServicios from '@/modules/servicios/components/CatalogoServicios.vue';
+import { ETIQUETA_MODALIDAD, modalidadDe, vendeProductos, ofreceServicios } from '@/modules/servicios/negocio';
 
 const router = useRouter();
 
@@ -762,6 +785,12 @@ function alElegirDelMenu(accion: AccionMenuTienda) {
     'crear-publicacion': irACrearPublicacion,
     estudio: () => router.push('/studio'),
     productos: irAArticulos,
+    panel: () => router.push(`/store/panel/${store.value?.tiendaId}`),
+    servicios: () => router.push(`/store/servicios/${store.value?.tiendaId}`),
+    citas: () => router.push(`/store/citas/${store.value?.tiendaId}`),
+    cotizaciones: () => router.push(`/store/cotizaciones/${store.value?.tiendaId}`),
+    clientes: () => router.push(`/store/clientes/${store.value?.tiendaId}`),
+    horarios: () => router.push(`/store/horarios/${store.value?.tiendaId}`),
     carrito: irAlCarrito,
     mapa: abrirMaps,
     llamar,
@@ -1800,4 +1829,16 @@ a.red-enlace-perfil span {
 a.red-enlace-perfil:hover span {
   opacity: 0.8;
 }
+
+/* ===== Servicios (perfil profesional) ===== */
+.servicios-info { text-align: left; }
+.servicios-info h2 { margin: 0 0 8px; }
+.servicios-linea { margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--text-muted); font-size: 0.9rem; }
+.servicios-linea strong { color: var(--text); }
+.servicios-chips { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.servicios-chips li { padding: 4px 10px; border-radius: 999px; background: var(--brand-blue-soft); color: var(--brand-blue-text); font-size: 0.8rem; font-weight: 600; }
+.servicios-experiencia { margin: 0; color: var(--text); font-size: 0.9rem; line-height: 1.45; white-space: pre-line; }
+
+.servicios-catalogo { text-align: left; }
+.servicios-catalogo h2 { margin: 0 0 10px; }
 </style>

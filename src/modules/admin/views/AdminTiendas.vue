@@ -66,7 +66,7 @@
               <span v-if="conAviso.has(t.tiendaId || '')" class="estatus estatus-aviso" title="La tienda avisó que ya pagó; confírmalo en el tablero">Pago por confirmar</span>
             </div>
             <p class="meta">
-              {{ t.categoria || 'Sin categoría' }} · {{ t.municipio || 'Sin municipio' }} · {{ formatTelefono(t.telefono) }}
+              {{ t.categoria || 'Sin categoría' }} · {{ etiquetaTipoNegocio(tipoDeTienda(t)) }} · {{ t.municipio || 'Sin municipio' }} · {{ formatTelefono(t.telefono) }}
             </p>
             <p class="meta vigencia">{{ textoVigencia(t) }}</p>
             <p v-if="estadoDe(t) === 'bloqueada' && t.motivoBloqueo" class="motivo">Motivo: {{ t.motivoBloqueo }}</p>
@@ -132,6 +132,7 @@ import { leerPlanVaciado, vaciarArticulos } from '@/composables/vaciarArticulos'
 import { useTiendas, type Tienda } from '@/composables/useTiendas';
 import { estadoEfectivo, diasParaVencer, etiquetaPrueba, ESTADO_LABEL, type EstadoEfectivo } from '@/composables/useMembresia';
 import { aprobarTienda, bloquearTienda, desbloquearTienda, type PagoRegistrado } from '@/composables/useAdminTiendas';
+import { etiquetaTipoNegocio, tipoDeTienda } from '@/modules/servicios/negocio';
 import placeholderLogo from '@/assets/icons/user_back_profile.png';
 import { useSolicitudesPago } from '@/composables/useSolicitudesPago';
 import { useConfiguracion } from '@/composables/useConfiguracion';

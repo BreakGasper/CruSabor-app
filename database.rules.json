@@ -1,0 +1,117 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+
+    "tiendas": {
+      ".indexOn": ["telefono", "tipoNegocio"],
+      "$tiendaId": {
+        "tipoNegocio": {
+          ".validate": "newData.isString() && (newData.val() === 'productos' || newData.val() === 'servicios' || newData.val() === 'mixto')"
+        },
+        "modalidadAtencion": {
+          ".validate": "newData.isString() && (newData.val() === 'local' || newData.val() === 'domicilio' || newData.val() === 'ambas')"
+        },
+        "categoriaServicio": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        }
+      }
+    },
+
+    "servicios": {
+      "$tiendaId": {
+        ".indexOn": ["activo", "categoria"],
+        "$servicioId": {
+          ".validate": "newData.hasChildren(['nombre', 'tipoPrecio', 'contratacion', 'modalidad', 'activo'])",
+          "nombre": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+          "descripcion": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+          "tipoPrecio": { ".validate": "newData.val() === 'fijo' || newData.val() === 'desde' || newData.val() === 'cotizar'" },
+          "precio": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "duracionMin": { ".validate": "newData.isNumber() && newData.val() >= 15 && newData.val() <= 720 && newData.val() % 15 === 0" },
+          "modalidad": { ".validate": "newData.val() === 'local' || newData.val() === 'domicilio' || newData.val() === 'ambas'" },
+          "contratacion": { ".validate": "newData.val() === 'cita' || newData.val() === 'cotizacion' || newData.val() === 'ambas'" },
+          "activo": { ".validate": "newData.isBoolean()" }
+        }
+      }
+    },
+
+    "profesionales": {
+      "$tiendaId": {
+        "$profesionalId": {
+          ".validate": "newData.hasChildren(['nombre', 'activo'])",
+          "nombre": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
+          "activo": { ".validate": "newData.isBoolean()" }
+        }
+      }
+    },
+
+    "ocupacion": {
+      "$tiendaId": {
+        "$profesionalId": {
+          "$fecha": {
+            "$bloque": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64 && !data.exists() && $fecha.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && $bloque.matches(/^([01][0-9]|2[0-3])(00|15|30|45)$/)"
+            }
+          }
+        }
+      }
+    },
+
+    "citas": {
+      "$tiendaId": {
+        ".indexOn": ["fecha", "estado", "clienteId", "creadaEn"],
+        "$citaId": {
+          ".validate": "newData.hasChildren(['servicioId', 'profesionalId', 'clienteId', 'fecha', 'inicio', 'fin', 'estado', 'creadaEn'])",
+          "fecha": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)" },
+          "inicio": { ".validate": "newData.isString() && newData.val().matches(/^([01][0-9]|2[0-3]):(00|15|30|45)$/)" },
+          "fin": { ".validate": "newData.isString() && newData.val().matches(/^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$/)" },
+          "estado": {
+            ".validate": "newData.val() === 'pendiente' || newData.val() === 'confirmada' || newData.val() === 'completada' || newData.val() === 'cancelada' || newData.val() === 'rechazada'"
+          },
+          "comentarios": { ".validate": "newData.isString() && newData.val().length <= 500" }
+        }
+      }
+    },
+
+    "citasPorCliente": {
+      "$clienteId": {
+        "$citaId": {
+          ".validate": "newData.hasChildren(['tiendaId'])"
+        }
+      }
+    },
+
+    "cotizaciones": {
+      "$tiendaId": {
+        ".indexOn": ["estado", "clienteId", "creadaEn"],
+        "$cotizacionId": {
+          ".validate": "newData.hasChildren(['servicioId', 'clienteId', 'descripcion', 'estado', 'creadaEn'])",
+          "descripcion": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000" },
+          "estado": {
+            ".validate": "newData.val() === 'pendiente' || newData.val() === 'en_revision' || newData.val() === 'cotizada' || newData.val() === 'aceptada' || newData.val() === 'rechazada' || newData.val() === 'vencida' || newData.val() === 'completada'"
+          },
+          "respuesta": {
+            "precio": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" }
+          }
+        }
+      }
+    },
+
+    "cotizacionesPorCliente": {
+      "$clienteId": {
+        "$cotizacionId": {
+          ".validate": "newData.hasChildren(['tiendaId'])"
+        }
+      }
+    },
+
+    "clientesServicio": {
+      "$tiendaId": {
+        ".indexOn": ["ultimaActividad"],
+        "$clienteId": {
+          ".validate": "newData.hasChildren(['nombre'])"
+        }
+      }
+    }
+  }
+}

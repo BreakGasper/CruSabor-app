@@ -44,16 +44,29 @@
       <div v-if="step === 1" class="wizard-step" :class="{ deshabilitado: !registroTiendasAbierto }">
         <h3 class="step-title">Información básica</h3>
 
+        <!-- ¿Qué ofrece? Define qué pasos, formularios y panel tendrá -->
+        <div class="form-group" data-testid="tipo-negocio">
+          <label>¿Qué ofreces?</label>
+          <div class="tipo-negocio" role="radiogroup" aria-label="Tipo de negocio">
+            <label v-for="t in INFO_TIPOS_NEGOCIO" :key="t.id" class="tipo-card" :class="{ activo: form.tipoNegocio === t.id }">
+              <input v-model="form.tipoNegocio" type="radio" name="tipoNegocio" :value="t.id" :data-testid="'tipo-' + t.id" />
+              <span class="tipo-icono" aria-hidden="true">{{ t.icono }}</span>
+              <strong>{{ t.titulo }}</strong>
+              <small>{{ t.descripcion }}</small>
+            </label>
+          </div>
+        </div>
+
         <div class="form-group">
-          <label>Nombre de la tienda</label>
+          <label>{{ ofreceServ && !vendeProd ? 'Nombre del negocio o profesional' : 'Nombre de la tienda' }}</label>
           <input v-model="form.nombreTienda" type="text" class="form-input" />
           <span v-if="errors.nombreTienda" class="error-msg">{{
             errors.nombreTienda
           }}</span>
         </div>
 
-        <div class="form-group" style="position: relative">
-          <label>Categoría</label>
+        <div v-if="vendeProd" class="form-group" style="position: relative">
+          <label>{{ ofreceServ ? 'Categoría de productos' : 'Categoría' }}</label>
 
           <!-- Contenedor del select + icono -->
           <div class="select-container">
@@ -83,6 +96,15 @@
           </span>
         </div>
 
+        <div v-if="ofreceServ" class="form-group">
+          <label>Categoría de servicios</label>
+          <select v-model="form.categoriaServicio" class="form-input" data-testid="categoria-servicio">
+            <option disabled value="">Selecciona...</option>
+            <option v-for="c in CATEGORIAS_SERVICIO" :key="c.id" :value="c.id">{{ c.icono }} {{ c.nombre }}</option>
+          </select>
+          <span v-if="errors.categoriaServicio" class="error-msg">{{ errors.categoriaServicio }}</span>
+        </div>
+
         <div class="form-group">
           <label>Descripción breve</label>
           <textarea v-model="form.descripcion" class="form-input"></textarea>
@@ -90,8 +112,15 @@
             errors.descripcion
           }}</span>
         </div>
+        <!-- Al agregar otra tienda desde una tienda con sesión, la contraseña es la de la cuenta: no se vuelve a pedir -->
+        <div v-if="agregandoACuenta" class="form-group nota-cuenta" data-testid="nota-cuenta">
+          <p>
+            🔒 Esta tienda se agrega a tu cuenta con el número <strong>{{ form.telefono }}</strong>. Usa la misma contraseña
+            que tus otras tiendas, no necesitas escribirla.
+          </p>
+        </div>
         <!-- CONTRASEÑA -->
-        <div class="form-group">
+        <div v-if="!agregandoACuenta" class="form-group">
           <label>Contraseña</label>
           <div class="input-with-icon password-input">
             <img
@@ -124,7 +153,7 @@
           }}</span>
         </div>
 
-        <div class="form-group">
+        <div v-if="!agregandoACuenta" class="form-group">
           <label>Confirmar contraseña</label>
           <div class="input-with-icon password-input">
             <img
@@ -439,6 +468,8 @@
               v-model="form.telefono"
               type="tel"
               class="form-input"
+              :readonly="agregandoACuenta"
+              data-testid="telefono"
               maxlength="10"
               minlength="10"
               pattern="[0-9]{10}"
@@ -532,7 +563,7 @@
 
       <!-- PASO 4 -->
       <div v-if="step === 4" class="wizard-step">
-        <h3 class="step-title">Información de venta</h3>
+        <h3 class="step-title">{{ ofreceServ && !vendeProd ? 'Atención y horario' : 'Información de venta' }}</h3>
 
         <!-- MÉTODOS DE PAGO -->
         <div class="form-group">
@@ -583,16 +614,27 @@
           }}</span>
         </div>
 
-        <!-- ENVÍOS A DOMICILIO -->
-        <div class="form-group">
+        <!-- MODALIDAD DE ATENCIÓN (servicios) -->
+        <div v-if="ofreceServ" class="form-group" data-testid="modalidad-atencion">
+          <label>¿Dónde atiendes a tus clientes?</label>
+          <div class="payment-options">
+            <label v-for="m in MODALIDADES_ATENCION" :key="m" class="payment-option">
+              <input v-model="form.modalidadAtencion" type="radio" name="modalidadAtencion" :value="m" :data-testid="'modalidad-' + m" />
+              {{ ETIQUETA_MODALIDAD[m] }}
+            </label>
+          </div>
+        </div>
+
+        <!-- ENVÍOS A DOMICILIO (productos) -->
+        <div v-if="vendeProd" class="form-group">
           <label class="check-card">
             <input type="checkbox" v-model="form.envioDomicilio" />
             <span>🛵 Ofrezco envíos a domicilio</span>
           </label>
         </div>
 
-        <div v-if="form.envioDomicilio" class="form-group">
-          <label for="zona">Ingresar zonas de entrega</label>
+        <div v-if="mostrarZonas" class="form-group">
+          <label for="zona">{{ ofreceServ ? (vendeProd ? 'Ingresar zonas de entrega y cobertura' : 'Ingresar zonas de cobertura') : 'Ingresar zonas de entrega' }}</label>
           <div class="input-with-button" style="position: relative">
             <input
               id="zona"
@@ -627,6 +669,7 @@
             </ul>
           </div>
 
+          <span v-if="errors.zonas" class="error-msg">{{ errors.zonas }}</span>
           <!-- Lista de zonas -->
           <ul class="zona-list">
             <li
@@ -688,6 +731,17 @@
       <!-- PASO 5 -->
       <div v-if="step === 5" class="wizard-step">
         <h3 class="step-title">Extras</h3>
+        <div v-if="ofreceServ" class="form-group">
+          <label for="reg-especialidades">Especialidades (opcional)</label>
+          <small class="field-hint">Sepáralas con comas. Ej. Corte clásico, Barba, Degradado.</small>
+          <input id="reg-especialidades" v-model="form.especialidadesTexto" type="text" class="form-input" maxlength="300" data-testid="especialidades" />
+        </div>
+        <div v-if="ofreceServ" class="form-group">
+          <label for="reg-experiencia">Experiencia (opcional)</label>
+          <small class="field-hint">Años de experiencia, estudios o trabajos destacados. Tus certificaciones se capturan en el perfil.</small>
+          <textarea id="reg-experiencia" v-model="form.experiencia" class="form-input" rows="3" maxlength="500" data-testid="experiencia"></textarea>
+        </div>
+
         <div class="form-group">
           <label for="reg-blog">Novedades de tu tienda (opcional)</label>
           <small class="field-hint">Avisos, promociones o consejos que quieras que vean tus clientes en tu perfil.</small>
@@ -796,22 +850,27 @@ import { AVISOS_TIENDA, URL_PRIVACIDAD, URL_TERMINOS, aceptacionActual } from "@
 import { esEnlaceValido, normalizarEnlace } from "@/utils/enlaces";
 import { cpDeColonia } from "@/composables/coloniasLocales";
 import { useHorarioRapido } from "@/composables/useHorarioRapido";
+import { CATEGORIAS_SERVICIO, MODALIDADES_ATENCION, nombreCategoriaServicio, type TipoNegocio, type ModalidadAtencion } from "@/modules/servicios/tipos";
+import { INFO_TIPOS_NEGOCIO, ETIQUETA_MODALIDAD, vendeProductos, ofreceServicios, atiendeADomicilio, envioDomicilioDe, listaDeTexto } from "@/modules/servicios/negocio";
 import {
   revisarTelefonoNuevaTienda,
+  revisarAgregarACuenta,
+  hashDeCuenta,
   leerSesionTienda,
   guardarSesionTienda,
   MENSAJE_LIMITE_TIENDAS,
   MENSAJE_PASSWORD_CUENTA,
+  MENSAJE_SIN_CUENTA,
 } from "@/composables/cuentaTienda";
 const { configuracion, registroTiendasAbierto, contactoSoporte } = useConfiguracion();
 const step = ref(1);
-const stepTitles = [
+const stepTitles = computed(() => [
   "Información básica",
   "Domicilio",
   "Contacto",
-  "Ventas y horario",
+  ofreceServ.value && !vendeProd.value ? "Atención y horario" : "Ventas y horario",
   "Extras",
-];
+]);
 const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
 
@@ -821,6 +880,12 @@ const mostrarListaCategorias = ref(false);
 
 const form = ref({
   nombreTienda: "",
+  // Qué ofrece: define qué pasos y herramientas tendrá la tienda (ver src/modules/servicios/negocio.ts)
+  tipoNegocio: "productos" as TipoNegocio,
+  categoriaServicio: "",
+  modalidadAtencion: "local" as ModalidadAtencion,
+  especialidadesTexto: "",
+  experiencia: "",
   categoria: "",
   descripcion: "",
   email: "",
@@ -855,6 +920,14 @@ const form = ref({
   banner: null as File | null,
   confirmPassword: "",
 });
+
+/** Qué herramientas le tocan según lo que ofrece */
+const vendeProd = computed(() => vendeProductos(form.value));
+const ofreceServ = computed(() => ofreceServicios(form.value));
+/** Las zonas se piden si hace envíos de productos o atiende a domicilio (cobertura) */
+const mostrarZonas = computed(
+  () => (vendeProd.value && form.value.envioDomicilio) || (ofreceServ.value && atiendeADomicilio(form.value.modalidadAtencion)),
+);
 
 // ------------------- BANNER -------------------
 const bannerPreview = ref<string | null>(null);
@@ -1092,6 +1165,8 @@ const { crearTienda } = useTiendas();
  * correo vienen llenos: la tienda nueva queda en la misma cuenta.
  */
 const sesionCuenta = leerSesionTienda();
+/** true = llegó desde "Agregar otra tienda": ya está identificada y la tienda nueva usa la contraseña de su cuenta */
+const agregandoACuenta = !!sesionCuenta;
 if (sesionCuenta) {
   form.value.telefono = String(sesionCuenta.telefono || "").replace(/\D/g, "").slice(0, 10);
   form.value.email = sesionCuenta.email || "";
@@ -1102,6 +1177,13 @@ const emailInicial = form.value.email;
 
 /** El error de teléfono para una tienda nueva, o "" si se puede registrar */
 async function errorTelefonoCuenta(): Promise<string> {
+  if (agregandoACuenta) {
+    // Sin contraseña que revisar: solo que haya lugar (el número viene de su sesión y no se puede cambiar)
+    const r = await revisarAgregarACuenta(form.value.telefono);
+    if (r === "limite") return MENSAJE_LIMITE_TIENDAS;
+    if (r === "sin-cuenta") return MENSAJE_SIN_CUENTA;
+    return "";
+  }
   const revision = await revisarTelefonoNuevaTienda(form.value.telefono, form.value.password);
   if (revision === "limite") return MENSAJE_LIMITE_TIENDAS;
   if (revision === "password") return MENSAJE_PASSWORD_CUENTA;
@@ -1130,25 +1212,29 @@ async function validateStep() {
     if (!form.value.nombreTienda)
       errors.value.nombreTienda = "El nombre es obligatorio";
 
-    if (!form.value.categoria)
+    if (vendeProd.value && !form.value.categoria)
       errors.value.categoria = "Seleccione una categoría";
+    if (ofreceServ.value && !form.value.categoriaServicio)
+      errors.value.categoriaServicio = "Seleccione una categoría de servicios";
 
     if (!form.value.descripcion)
       errors.value.descripcion = "La descripción es obligatoria";
 
     if (!form.value.logo) errors.value.logo = "Debe subir un logotipo";
 
-    if (!form.value.password)
-      errors.value.password = "La contraseña es obligatoria";
-    else {
-      const err = errorLongitudPassword(form.value.password);
-      if (err) errors.value.password = err;
-    }
+    if (!agregandoACuenta) {
+      if (!form.value.password)
+        errors.value.password = "La contraseña es obligatoria";
+      else {
+        const err = errorLongitudPassword(form.value.password);
+        if (err) errors.value.password = err;
+      }
 
-    if (!form.value.confirmPassword)
-      errors.value.confirmPassword = "Confirme su contraseña";
-    else if (form.value.password !== form.value.confirmPassword)
-      errors.value.confirmPassword = "Las contraseñas no coinciden";
+      if (!form.value.confirmPassword)
+        errors.value.confirmPassword = "Confirme su contraseña";
+      else if (form.value.password !== form.value.confirmPassword)
+        errors.value.confirmPassword = "Las contraseñas no coinciden";
+    }
   }
   if (step.value === 2) {
     // Validaciones existentes
@@ -1203,6 +1289,9 @@ async function validateStep() {
   if (step.value === 4) {
     if (form.value.metodosPago.length === 0)
       errors.value.metodosPago = "Seleccione al menos un método de pago";
+    // Quien atiende a domicilio dice dónde (la cobertura)
+    if (ofreceServ.value && !vendeProd.value && atiendeADomicilio(form.value.modalidadAtencion) && form.value.zonasEntrega.length === 0)
+      errors.value.zonas = "Agrega al menos una zona de cobertura";
     const horariosCompletos = Object.values(form.value.horario).some(
       (h) => h.inicio && h.fin
     );
@@ -1341,7 +1430,14 @@ async function submitStore() {
       return;
     }
 
-    const hashedPassword = await hashPassword(form.value.password);
+    // Al agregar otra tienda a su cuenta se reutiliza la contraseña (hash) que ya tienen sus otras tiendas
+    const hashedPassword = agregandoACuenta ? await hashDeCuenta(form.value.telefono) : await hashPassword(form.value.password);
+    if (!hashedPassword) {
+      errors.value.telefono = MENSAJE_SIN_CUENTA;
+      avisar(MENSAJE_SIN_CUENTA, "error");
+      enviando.value = false;
+      return;
+    }
 
     // Buscar el nombre de la categoría seleccionada
     const categoriaObj = categorias.value.find(
@@ -1350,7 +1446,11 @@ async function submitStore() {
 
     // Los enlaces se guardan ya normalizados (https, sin esquemas raros) y las
     // casillas no se guardan: son del formulario, no de la tienda.
-    const { conEnlaceFacebook, conEnlaceInstagram, ...datos } = form.value;
+    // La confirmación de la contraseña es solo del formulario: nunca viaja a la base
+    const { conEnlaceFacebook, conEnlaceInstagram, especialidadesTexto, modalidadAtencion, categoriaServicio, experiencia, confirmPassword: _confirmacion, ...datos } = form.value;
+    const tipo = form.value.tipoNegocio;
+    const conServicios = ofreceServicios(form.value);
+    const envioDomicilio = envioDomicilioDe(tipo, modalidadAtencion, form.value.envioDomicilio);
 
     const aceptacion = aceptacionActual();
     const nuevaId = await crearTienda({
@@ -1363,8 +1463,16 @@ async function submitStore() {
       password: hashedPassword,
       logoFile: form.value.logo ?? undefined,
       galleryFiles: form.value.gallery,
-      categoriaId: form.value.categoria, // el id
-      categoria: categoriaObj?.nombre ?? "", // el nombre
+      // Tienda de solo servicios: su categoría es la de servicios (no hay catálogo de productos)
+      categoriaId: vendeProd.value ? form.value.categoria : "", // el id
+      categoria: vendeProd.value ? categoriaObj?.nombre ?? "" : nombreCategoriaServicio(categoriaServicio), // el nombre
+      tipoNegocio: tipo,
+      envioDomicilio,
+      zonasEntrega: envioDomicilio ? form.value.zonasEntrega : [],
+      // Datos propios de los servicios: solo si los ofrece (Firebase no admite undefined)
+      ...(conServicios
+        ? { modalidadAtencion, categoriaServicio, especialidades: listaDeTexto(especialidadesTexto), experiencia: experiencia.trim() }
+        : {}),
       bannerFile: form.value.banner ?? undefined,
     });
     // El aviso se ve un momento antes de mandar al login, si no la pantalla
@@ -2170,4 +2278,34 @@ select:focus {
 .terminos-tienda a { color: var(--brand-blue-text); font-weight: 600; }
 .terminos-error { color: #d93025; }
 .terminos-msg { display: block; margin-top: 4px; color: #d93025; font-size: 0.82rem; }
+
+/* ¿Qué ofreces? */
+.tipo-negocio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tipo-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.tipo-card input { position: absolute; opacity: 0; pointer-events: none; }
+.tipo-card.activo { border-color: var(--brand-blue-text); background: var(--brand-blue-soft); }
+.tipo-card:has(input:focus-visible) { outline: 2px solid var(--brand-blue-text); outline-offset: 2px; }
+.tipo-icono { font-size: 1.5rem; }
+.tipo-card small { color: var(--text-muted); font-size: 0.75rem; line-height: 1.3; }
+@media (max-width: 520px) {
+  .tipo-negocio { grid-template-columns: 1fr; }
+  .tipo-card { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .tipo-card small { flex-basis: 100%; }
+}
+
+.nota-cuenta p { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--brand-blue-soft); color: var(--text); font-size: 0.88rem; line-height: 1.45; text-align: left; }
+.nota-cuenta strong { color: var(--brand-blue-text); }
 </style>
