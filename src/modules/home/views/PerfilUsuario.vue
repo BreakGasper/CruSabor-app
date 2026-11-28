@@ -117,6 +117,9 @@
         <TiendasFavoritas :limit="3" />
       </div>
 
+      <!-- Sorteos patrocinados por tiendas (no ocupa espacio si no hay ninguno) -->
+      <SorteosCliente />
+
       <div ref="direccionesRef" class="section-card">
         <div class="header-row">
           <span>Ubicaciones</span>
@@ -187,6 +190,7 @@
 
 <script setup lang="ts">
 import VersionApp from "@/components/VersionApp.vue";
+import SorteosCliente from "@/modules/home/components/SorteosCliente.vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 
 import { computed, onMounted, ref, watch } from "vue";
