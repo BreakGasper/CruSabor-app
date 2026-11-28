@@ -79,6 +79,7 @@
               </label>
               <small>Gratis y sin salir de tu teléfono. Funciona mejor con el producto sobre un fondo liso (blanco, pared, mesa de un color).</small>
               <small v-if="avisoFondo" class="error-msg" role="alert" data-testid="aviso-fondo">{{ avisoFondo }}</small>
+              <button v-if="hayFoto" type="button" class="btn-txt" data-testid="quitar-fondo-ia" @click="abrirToque()">✨ ¿Fondo complicado? Quitarlo con IA (toca el producto)</button>
             </div>
 
             <!-- Escena inventada por la IA (solo aparece si el servidor la tiene conectada) -->
@@ -151,6 +152,26 @@
         </section>
       </template>
     </main>
+
+    <!-- Quitar el fondo con IA: la persona toca el producto y el modelo dibuja su silueta (todo en el teléfono) -->
+    <div v-if="toque.abierto" class="dialog-overlay" data-testid="dialogo-toque" @click.self="cerrarToque">
+      <section class="dialogo-toque" role="dialog" aria-modal="true" aria-label="Quitar el fondo con IA">
+        <header>
+          <strong>✨ Toca el producto</strong>
+          <button type="button" class="cerrar" aria-label="Cerrar" :disabled="toque.procesando" @click="cerrarToque">✕</button>
+        </header>
+        <p class="hint">Toca la foto justo encima de tu producto. La IA recorta solo lo que toques y quita el resto.</p>
+        <div class="toque-marco">
+          <img ref="imgToque" :src="toque.src" alt="Tu foto" data-testid="foto-toque" @click="alTocar" />
+          <i v-if="toque.punto" class="toque-punto" :style="{ left: toque.punto.px + '%', top: toque.punto.py + '%' }"></i>
+        </div>
+        <p v-if="toque.procesando" class="ok-msg" role="status" data-testid="toque-procesando">Recortando… la primera vez descarga la herramienta (unos 15 MB), después es inmediato.</p>
+        <p v-if="toque.error" class="error-msg" role="alert" data-testid="toque-error">{{ toque.error }}</p>
+        <div class="acciones-escena">
+          <button type="button" class="btn-sec" :disabled="toque.procesando" data-testid="usar-foto-completa" @click="usarCompleta">Usar la foto completa</button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -185,6 +206,7 @@ import {
 } from '@/composables/usePublicaciones';
 import { canvasABlob, dibujarPublicacion } from '../utils/dibujarPublicacion';
 import { recortarFondo } from '../utils/quitarFondo';
+import { ErrorRecorteIA, quitarFondoConIA } from '../utils/recortarConIA';
 import { recortarFoto } from '@/utils/recortarFoto';
 import { ESTILOS_ESCENA, ErrorEscena, estadoEscenas, generarEscena } from '../utils/escenas';
 
@@ -208,6 +230,12 @@ const articuloId = ref('');
 let foto: HTMLImageElement | null = null;
 let fotoRecorte: HTMLCanvasElement | null = null; // la misma foto sin fondo (se calcula al pedirlo)
 const sinFondo = ref(false);
+let recorteIA: HTMLCanvasElement | null = null; // silueta dibujada por la IA al tocar el producto (para la foto actual)
+let usarFotoCompleta = false; // escena detrás de la foto sin recortar (enmarcada)
+const hayFoto = ref(false);
+const imgToque = ref<HTMLImageElement | null>(null);
+const toque = reactive({ abierto: false, src: '', punto: null as null | { px: number; py: number }, procesando: false, error: '' });
+let alTerminarToque: (() => void) | null = null;
 let escena: HTMLImageElement | null = null; // fondo inventado por la IA
 const ia = reactive({ activo: false, restantesHoy: 0 });
 const estiloEscena = ref(ESTILOS_ESCENA[0].id);
@@ -250,6 +278,10 @@ function prepararRecorte() {
   avisoFondo.value = '';
   fotoRecorte = null;
   if (!sinFondo.value || !foto) return;
+  if (recorteIA) {
+    fotoRecorte = recorteIA;
+    return;
+  }
   const r = recortarFondo(foto);
   if (r.canvas) fotoRecorte = r.canvas;
   else avisoFondo.value = r.motivo || 'No se pudo quitar el fondo de esta foto.';
@@ -261,7 +293,7 @@ function redibujar() {
   dibujarPublicacion(lienzo.value, {
     foto: recortada ? fotoRecorte : foto,
     recortada,
-    escena: recortada ? escena : null, // la escena solo se usa con el producto recortado
+    escena: recortada || usarFotoCompleta ? escena : null, // con el producto recortado, o con la foto completa enmarcada
     plantilla: form.plantilla,
     formato: form.formato,
     titulo: form.titulo || 'Título de tu publicación',
@@ -276,6 +308,64 @@ watch(sinFondo, () => {
   prepararRecorte();
   redibujar();
 });
+
+/** Una foto nueva borra lo que se había recortado de la anterior */
+function nuevaFoto() {
+  recorteIA = null;
+  usarFotoCompleta = false;
+  hayFoto.value = !!foto;
+}
+
+function abrirToque(despues: (() => void) | null = null) {
+  if (!foto) return;
+  alTerminarToque = despues;
+  toque.src = foto.src;
+  toque.punto = null;
+  toque.error = '';
+  toque.procesando = false;
+  toque.abierto = true;
+}
+function cerrarToque() {
+  if (toque.procesando) return;
+  toque.abierto = false;
+  alTerminarToque = null;
+}
+
+/** La persona tocó la foto: se calcula dónde (de 0 a 1) y se pide la silueta */
+async function alTocar(e: MouseEvent) {
+  if (toque.procesando || !foto || !imgToque.value) return;
+  const r = imgToque.value.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  toque.punto = { px: x * 100, py: y * 100 };
+  toque.error = '';
+  toque.procesando = true;
+  try {
+    recorteIA = await quitarFondoConIA(foto, { x, y });
+    usarFotoCompleta = false;
+    sinFondo.value = true;
+    prepararRecorte();
+    redibujar();
+    const seguir = alTerminarToque;
+    toque.abierto = false;
+    alTerminarToque = null;
+    seguir?.();
+  } catch (err: any) {
+    toque.error = err instanceof ErrorRecorteIA ? err.message : 'No se pudo recortar esa foto. Intenta de nuevo.';
+  } finally {
+    toque.procesando = false;
+  }
+}
+
+/** Sin recortar: la escena va detrás de la foto completa, enmarcada */
+function usarCompleta() {
+  usarFotoCompleta = true;
+  const seguir = alTerminarToque;
+  toque.abierto = false;
+  alTerminarToque = null;
+  redibujar();
+  seguir?.();
+}
 
 function elegirEstilo(id: string) {
   estiloEscena.value = id;
@@ -295,11 +385,12 @@ async function inventarEscena() {
     avisoEscena.value = 'Sube primero la foto de tu producto.';
     return;
   }
-  if (!sinFondo.value || !fotoRecorte) {
+  // El producto se recorta para pegarlo sobre la escena: primero por fondo liso y, si no se puede, la persona lo toca
+  if (!usarFotoCompleta && (!sinFondo.value || !fotoRecorte)) {
     sinFondo.value = true;
     prepararRecorte();
     if (!fotoRecorte) {
-      avisoEscena.value = avisoFondo.value || 'Para inventar una escena la foto necesita un fondo liso: así se recorta el producto y se pega sobre la escena.';
+      abrirToque(() => void inventarEscena());
       return;
     }
   }
@@ -360,6 +451,7 @@ async function alElegirFoto(e: Event) {
     urlFotoLocal = URL.createObjectURL(recortada);
     foto = await cargarImagen(urlFotoLocal, false);
     articuloId.value = '';
+    nuevaFoto();
     prepararRecorte();
     redibujar();
   } catch (err: any) {
@@ -381,6 +473,7 @@ async function alElegirArticulo() {
     foto = null;
     error.value = 'No se pudo usar la foto de ese artículo. Sube una foto desde tu teléfono.';
   }
+  nuevaFoto();
   prepararRecorte();
   redibujar();
 }
@@ -519,6 +612,15 @@ const fecha = (iso: string) => {
 .pub-container { min-height: 100vh; background: var(--bg-page); }
 .pub-main { max-width: 1000px; margin: 0 auto; padding: 16px; }
 .hint, .aviso { color: var(--text-muted); font-size: 0.95rem; margin: 8px 0 14px; }
+.dialog-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, 0.55); }
+@media (min-width: 640px) { .dialog-overlay { align-items: center; padding: 16px; } }
+.dialogo-toque { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 18px; border-radius: 22px 22px 0 0; background: var(--surface); color: var(--text); display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 640px) { .dialogo-toque { border-radius: 22px; } }
+.dialogo-toque header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dialogo-toque .cerrar { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; padding: 0; }
+.toque-marco { position: relative; align-self: center; max-width: 100%; line-height: 0; border-radius: 12px; overflow: hidden; cursor: crosshair; }
+.toque-marco img { display: block; max-width: 100%; max-height: 55vh; width: auto; height: auto; }
+.toque-punto { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid #fff; background: rgba(214, 40, 40, 0.85); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); pointer-events: none; }
 .acciones-escena { display: flex; gap: 8px; flex-wrap: wrap; }
 .casilla { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 .pestanas { display: flex; gap: 8px; margin-bottom: 16px; }

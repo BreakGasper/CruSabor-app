@@ -25,3 +25,14 @@ Nunca pegues el token en el código, en el repositorio ni en un chat: solo en la
 - El servidor completa el texto con reglas fijas (sin gente, sin letras, espacio libre al centro).
 - Topes por persona y por día para no agotar la cuota; si la IA falla no se gasta el cupo.
 - Código: `src/services/escenas/`, `src/modules/store/utils/{escenas,quitarFondo,dibujarPublicacion}.ts`.
+
+## Quitar el fondo de cualquier foto (toca el producto)
+
+Cuando el fondo no es liso, «Crear publicación» ofrece **«Quitar el fondo con IA»**: la persona toca el producto y un modelo de
+segmentación de Google MediaPipe (licencia Apache-2.0) dibuja su silueta. Corre **en el teléfono**: la foto no se envía a ningún servidor.
+
+- Archivos: `public/mediapipe/wasm/vision_wasm_internal.{js,wasm}` y `public/mediapipe/magic_touch.tflite` (unos 16 MB en total).
+  Solo se descargan la primera vez que alguien usa la herramienta; el resto de la app no los pide.
+- Código: `src/modules/store/utils/recortarConIA.ts` (paquete `@mediapipe/tasks-vision`).
+- Si la persona prefiere no recortar, «Usar la foto completa» pone la escena detrás de la foto enmarcada.
+- Para actualizar el modelo o el runtime, reemplaza esos archivos y la versión del paquete a la vez (deben ser compatibles).
